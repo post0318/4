@@ -10,7 +10,7 @@ import {
   toISODate,
   today,
 } from "@/lib/ntnfPricing";
-import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
+import { computeOrder, isValidOrderInputs, settleOrder } from "@/lib/quantity";
 import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 
 export function OrderConsole() {
@@ -25,6 +25,8 @@ export function OrderConsole() {
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  // 실제 주문수량 override. 값이 없으면 매수가능수량을 그대로 쓴다.
+  const [orderQtys, setOrderQtys] = useState<Record<string, string>>({});
   const [defaultTo, setDefaultTo] = useState("");
 
   const applyFxResponse = useCallback((d: FxRates & { error?: string }) => {
@@ -107,6 +109,10 @@ export function OrderConsole() {
     setAmounts((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const changeOrderQty = useCallback((key: string, value: string) => {
+    setOrderQtys((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   const rows: BondRow[] = useMemo(() => {
     return bonds.map((bond) => {
       const key = bond.maturityDate;
@@ -118,6 +124,7 @@ export function OrderConsole() {
           : computeNtnfPu(bond.maturityDate, bond.buyYieldPct, settlement);
 
       let order = null;
+      let settled = null;
       if (checked && fx && pu !== null) {
         const inputs = {
           krwAmount: Number(krwInput),
@@ -125,16 +132,54 @@ export function OrderConsole() {
           usdBrl: fx.usdBrl,
           pu,
         };
-        if (isValidOrderInputs(inputs)) order = computeOrder(inputs);
+        if (isValidOrderInputs(inputs)) {
+          order = computeOrder(inputs);
+          const override = orderQtys[key];
+          const effectiveQty =
+            override !== undefined && override !== ""
+              ? Number(override)
+              : order.quantity;
+          settled = settleOrder(inputs, effectiveQty);
+        }
       }
 
-      return { key, bond, checked, krwInput, pu, order };
+      // 입력칸에 보여줄 값: 손대기 전엔 매수가능수량을 따라간다
+      const override = orderQtys[key];
+      const orderQtyInput =
+        override !== undefined
+          ? override
+          : order
+            ? String(order.quantity)
+            : "";
+      const orderQtyExceeds =
+        !!order && !!settled && settled.quantity > order.quantity;
+
+      return {
+        key,
+        bond,
+        checked,
+        krwInput,
+        pu,
+        order,
+        orderQtyInput,
+        settled,
+        orderQtyExceeds,
+      };
     });
-  }, [bonds, checkedKeys, amounts, fx, settlement]);
+  }, [bonds, checkedKeys, amounts, orderQtys, fx, settlement]);
 
   const pendingLines: PendingLine[] = useMemo(() => {
     return rows
-      .filter((r) => r.checked && r.order && r.pu !== null && r.bond.buyYieldPct !== null)
+      .filter(
+        (r) =>
+          r.checked &&
+          r.order &&
+          r.settled &&
+          r.settled.quantity >= 1 &&
+          !r.orderQtyExceeds &&
+          r.pu !== null &&
+          r.bond.buyYieldPct !== null
+      )
       .map((r) => ({
         isin: r.bond.isin ?? "",
         isinVerified: r.bond.isinVerified,
@@ -145,11 +190,20 @@ export function OrderConsole() {
         krwAmount: Number(r.krwInput),
         pu: r.pu as number,
         quantity: (r.order as NonNullable<BondRow["order"]>).quantity,
+        orderQuantity: (r.settled as NonNullable<BondRow["settled"]>).quantity,
       }));
   }, [rows]);
 
   const incompleteCount = useMemo(
-    () => rows.filter((r) => r.checked && !r.order).length,
+    () =>
+      rows.filter(
+        (r) =>
+          r.checked &&
+          (!r.order ||
+            !r.settled ||
+            r.settled.quantity < 1 ||
+            r.orderQtyExceeds)
+      ).length,
     [rows]
   );
 
@@ -175,6 +229,7 @@ export function OrderConsole() {
         settlementDate={settlementDate}
         onToggle={toggle}
         onAmountChange={changeAmount}
+        onOrderQtyChange={changeOrderQty}
       />
 
       <OrderReview

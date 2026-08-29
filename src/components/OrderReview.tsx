@@ -14,7 +14,10 @@ export interface PendingLine {
   buyYieldPct: number;
   krwAmount: number;
   pu: number;
+  /** 매수가능수량 (투자금액 기준 최대) */
   quantity: number;
+  /** 실제 주문수량 */
+  orderQuantity: number;
 }
 
 interface OrderReviewProps {
@@ -46,7 +49,13 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
   const signature = useMemo(
     () =>
       JSON.stringify(
-        lines.map((l) => [l.maturityDate, l.krwAmount, l.quantity, l.pu])
+        lines.map((l) => [
+          l.maturityDate,
+          l.krwAmount,
+          l.quantity,
+          l.orderQuantity,
+          l.pu,
+        ])
       ),
     [lines]
   );
@@ -116,7 +125,11 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
             <ul className="mt-1 space-y-0.5 text-xs text-zinc-600 dark:text-zinc-400">
               {lines.map((l) => (
                 <li key={l.maturityDate}>
-                  {l.nameKo} — {fmtInt(l.quantity)}좌 (₩ {fmtInt(l.krwAmount)})
+                  {l.nameKo} — 주문 {fmtInt(l.orderQuantity)}좌
+                  {l.orderQuantity !== l.quantity
+                    ? ` / 매수가능 ${fmtInt(l.quantity)}좌`
+                    : ""}{" "}
+                  (₩ {fmtInt(l.krwAmount)})
                 </li>
               ))}
             </ul>
@@ -228,8 +241,9 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
                     <span>매수수익률 연 {fmtNum(l.buyYieldPct, 2)}%</span>
                     <span>PU R$ {fmtNum(l.pu, 4)}</span>
                     <span>투자금액 ₩ {fmtInt(l.krwAmount)}</span>
+                    <span>매수가능수량 {fmtInt(l.quantity)}좌</span>
                     <span className="font-bold text-blue-700 dark:text-blue-300">
-                      매수가능수량 {fmtInt(l.quantity)}좌
+                      주문수량 {fmtInt(l.orderQuantity)}좌
                     </span>
                   </div>
                 </li>

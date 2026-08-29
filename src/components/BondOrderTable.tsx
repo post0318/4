@@ -1,7 +1,7 @@
 "use client";
 
-import { fmtInt, fmtNum, groupDigits } from "@/lib/format";
-import type { OrderResult } from "@/lib/quantity";
+import { digitsOnly, fmtInt, fmtNum, groupDigits } from "@/lib/format";
+import type { OrderCost, OrderResult } from "@/lib/quantity";
 import type { BondItem } from "@/lib/types";
 
 export interface BondRow {
@@ -10,7 +10,14 @@ export interface BondRow {
   checked: boolean;
   krwInput: string;
   pu: number | null;
+  /** 투자금액 기준 매수가능수량 등 */
   order: OrderResult | null;
+  /** 실제 주문수량 입력값 (빈 값이면 매수가능수량으로 간주) */
+  orderQtyInput: string;
+  /** 실제 주문수량 기준 실매수금액 */
+  settled: OrderCost | null;
+  /** 주문수량이 매수가능수량을 초과 */
+  orderQtyExceeds: boolean;
 }
 
 interface BondOrderTableProps {
@@ -22,12 +29,14 @@ interface BondOrderTableProps {
   settlementDate: string;
   onToggle: (key: string) => void;
   onAmountChange: (key: string, value: string) => void;
+  onOrderQtyChange: (key: string, value: string) => void;
 }
 
 /**
  * 브라질국채(NTN-F) 전 종목을 표로 표시한다 (요구사항 2·3).
  * 각 행: [체크박스] 종목명·ISIN·만기·매수수익률 + (체크 시) 원화투자금액
- * 입력 → 달러환전액·PU·매수가능수량·실매수금액을 같은 행의 열로 산출.
+ * 입력 → 달러환전액·PU·매수가능수량을 산출하고, 실제 주문수량(기본값 = 매수가능수량)을
+ * 조정하면 그 수량 기준 실매수금액을 낸다.
  * 체크된 종목만 활성화되고 이메일 발송 대상이 된다.
  */
 export function BondOrderTable({
@@ -39,6 +48,7 @@ export function BondOrderTable({
   settlementDate,
   onToggle,
   onAmountChange,
+  onOrderQtyChange,
 }: BondOrderTableProps) {
   const th =
     "px-2 py-2 text-left font-semibold text-zinc-500 dark:text-zinc-400 whitespace-nowrap";
@@ -74,8 +84,8 @@ export function BondOrderTable({
                 <th className={`${th} text-right`}>달러($)</th>
                 <th className={`${th} text-right`}>PU (R$)</th>
                 <th className={`${th} text-right`}>매수가능수량</th>
+                <th className={`${th} text-right`}>실제주문수량</th>
                 <th className={`${th} text-right`}>실매수금액(₩)</th>
-                <th className={`${th} text-right`}>잔여(₩)</th>
               </tr>
             </thead>
             <tbody>
@@ -119,10 +129,7 @@ export function BondOrderTable({
                         value={groupDigits(row.krwInput)}
                         disabled={!row.checked}
                         onChange={(e) =>
-                          onAmountChange(
-                            row.key,
-                            e.target.value.replace(/[^\d]/g, "")
-                          )
+                          onAmountChange(row.key, digitsOnly(e.target.value))
                         }
                         maxLength={14}
                         placeholder={row.checked ? "예: 10,000,000" : ""}
@@ -135,20 +142,28 @@ export function BondOrderTable({
                     <td className={`${td} ${dim} text-right`}>
                       {row.pu !== null ? fmtNum(row.pu, 4) : "-"}
                     </td>
-                    <td
-                      className={`${td} text-right ${
-                        row.checked && order
-                          ? "font-bold text-blue-700 dark:text-blue-300"
-                          : dim
-                      }`}
-                    >
+                    <td className={`${td} ${dim} text-right`}>
                       {order ? `${fmtInt(order.quantity)} 좌` : "-"}
                     </td>
-                    <td className={`${td} ${dim} text-right`}>
-                      {order ? `₩ ${fmtInt(order.krwCost)}` : "-"}
+                    <td className={`${td} text-right`}>
+                      <input
+                        inputMode="numeric"
+                        value={order ? groupDigits(row.orderQtyInput) : ""}
+                        disabled={!row.checked || !order}
+                        onChange={(e) =>
+                          onOrderQtyChange(row.key, digitsOnly(e.target.value))
+                        }
+                        maxLength={9}
+                        aria-invalid={row.orderQtyExceeds}
+                        className={`w-[4.5rem] rounded border px-1 py-1 text-right font-bold tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:font-normal disabled:text-zinc-300 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900 ${
+                          row.orderQtyExceeds
+                            ? "border-red-400 text-red-600 dark:text-red-400"
+                            : "border-zinc-300 text-blue-700 dark:border-zinc-700 dark:text-blue-300"
+                        }`}
+                      />
                     </td>
                     <td className={`${td} ${dim} text-right`}>
-                      {order ? `₩ ${fmtInt(order.krwLeftover)}` : "-"}
+                      {row.settled ? `₩ ${fmtInt(row.settled.krwCost)}` : "-"}
                     </td>
                   </tr>
                 );
@@ -171,8 +186,9 @@ export function BondOrderTable({
         </p>
       )}
       <p className="mt-2 text-[11px] text-zinc-400">
-        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 매수가능수량은
-        헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).
+        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다.
+        매수가능수량은 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000). 실제주문수량은
+        기본값이 매수가능수량이며 그 이하로 조정할 수 있습니다.
       </p>
     </section>
   );

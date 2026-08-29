@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   buildOrderEmail,
-  type BondOrderLine,
+  DEFAULT_GREETING,
+  DEFAULT_SIGNATURE,
   type OrderEmailData,
+  type OrderEmailLine,
 } from "@/lib/orderEmail";
 import {
   computeNtnfPu,
@@ -25,6 +27,10 @@ export const runtime = "nodejs";
  */
 
 const DEFAULT_TO = process.env.ORDER_EMAIL_TO ?? "";
+// 환경변수는 리터럴 "\n"을 줄바꿈으로 해석한다
+const GREETING =
+  process.env.ORDER_EMAIL_GREETING?.replace(/\\n/g, "\n") ?? DEFAULT_GREETING;
+const SIGNATURE = process.env.ORDER_EMAIL_SIGNATURE ?? DEFAULT_SIGNATURE;
 
 interface IncomingLine {
   isin: string;
@@ -35,7 +41,10 @@ interface IncomingLine {
   buyYieldPct: number;
   krwAmount: number;
   pu: number;
+  /** 클라이언트가 계산한 매수가능수량 (대조용) */
   quantity: number;
+  /** 사용자가 지정한 실제 주문수량 */
+  orderQuantity: number;
 }
 
 interface SendOrderBody {
@@ -100,7 +109,7 @@ export async function POST(request: NextRequest) {
   const settlement = getOrderSettlementDate();
   const settlementDate = toISODate(settlement);
 
-  const resultLines: BondOrderLine[] = [];
+  const resultLines: OrderEmailLine[] = [];
   const mismatches: unknown[] = [];
 
   for (const line of lines) {
@@ -144,21 +153,26 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    const orderQuantity = Math.trunc(line.orderQuantity);
+    if (
+      !Number.isFinite(orderQuantity) ||
+      orderQuantity < 1 ||
+      orderQuantity > r.quantity
+    ) {
+      return NextResponse.json(
+        {
+          error: `실제 주문수량이 올바르지 않습니다: ${line.nameKo} (1~${r.quantity}좌)`,
+        },
+        { status: 422 }
+      );
+    }
+
     resultLines.push({
       isin: line.isin,
       isinVerified: line.isinVerified,
-      nameKo: line.nameKo,
-      namePt: line.namePt,
       maturityDate: line.maturityDate,
-      buyYieldPct: line.buyYieldPct,
-      krwAmount: line.krwAmount,
       usdAmount: r.usdAmount,
-      brlAmount: r.brlAmount,
-      pu,
-      quantity: r.quantity,
-      brlCost: r.brlCost,
-      krwCost: r.krwCost,
-      krwLeftover: r.krwLeftover,
+      quantity: orderQuantity,
     });
   }
 
@@ -175,8 +189,8 @@ export async function POST(request: NextRequest) {
 
   const emailData: OrderEmailData = {
     orderDate: toISODate(today()),
-    settlementDate,
-    fx,
+    greeting: GREETING,
+    signature: SIGNATURE,
     lines: resultLines,
     note: note?.trim() || undefined,
   };

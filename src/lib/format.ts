@@ -11,6 +11,11 @@ export function fmtInt(n: number | null | undefined): string {
   return Math.round(n).toLocaleString("ko-KR");
 }
 
+/** 입력값에서 숫자만 남기고 앞자리 0을 제거한다. 숫자 입력창 정규화용. */
+export function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+}
+
 /** 숫자만 있는 문자열에 천 단위 콤마를 넣는다. 입력창 표시용. */
 export function groupDigits(digits: string): string {
   if (!digits) return "";

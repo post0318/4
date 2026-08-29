@@ -5,6 +5,10 @@
  * R$1,000). 환율은 모두 중간환율(스프레드 미반영)이며, 화면에 그 사실을 명시한다.
  * KRW→USD→BRL 경로만 쓰고 KRW/BRL은 usdBrl/usdKrw로 파생해 표시값과 계산을
  * 일치시킨다.
+ *
+ * computeOrder는 투자금액으로 살 수 있는 최대 수량(매수가능수량)을 낸다.
+ * 실제 주문수량은 사용자가 그보다 줄여 넣을 수 있고, 그 수량 기준 실매수금액은
+ * settleOrder로 따로 산출한다.
  */
 
 export interface OrderInputs {
@@ -25,12 +29,17 @@ export interface OrderResult {
   brlAmount: number;
   /** 매수가능수량 (정수, 좌) */
   quantity: number;
+}
+
+export interface OrderCost {
+  /** 실제 주문수량 (정수, 좌) */
+  quantity: number;
   /** 실매수금액 (BRL) = quantity * pu */
   brlCost: number;
+  /** 실매수금액 (USD 환산) */
+  usdCost: number;
   /** 실매수금액 (KRW 환산) */
   krwCost: number;
-  /** 잔여현금 (KRW 환산) */
-  krwLeftover: number;
 }
 
 function round(value: number, digits: number): number {
@@ -57,13 +66,16 @@ export function computeOrder(input: OrderInputs): OrderResult {
 
   const usdAmount = round(krwAmount / usdKrw, 2);
   const brlAmount = round(usdAmount * usdBrl, 2);
-
   const quantity = Math.floor(brlAmount / pu);
 
-  const brlCost = round(quantity * pu, 2);
-  const usdCost = round(brlCost / usdBrl, 2);
-  const krwCost = Math.round(usdCost * usdKrw);
-  const krwLeftover = Math.round(krwAmount - krwCost);
+  return { usdAmount, brlAmount, quantity };
+}
 
-  return { usdAmount, brlAmount, quantity, brlCost, krwCost, krwLeftover };
+/** 주어진 주문수량(정수 좌) 기준 실매수금액을 BRL·USD·KRW로 산출한다. */
+export function settleOrder(input: OrderInputs, quantity: number): OrderCost {
+  const q = Math.max(0, Math.trunc(quantity));
+  const brlCost = round(q * input.pu, 2);
+  const usdCost = round(brlCost / input.usdBrl, 2);
+  const krwCost = Math.round(usdCost * input.usdKrw);
+  return { quantity: q, brlCost, usdCost, krwCost };
 }
