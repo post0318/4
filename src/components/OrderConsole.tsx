@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
 import { CurrencyExchange } from "@/components/CurrencyExchange";
+import { SimulationPanel } from "@/components/SimulationPanel";
+import { DurationPanel } from "@/components/DurationPanel";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
@@ -28,7 +30,7 @@ export function OrderConsole() {
   const [bondError, setBondError] = useState<string | null>(null);
 
   const [tab, setTab] = useState<
-    "market" | "trading" | "cashflow" | "simulation"
+    "market" | "trading" | "cashflow" | "simulation" | "duration"
   >("market");
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
@@ -240,6 +242,7 @@ export function OrderConsole() {
     { key: "trading" as const, label: "트레이딩" },
     { key: "cashflow" as const, label: "현금흐름" },
     { key: "simulation" as const, label: "시뮬레이션" },
+    { key: "duration" as const, label: "듀레이션" },
   ];
 
   return (
@@ -363,11 +366,9 @@ export function OrderConsole() {
 
       {tab === "cashflow" && <CashFlowPanel />}
 
-      {tab === "simulation" && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          시뮬레이션 준비 중입니다.
-        </section>
-      )}
+      {tab === "simulation" && <SimulationPanel bonds={bonds} fx={fx} />}
+
+      {tab === "duration" && <DurationPanel bonds={bonds} />}
     </div>
   );
 }
