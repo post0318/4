@@ -34,6 +34,12 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/lib/ntnfMeta.ts` — 만기연도 → ISIN·종목명 정적 맵 (2037 ISIN 미확인)
 - `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수
 - `src/lib/orderEmail.ts` — 주문 이메일 제목/본문 생성
+- `src/lib/ntnfSimulation.ts` — 중도해지/갈아타기/롤오버 시나리오 수익률(헤알·원화)과
+  자본·이자·환율 기여도 분해. 쿠폰은 해당 종목 금리로 재투자 가정. `SimulationPanel`
+- `src/lib/ntnfDuration.ts` — PU 공식 수치미분으로 수정듀레이션·컨벡시티·DV01,
+  금리·환율 쇼크 시 가격/원화가치 변동. `DurationPanel`
+- 탭: 시장정보 · 트레이딩 · 현금흐름 · 시뮬레이션 · 듀레이션 (`OrderConsole`)
+- `src/components/CurrencyExchange.tsx` — 원화금액÷고시환율=달러금액 계산기(시장정보 탭)
 - `src/app/api/fx-rates` — USD/KRW·USD/BRL 조회, KRW/BRL 파생
 - `src/app/api/fx-history` — 7년치 일간 환율 추이(Frankfurter 시계열, 12h 재검증)
 - `src/app/api/br-selic` — 브라질 기준금리(Selic) 7년 추이(BCB SGS 432, 무인증)
