@@ -33,6 +33,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   const [ntnf, setNtnf] = useState<ChartSeries | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState<string | null>(null);
+  const [staleWarning, setStaleWarning] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +60,14 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
           ntnfRes.status === "fulfilled" &&
           Array.isArray(ntnfRes.value?.dates)
         ) {
-          setNtnf(ntnfRes.value as ChartSeries);
+          const s = ntnfRes.value as ChartSeries;
+          setNtnf(s);
+          const last = new Date(s.dates[s.dates.length - 1]).getTime();
+          if (Date.now() - last > 12 * 86_400_000) {
+            setStaleWarning(
+              "국채금리 데이터가 12일 이상 갱신되지 않았습니다(주간 스냅샷 확인)."
+            );
+          }
         }
       })
       .finally(() => {
@@ -194,13 +202,11 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       )}
       {chartProps && <FxHistoryChart {...chartProps} />}
 
-      {ntnf &&
-        Date.now() - new Date(ntnf.dates[ntnf.dates.length - 1]).getTime() >
-          12 * 86_400_000 && (
-          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-            ⚠ 국채금리 데이터가 12일 이상 갱신되지 않았습니다(주간 스냅샷 확인).
-          </p>
-        )}
+      {staleWarning && (
+        <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+          ⚠ {staleWarning}
+        </p>
+      )}
 
       <p className="mt-2 text-[11px] text-zinc-400">
         {error
