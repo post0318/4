@@ -24,6 +24,8 @@ export function OrderConsole() {
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
 
+  const [tab, setTab] = useState<"market" | "trading" | "cashflow">("market");
+
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   // 달러($) override. 값이 없으면 원화투자금액 ÷ 환율 자동값을 쓴다.
@@ -228,47 +230,127 @@ export function OrderConsole() {
     [rows]
   );
 
+  const TABS = [
+    { key: "market" as const, label: "시장정보" },
+    { key: "trading" as const, label: "트레이딩" },
+    { key: "cashflow" as const, label: "현금흐름" },
+  ];
+
   return (
     <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
       <header>
         <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
           브라질 트레이딩
         </h1>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          주문일 {orderDate} · 결제일 {settlementDate} (D+0 브라질 영업일)
-        </p>
       </header>
 
-      <FxRatePanel rates={fx} loading={fxLoading} error={fxError} onRefresh={loadFx} />
+      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            aria-current={tab === t.key}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+              tab === t.key
+                ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <BrazilBriefing />
+      {tab === "market" && (
+        <>
+          <FxRatePanel
+            rates={fx}
+            loading={fxLoading}
+            error={fxError}
+            onRefresh={loadFx}
+          />
+          <BrazilBriefing />
+        </>
+      )}
 
-      <BondOrderTable
-        rows={rows}
-        asOfDate={asOfDate}
-        loading={bondLoading}
-        error={bondError}
-        fxReady={!!fx}
-        settlementDate={settlementDate}
-        onToggle={toggle}
-        onAmountChange={changeAmount}
-        onUsdChange={changeUsd}
-        onOrderQtyChange={changeOrderQty}
-      />
+      {tab === "trading" && (
+        <>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950">
+            <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+              환율
+            </span>
+            {fx ? (
+              <>
+                <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
+                  원/달러 ₩{fx.usdKrw.toLocaleString("ko-KR", {
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+                <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
+                  원/헤알 ₩{fx.krwBrl.toLocaleString("ko-KR", {
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+                <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
+                  달러/헤알 R${fx.usdBrl.toLocaleString("ko-KR", {
+                    maximumFractionDigits: 4,
+                  })}
+                </span>
+              </>
+            ) : (
+              <span className="text-zinc-400">
+                {fxError ?? "불러오는 중…"}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={loadFx}
+              disabled={fxLoading}
+              className="ml-auto rounded border border-zinc-300 px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            >
+              {fxLoading ? "조회 중…" : "새로고침"}
+            </button>
+          </div>
 
-      <OrderReview
-        lines={pendingLines}
-        incompleteCount={incompleteCount}
-        fx={fx}
-        defaultTo={defaultTo}
-        defaultCc={defaultCc}
-      />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            주문일 {orderDate} · 결제일 {settlementDate} (D+0 브라질 영업일)
+          </p>
 
-      <footer className="pb-8 text-[11px] text-zinc-400">
-        환율은 Frankfurter(ECB) 중간환율이며 실제 체결 환율·스프레드와 다릅니다.
-        시세는 레포에 커밋된 주간 스냅샷 기준입니다. 발송 전 반드시 값을
-        확인하세요.
-      </footer>
+          <BondOrderTable
+            rows={rows}
+            asOfDate={asOfDate}
+            loading={bondLoading}
+            error={bondError}
+            fxReady={!!fx}
+            settlementDate={settlementDate}
+            onToggle={toggle}
+            onAmountChange={changeAmount}
+            onUsdChange={changeUsd}
+            onOrderQtyChange={changeOrderQty}
+          />
+
+          <OrderReview
+            lines={pendingLines}
+            incompleteCount={incompleteCount}
+            fx={fx}
+            defaultTo={defaultTo}
+            defaultCc={defaultCc}
+          />
+
+          <footer className="pb-8 text-[11px] text-zinc-400">
+            환율은 Frankfurter(ECB) 중간환율이며 실제 체결 환율·스프레드와
+            다릅니다. 시세는 레포에 커밋된 주간 스냅샷 기준입니다. 발송 전 반드시
+            값을 확인하세요.
+          </footer>
+        </>
+      )}
+
+      {tab === "cashflow" && (
+        <section className="rounded-xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+          현금흐름 기능은 준비 중입니다.
+        </section>
+      )}
     </div>
   );
 }
