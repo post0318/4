@@ -65,26 +65,24 @@ function ReturnMatrix({
         (만기 보유라 금리변동 평가손익 없음)
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] table-fixed border-collapse text-[11px]">
+        <table className="w-full min-w-[720px] table-fixed border-collapse text-[11px]">
           <colgroup>
-            <col className="w-[13%]" />
-            <col className="w-[13%]" />
+            <col className="w-[7.14%]" />
+            <col className="w-[7.14%]" />
             {bonds.flatMap((b) => [
-              <col key={`${b.label}-a`} className="w-[6.16%]" />,
-              <col key={`${b.label}-t`} className="w-[6.16%]" />,
+              <col key={`${b.label}-a`} className="w-[7.14%]" />,
+              <col key={`${b.label}-t`} className="w-[7.14%]" />,
             ])}
           </colgroup>
           <thead>
             <tr>
               <th className={th} rowSpan={2}>
-                원화대비
-                <br />
                 헤알화
+                <br />
+                강·약세
               </th>
               <th className={th} rowSpan={2}>
                 원/헤알
-                <br />
-                (KRW/BRL)
               </th>
               {bonds.map((b) => (
                 <th className={th} colSpan={2} key={b.label}>
@@ -146,7 +144,8 @@ function ReturnMatrix({
         </table>
       </div>
       <p className="mt-1 text-[10px] text-zinc-400">
-        연 = 연환산, 누적 = 잔존기간 총수익률. 헤알화 강세(＋)일수록 붉게.
+        총누적수익률 = 잔존기간 전체 수익률, 연환산수익률 = 이를 연 단위로 환산.
+        헤알화 강세(＋)일수록 붉게.
       </p>
     </div>
   );
@@ -155,8 +154,16 @@ function ReturnMatrix({
 function FragmentCols({ th }: { th: string }) {
   return (
     <>
-      <th className={th}>연</th>
-      <th className={th}>누적</th>
+      <th className={th}>
+        연환산
+        <br />
+        수익률
+      </th>
+      <th className={th}>
+        총누적
+        <br />
+        수익률
+      </th>
     </>
   );
 }
@@ -213,7 +220,7 @@ export function DurationPanel({ bonds, fx }: Props) {
   const matrixBonds: MatrixBond[] = useMemo(
     () =>
       sorted.map((b) => ({
-        label: b.maturityDate.slice(0, 4),
+        label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
         hold:
           b.buyYieldPct != null
             ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0)
