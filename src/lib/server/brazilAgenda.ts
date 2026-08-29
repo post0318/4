@@ -1,4 +1,5 @@
 import { brazilHolidayList } from "@/lib/brazilCalendar";
+import { inRange } from "@/lib/server/sanity";
 
 /**
  * 브라질 주요일정 — 조회일 기준 전후 15일의 "중요한" 경제지표 발표와 시장 휴장일.
@@ -13,10 +14,14 @@ export interface AgendaItem {
   date: string;
   titleKo: string;
   category: "경제지표" | "휴장";
+  /** 발표일이 지났는지 */
+  released: boolean;
   /** 시장 예상치 (Focus 중앙값). 없으면 null */
   guidance: string | null;
-  /** 실제 발표치. 아직 미발표면 null */
+  /** 발표된 실제치 (released=true 일 때). 없으면 null */
   actual: string | null;
+  /** 직전 발표치 (released=false 일 때 참고용). 없으면 null */
+  prior: string | null;
 }
 
 type FocusKind = "month" | "quarter";
@@ -30,6 +35,8 @@ interface Curated {
   sgs: number | null;
   /** Focus 예상치 설정 */
   focus: { indicador: string; kind: FocusKind } | null;
+  /** 이 지표 값의 상식 범위 (검증). 벗어나면 값을 버린다 */
+  bounds: readonly [number, number];
 }
 
 // 순서대로 첫 매칭 사용. null 이면 "중요하지 않음"으로 제외.
@@ -42,6 +49,7 @@ const CURATED: [RegExp, Curated | null][] = [
       refOffset: 0,
       sgs: 7478,
       focus: { indicador: "IPCA-15", kind: "month" },
+      bounds: [-5, 8],
     },
   ],
   [/Preços ao Consumidor Amplo Especial/i, null],
@@ -53,6 +61,7 @@ const CURATED: [RegExp, Curated | null][] = [
       refOffset: -1,
       sgs: 433,
       focus: { indicador: "IPCA", kind: "month" },
+      bounds: [-5, 8],
     },
   ],
   [
@@ -63,6 +72,7 @@ const CURATED: [RegExp, Curated | null][] = [
       refOffset: -1,
       sgs: 24369,
       focus: null,
+      bounds: [2, 30],
     },
   ],
   [
@@ -73,6 +83,7 @@ const CURATED: [RegExp, Curated | null][] = [
       refOffset: 0,
       sgs: null,
       focus: { indicador: "PIB Total", kind: "quarter" },
+      bounds: [-20, 20],
     },
   ],
 ];
@@ -132,19 +143,40 @@ async function focusMedian(
   }
 }
 
-async function sgsLatest(series: number): Promise<number | null> {
+interface SgsRow {
+  data: string;
+  valor: string;
+}
+
+/**
+ * SGS 월간 시리즈의 최근 24개월을 받아, 특정 참조월("MM/YYYY")의 값과
+ * 가장 최근 값을 함께 돌려준다. 참조월이 아직 없으면 atRef=null.
+ */
+async function sgsMonthly(
+  series: number,
+  refMonthYear: string
+): Promise<{ atRef: number | null; latest: number | null }> {
   try {
     const res = await fetch(
-      `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${series}/dados/ultimos/1?formato=json`
+      `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${series}/dados/ultimos/18?formato=json`
     );
-    if (!res.ok) return null;
+    if (!res.ok) return { atRef: null, latest: null };
     const text = await res.text();
-    if (!text.trimStart().startsWith("[")) return null;
-    const arr = JSON.parse(text) as { valor: string }[];
-    const v = Number(arr[0]?.valor);
-    return Number.isFinite(v) ? v : null;
+    if (!text.trimStart().startsWith("[")) return { atRef: null, latest: null };
+    const arr = JSON.parse(text) as SgsRow[];
+    const num = (s: string | undefined) => {
+      const v = Number(s);
+      return Number.isFinite(v) ? v : null;
+    };
+    const latest = num(arr[arr.length - 1]?.valor);
+    const [rm, ry] = refMonthYear.split("/");
+    const hit = arr.find((r) => {
+      const m = r.data.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      return m && m[2] === rm && m[3] === ry;
+    });
+    return { atRef: hit ? num(hit.valor) : null, latest };
   } catch {
-    return null;
+    return { atRef: null, latest: null };
   }
 }
 
@@ -192,16 +224,35 @@ async function fetchIbge(from: string, to: string): Promise<AgendaItem[]> {
       );
     }
 
-    let actual: number | null = null;
-    if (date <= today && c.sgs != null) actual = await sgsLatest(c.sgs);
+    const released = date <= today;
+    const expectedRef =
+      c.focus?.kind === "quarter" ? null : refMonth(date, c.refOffset);
+
+    // 발표치는 "정확히 해당 참조월"의 SGS 값, 직전치는 최근 가용값
+    let atRef: number | null = null;
+    let latest: number | null = null;
+    if (c.sgs != null && expectedRef) {
+      const r = await sgsMonthly(c.sgs, expectedRef);
+      atRef = r.atRef;
+      latest = r.latest;
+    }
+
+    // 무료 검증: 상식 범위를 벗어난 값은 버린다(소스/파싱 오류 방지)
+    const check = (v: number | null) =>
+      v != null && inRange(v, c.bounds) ? v : null;
+    const g = check(guidance);
+    const a = check(atRef);
+    const p = check(latest);
 
     const fmt = (v: number) => `${v.toFixed(2)}${c.unit}`;
     out.push({
       date,
       titleKo: c.labelKo,
       category: "경제지표",
-      guidance: guidance != null ? fmt(guidance) : null,
-      actual: actual != null ? fmt(actual) : null,
+      released,
+      guidance: g != null ? fmt(g) : null,
+      actual: released && a != null ? fmt(a) : null,
+      prior: !released && p != null ? fmt(p) : null,
     });
   }
   return out;
@@ -218,8 +269,10 @@ function holidaysInRange(fromIso: string, toIso: string): AgendaItem[] {
           date: h.date.toISOString().slice(0, 10),
           titleKo: `${h.name} · 브라질 시장 휴장`,
           category: "휴장",
+          released: false,
           guidance: null,
           actual: null,
+          prior: null,
         });
       }
     }
@@ -227,12 +280,15 @@ function holidaysInRange(fromIso: string, toIso: string): AgendaItem[] {
   return out;
 }
 
-export async function fetchBrazilAgenda(halfWindowDays = 15): Promise<AgendaItem[]> {
+export async function fetchBrazilAgenda(
+  backDays = 7,
+  forwardDays = 21
+): Promise<AgendaItem[]> {
   const now = new Date();
   const start = new Date(now);
-  start.setDate(start.getDate() - halfWindowDays);
+  start.setDate(start.getDate() - backDays);
   const end = new Date(now);
-  end.setDate(end.getDate() + halfWindowDays);
+  end.setDate(end.getDate() + forwardDays);
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   const from = iso(start);
   const to = iso(end);

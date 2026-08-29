@@ -5,7 +5,7 @@
  * 캐시(revalidate)한다.
  */
 
-import { translatePtToKo } from "@/lib/server/translate";
+import { translateChecked } from "@/lib/server/translate";
 
 const UA = "Mozilla/5.0 (compatible; brazil-trading/1.0)";
 const GN = (path: string) =>
@@ -25,6 +25,8 @@ const FEEDS: { url: string; category: string }[] = [
 export interface NewsItem {
   titleKo: string;
   titlePt: string;
+  /** 왕복검증 통과 여부. false면 번역이 의심스러우니 원문 우선 */
+  translationOk: boolean;
   link: string;
   category: string;
   publishedAt: string;
@@ -122,13 +124,17 @@ export async function fetchBrazilNews(limit = 5): Promise<NewsItem[]> {
   }
 
   return Promise.all(
-    picked.map(async (item) => ({
-      titleKo: (await translatePtToKo(item.title)) ?? item.title,
-      titlePt: item.title,
-      link: item.link,
-      category: item.category,
-      publishedAt: item.publishedAt,
-      source: item.source,
-    }))
+    picked.map(async (item) => {
+      const { ko, ok } = await translateChecked(item.title);
+      return {
+        titleKo: ko ?? item.title,
+        titlePt: item.title,
+        translationOk: ok && ko != null,
+        link: item.link,
+        category: item.category,
+        publishedAt: item.publishedAt,
+        source: item.source,
+      };
+    })
   );
 }

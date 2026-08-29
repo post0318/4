@@ -12,7 +12,7 @@ interface FxRatePanelProps {
   onRefresh: () => void;
 }
 
-type CardKey = "krwBrl" | "usdBrl" | "selic" | "ntnfYield";
+type CardKey = "krwBrl" | "usdBrl" | "rates";
 
 interface FxHistory {
   dates: string[];
@@ -101,16 +101,13 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       hint: "1 USD",
     },
     {
-      key: "selic",
-      label: "브라질 기준금리",
-      value: selicNow != null ? `${fmtNum(selicNow, 2)}%` : "-",
-      hint: "Selic meta",
-    },
-    {
-      key: "ntnfYield",
-      label: "브라질 국채금리",
-      value: ntnfNow != null ? `${fmtNum(ntnfNow, 2)}%` : "-",
-      hint: "NTN-F ~10년",
+      key: "rates",
+      label: "브라질 금리",
+      value:
+        ntnfNow != null && selicNow != null
+          ? `국채 ${fmtNum(ntnfNow, 2)}% · Selic ${fmtNum(selicNow, 2)}%`
+          : "-",
+      hint: "국채 NTN-F ~10년 / 기준금리",
     },
   ];
 
@@ -121,23 +118,18 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     digits: number;
     stepped?: boolean;
     series: ChartSeries;
+    overlay?: { series: ChartSeries; label: string; stepped?: boolean };
   } | null = null;
-  if (selected === "selic" && selic) {
+  if (selected === "rates" && ntnf) {
     chartProps = {
-      label: "브라질 기준금리",
-      unit: "",
-      suffix: "%",
-      digits: 2,
-      stepped: true,
-      series: selic,
-    };
-  } else if (selected === "ntnfYield" && ntnf) {
-    chartProps = {
-      label: "브라질 국채금리 (NTN-F ~10년)",
+      label: "국채금리(~10년)",
       unit: "",
       suffix: "%",
       digits: 2,
       series: ntnf,
+      overlay: selic
+        ? { series: selic, label: "기준금리", stepped: true }
+        : undefined,
     };
   } else if ((selected === "krwBrl" || selected === "usdBrl") && hist) {
     chartProps = {
@@ -167,7 +159,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {cards.map((c) => {
           const active = selected === c.key;
           return (

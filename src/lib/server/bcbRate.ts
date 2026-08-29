@@ -53,3 +53,21 @@ export async function fetchSelicHistory(
 
   return dates.length ? { dates, values } : null;
 }
+
+/**
+ * 교차검증용: SGS 432(Meta Selic)의 최신 1개 값을 독립적으로 조회한다.
+ * 시계열 파싱 결과의 마지막 값과 대조해 회귀 오류를 잡는다.
+ */
+export async function fetchSelicLatest(): Promise<number | null> {
+  try {
+    const res = await fetch(`${SGS_URL}/ultimos/1?formato=json`);
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (!text.trimStart().startsWith("[")) return null;
+    const arr = JSON.parse(text) as { valor: string }[];
+    const v = Number(arr[0]?.valor);
+    return Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}

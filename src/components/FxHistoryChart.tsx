@@ -9,6 +9,12 @@ export interface ChartSeries {
   values: number[];
 }
 
+interface Overlay {
+  series: ChartSeries;
+  label: string;
+  stepped?: boolean;
+}
+
 interface FxHistoryChartProps {
   label: string;
   /** 값 앞 단위 ("₩", "R$", "") */
@@ -19,6 +25,8 @@ interface FxHistoryChartProps {
   /** 계단식으로 그릴지 (기준금리처럼 회의 때만 바뀌는 값) */
   stepped?: boolean;
   series: ChartSeries;
+  /** 같은 축에 겹쳐 그릴 두 번째 선 (예: 국채금리 vs 기준금리) */
+  overlay?: Overlay;
 }
 
 const W = 900;
@@ -27,7 +35,6 @@ const PAD = { top: 8, right: 10, bottom: 16, left: 52 };
 
 const t = (iso: string) => new Date(iso).getTime();
 
-/** 계단식 시계열에서 특정 시각의 유효값 */
 function valueAt(series: ChartSeries, time: number): number | null {
   let v: number | null = null;
   for (let i = 0; i < series.dates.length; i++) {
@@ -37,6 +44,23 @@ function valueAt(series: ChartSeries, time: number): number | null {
   return v ?? series.values[0] ?? null;
 }
 
+function buildPath(
+  s: ChartSeries,
+  px: (time: number) => number,
+  y: (v: number) => number,
+  stepped: boolean
+): string {
+  let d = "";
+  s.dates.forEach((date, i) => {
+    const x = px(t(date));
+    const yy = y(s.values[i]);
+    if (i === 0) d = `M ${x} ${yy}`;
+    else if (stepped) d += ` H ${x} V ${yy}`;
+    else d += ` L ${x} ${yy}`;
+  });
+  return d;
+}
+
 export function FxHistoryChart({
   label,
   unit,
@@ -44,6 +68,7 @@ export function FxHistoryChart({
   digits,
   stepped = false,
   series,
+  overlay,
 }: FxHistoryChartProps) {
   const [hoverT, setHoverT] = useState<number | null>(null);
 
@@ -58,25 +83,31 @@ export function FxHistoryChart({
     const px = (time: number) =>
       PAD.left + ((time - t0) / (t1 - t0 || 1)) * plotW;
 
-    const min = Math.min(...series.values);
-    const max = Math.max(...series.values);
+    const all = overlay
+      ? [
+          ...series.values,
+          ...overlay.series.dates
+            .map((d, i) =>
+              t(d) >= t0 && t(d) <= t1 ? overlay.series.values[i] : null
+            )
+            .filter((v): v is number => v != null),
+        ]
+      : series.values;
+    const min = Math.min(...all);
+    const max = Math.max(...all);
     const span = max - min || 1;
     const yMin = min - span * 0.1;
     const yMax = max + span * 0.1;
     const y = (v: number) =>
       PAD.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
-    let path = "";
-    series.dates.forEach((d, i) => {
-      const x = px(t(d));
-      const yy = y(series.values[i]);
-      if (i === 0) path = `M ${x} ${yy}`;
-      else if (stepped) path += ` H ${x} V ${yy}`;
-      else path += ` L ${x} ${yy}`;
-    });
-    const area = `${path} L ${px(t1)} ${PAD.top + plotH} L ${
-      PAD.left
-    } ${PAD.top + plotH} Z`;
+    const path = buildPath(series, px, y, stepped);
+    const area = `${path} L ${px(t1)} ${PAD.top + plotH} L ${PAD.left} ${
+      PAD.top + plotH
+    } Z`;
+    const overlayPath = overlay
+      ? buildPath(overlay.series, px, y, overlay.stepped ?? false)
+      : null;
 
     const years: { x: number; label: string }[] = [];
     for (
@@ -88,18 +119,20 @@ export function FxHistoryChart({
       if (time >= t0 && time <= t1) years.push({ x: px(time), label: `${yr}` });
     }
 
-    return { t0, t1, plotH, px, y, yMin, yMax, path, area, years };
-  }, [series, stepped]);
+    return { t0, t1, plotH, px, y, yMin, yMax, path, area, overlayPath, years };
+  }, [series, stepped, overlay]);
 
   if (!chart) return null;
 
-  const { t0, t1, plotH, px, y, yMin, yMax, path, area, years } = chart;
+  const { t0, t1, plotH, px, y, yMin, yMax, path, area, overlayPath, years } =
+    chart;
   const first = series.values[0];
   const last = series.values[series.values.length - 1];
   const change = last - first;
   const changePct = (change / first) * 100;
 
   const hv = hoverT != null ? valueAt(series, hoverT) : null;
+  const hov = hoverT != null && overlay ? valueAt(overlay.series, hoverT) : null;
   const hDate =
     hoverT != null ? new Date(hoverT).toISOString().slice(0, 10) : null;
 
@@ -110,21 +143,31 @@ export function FxHistoryChart({
     <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-0.5 flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
-          {label} · 7년 추이
+          <span className="text-blue-600 dark:text-blue-400">■</span> {label}
+          {overlay && (
+            <>
+              {"  "}
+              <span className="text-amber-600 dark:text-amber-400">■</span>{" "}
+              {overlay.label}
+            </>
+          )}
+          <span className="ml-1 font-normal text-zinc-400">· 7년</span>
         </p>
-        <p className="text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
-          <span
-            className={
-              change >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400"
-            }
-          >
-            {change >= 0 ? "+" : ""}
-            {fmtNum(change, digits)} ({changePct >= 0 ? "+" : ""}
-            {fmtNum(changePct, 1)}%)
-          </span>
-        </p>
+        {!overlay && (
+          <p className="text-[10px] tabular-nums">
+            <span
+              className={
+                change >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-red-600 dark:text-red-400"
+              }
+            >
+              {change >= 0 ? "+" : ""}
+              {fmtNum(change, digits)} ({changePct >= 0 ? "+" : ""}
+              {fmtNum(changePct, 1)}%)
+            </span>
+          </p>
+        )}
       </div>
 
       <svg
@@ -184,7 +227,9 @@ export function FxHistoryChart({
           </text>
         ))}
 
-        <path d={area} fill="url(#fxArea)" className="text-blue-500" />
+        {!overlay && (
+          <path d={area} fill="url(#fxArea)" className="text-blue-500" />
+        )}
         <path
           d={path}
           fill="none"
@@ -192,6 +237,14 @@ export function FxHistoryChart({
           strokeWidth={1.5}
           strokeLinejoin="round"
         />
+        {overlayPath && (
+          <path
+            d={overlayPath}
+            fill="none"
+            className="stroke-amber-500"
+            strokeWidth={1.25}
+          />
+        )}
 
         {hoverT != null && hv != null && (
           <g>
@@ -205,6 +258,14 @@ export function FxHistoryChart({
               strokeDasharray="3 3"
             />
             <circle cx={px(hoverT)} cy={y(hv)} r={3} className="fill-blue-500" />
+            {hov != null && (
+              <circle
+                cx={px(hoverT)}
+                cy={y(hov)}
+                r={3}
+                className="fill-amber-500"
+              />
+            )}
           </g>
         )}
       </svg>
@@ -213,6 +274,15 @@ export function FxHistoryChart({
         {hDate && hv != null ? (
           <>
             {hDate} · {fmtVal(hv)}
+            {hov != null && overlay ? (
+              <>
+                {" · "}
+                <span className="text-amber-600 dark:text-amber-400">
+                  {overlay.label} {fmtNum(hov, digits)}
+                  {suffix}
+                </span>
+              </>
+            ) : null}
           </>
         ) : (
           <>

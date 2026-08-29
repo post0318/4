@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchSelicHistory } from "@/lib/server/bcbRate";
+import { fetchSelicHistory, fetchSelicLatest } from "@/lib/server/bcbRate";
 import { BOUNDS, sanitizeSeries } from "@/lib/server/sanity";
 
 // 12시간마다 재검증 (Copom 회의 때만 바뀜)
@@ -24,10 +24,22 @@ export async function GET() {
   }
 
   const clean = sanitizeSeries(series.dates, series.values, BOUNDS.ratePct);
+
+  // 교차검증: 마지막 값이 독립 조회한 최신값과 일치하는지
+  const latest = await fetchSelicLatest();
+  const last = clean.values[clean.values.length - 1];
+  const crossCheck =
+    latest == null
+      ? "unavailable"
+      : Math.abs(latest - last) < 0.01
+        ? "ok"
+        : "mismatch";
+
   return NextResponse.json({
     dates: clean.dates,
     values: clean.values,
     dropped: clean.dropped,
+    crossCheck,
     source: "Banco Central do Brasil · SGS 432 (Meta Selic)",
   });
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface NewsItem {
   titleKo: string;
   titlePt: string;
+  translationOk: boolean;
   link: string;
   category: string;
   publishedAt: string;
@@ -15,8 +16,10 @@ interface AgendaItem {
   date: string;
   titleKo: string;
   category: "경제지표" | "휴장";
+  released: boolean;
   guidance: string | null;
   actual: string | null;
+  prior: string | null;
 }
 
 function relTime(iso: string): string {
@@ -100,13 +103,26 @@ export function BrazilBriefing() {
               >
                 {n.titleKo}
               </a>
+              {!n.translationOk && (
+                <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  번역 불확실
+                </span>
+              )}
               <p className="mt-0.5 text-[11px] text-zinc-400">
                 <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
                   {n.category}
                 </span>{" "}
                 {n.source} · {relTime(n.publishedAt)}
               </p>
-              <p className="text-[11px] italic text-zinc-400">{n.titlePt}</p>
+              <p
+                className={`text-[11px] italic ${
+                  n.translationOk
+                    ? "text-zinc-400"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
+              >
+                {n.titlePt}
+              </p>
             </li>
           ))}
         </ul>
@@ -117,7 +133,7 @@ export function BrazilBriefing() {
         <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           브라질 주요일정{" "}
           <span className="text-[11px] font-normal text-zinc-400">
-            (전후 15일 · 예상/발표)
+            (1주 전 ~ 3주 후 · 예상/발표)
           </span>
         </h2>
         {!agenda && (
@@ -159,14 +175,16 @@ export function BrazilBriefing() {
                 <span className="text-zinc-800 dark:text-zinc-100">
                   {a.titleKo}
                 </span>
-                {(a.guidance || a.actual) && (
+                {a.category === "경제지표" && (
                   <span className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {a.guidance && <>예상 {a.guidance}</>}
-                    {a.guidance && a.actual && " → "}
-                    {a.actual && (
+                    예상 {a.guidance ?? "—"}
+                    {" · "}
+                    {a.released ? (
                       <span className="font-semibold text-blue-700 dark:text-blue-300">
-                        발표 {a.actual}
+                        발표 {a.actual ?? "—"}
                       </span>
+                    ) : (
+                      <span>직전 {a.prior ?? "—"}</span>
                     )}
                   </span>
                 )}
