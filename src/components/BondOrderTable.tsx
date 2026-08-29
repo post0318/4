@@ -72,7 +72,7 @@ export function BondOrderTable({
                 <th className={th}>표면이율</th>
                 <th className={th}>매수수익률</th>
                 <th className={`${th} text-right`}>원화투자금액</th>
-                <th className={`${th} text-right`}>달러환전액</th>
+                <th className={`${th} text-right`}>달러($)</th>
                 <th className={`${th} text-right`}>PU (R$)</th>
                 <th className={`${th} text-right`}>매수수량</th>
                 <th className={`${th} text-right`}>실매수금액(₩)</th>
@@ -133,7 +133,7 @@ export function BondOrderTable({
                       />
                     </td>
                     <td className={`${td} ${dim} text-right`}>
-                      {order ? `US$ ${fmtNum(order.usdAmount, 2)}` : "-"}
+                      {order ? `$ ${fmtNum(order.usdAmount, 2)}` : "-"}
                     </td>
                     <td className={`${td} ${dim} text-right`}>
                       {row.pu !== null ? fmtNum(row.pu, 4) : "-"}

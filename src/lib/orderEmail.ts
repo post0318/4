@@ -86,7 +86,7 @@ export function buildOrderEmail(data: OrderEmailData): {
         ["매수수익률", `연 ${fmt(l.buyYieldPct, 4)}%`],
         ["매수단가 (PU)", `R$ ${fmt(l.pu, 4)}`],
         ["원화투자금액", `₩ ${fmtInt(l.krwAmount)}`],
-        ["달러 환전액", `US$ ${fmt(l.usdAmount, 2)}`],
+        ["달러 환전액", `$ ${fmt(l.usdAmount, 2)}`],
         ["헤알 환산액", `R$ ${fmt(l.brlAmount, 2)}`],
         ["매수수량", `${fmtInt(l.quantity)} 좌`],
         ["실매수금액 (BRL)", `R$ ${fmt(l.brlCost, 2)}`],
@@ -134,7 +134,7 @@ export function buildOrderEmail(data: OrderEmailData): {
       <th style="${thStyle}">종목명</th><th style="${thStyle}">ISIN</th>
       <th style="${thStyle}">만기일</th><th style="${thStyle}">매수수익률</th>
       <th style="${thStyle}">PU(R$)</th><th style="${thStyle}">원화투자금액</th>
-      <th style="${thStyle}">달러환전액</th><th style="${thStyle}">매수수량</th>
+      <th style="${thStyle}">달러($)</th><th style="${thStyle}">매수수량</th>
       <th style="${thStyle}">실매수금액(₩)</th><th style="${thStyle}">잔여(₩)</th>
     </tr></thead>
     <tbody>
@@ -151,7 +151,7 @@ export function buildOrderEmail(data: OrderEmailData): {
         <td style="${tdStyle}">${fmt(l.pu, 4)}</td><td style="${tdStyle}">₩ ${fmtInt(
             l.krwAmount
           )}</td>
-        <td style="${tdStyle}">US$ ${fmt(l.usdAmount, 2)}</td><td style="${tdStyle}"><b>${fmtInt(
+        <td style="${tdStyle}">$ ${fmt(l.usdAmount, 2)}</td><td style="${tdStyle}"><b>${fmtInt(
             l.quantity
           )} 좌</b></td>
         <td style="${tdStyle}">₩ ${fmtInt(l.krwCost)}</td><td style="${tdStyle}">₩ ${fmtInt(
