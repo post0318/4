@@ -194,8 +194,7 @@ export function FxHistoryChart({
           </>
         ) : (
           <>
-            {dates[0]} ~ {dates[dates.length - 1]} · 최근 {unit}{" "}
-            {fmtNum(last, digits)}
+            {dates[0]} ~ {dates[dates.length - 1]}
           </>
         )}
       </p>
