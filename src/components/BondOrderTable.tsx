@@ -72,6 +72,16 @@ export function BondOrderTable({
   const numInput =
     "rounded border px-1 py-1 text-right tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-300 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900";
 
+  const checkedRows = rows.filter((r) => r.checked);
+  const totalKrw = checkedRows.reduce(
+    (s, r) => s + (parseInt(r.krwInput || "0", 10) || 0),
+    0
+  );
+  const totalUsd = checkedRows.reduce(
+    (s, r) => s + (parseFloat(r.usdInput || "0") || 0),
+    0
+  );
+
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="mb-3 flex items-center justify-between">
@@ -102,7 +112,7 @@ export function BondOrderTable({
                 <th className={`${th} text-right`}>달러($)</th>
                 <th className={`${th} text-right`}>PU (R$)</th>
                 <th className={`${th} text-right`}>1좌당 매수가격(₩)</th>
-                <th className={`${th} text-right`}>매수가능수량</th>
+                <th className={`${th} text-right`}>종목별 매수가능수량</th>
                 <th className={`${th} text-right`}>실제주문수량</th>
               </tr>
             </thead>
@@ -208,6 +218,22 @@ export function BondOrderTable({
                 </tr>
               )}
             </tbody>
+            {checkedRows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700">
+                  <td className={`${td} text-right`} colSpan={5}>
+                    합계
+                  </td>
+                  <td className={`${td} text-right`}>
+                    {totalKrw > 0 ? groupDigits(String(totalKrw)) : "-"}
+                  </td>
+                  <td className={`${td} text-right`}>
+                    {totalUsd > 0 ? fmtNum(totalUsd, 2) : "-"}
+                  </td>
+                  <td className={td} colSpan={4} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}

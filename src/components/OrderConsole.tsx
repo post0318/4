@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
+import { CurrencyExchange } from "@/components/CurrencyExchange";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
@@ -26,7 +27,9 @@ export function OrderConsole() {
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
 
-  const [tab, setTab] = useState<"market" | "trading" | "cashflow">("market");
+  const [tab, setTab] = useState<
+    "market" | "trading" | "cashflow" | "simulation"
+  >("market");
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -236,6 +239,7 @@ export function OrderConsole() {
     { key: "market" as const, label: "시장정보" },
     { key: "trading" as const, label: "트레이딩" },
     { key: "cashflow" as const, label: "현금흐름" },
+    { key: "simulation" as const, label: "시뮬레이션" },
   ];
 
   return (
@@ -280,6 +284,7 @@ export function OrderConsole() {
             error={fxError}
             onRefresh={loadFx}
           />
+          <CurrencyExchange usdKrw={fx?.usdKrw ?? null} />
           <BrazilBriefing />
         </>
       )}
@@ -357,6 +362,12 @@ export function OrderConsole() {
       )}
 
       {tab === "cashflow" && <CashFlowPanel />}
+
+      {tab === "simulation" && (
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+          시뮬레이션 준비 중입니다.
+        </section>
+      )}
     </div>
   );
 }
