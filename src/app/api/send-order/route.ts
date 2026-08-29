@@ -28,8 +28,24 @@ export const runtime = "nodejs";
  * (nodemailer)를 연결하면 된다.
  */
 
-const DEFAULT_TO = process.env.ORDER_EMAIL_TO ?? "";
-const DEFAULT_CC = process.env.ORDER_EMAIL_CC ?? "";
+// 기본 수신자/참조. 환경변수(ORDER_EMAIL_TO / ORDER_EMAIL_CC)로 덮어쓸 수 있고,
+// 없으면 아래 운영 기본값을 쓴다. 화면에서 개별 수정 가능.
+const FALLBACK_TO = [
+  "jisook@bancokdb.com.br",
+  "custodykdbbr@gmail.com",
+  "tr@bancokdb.com.br",
+  "aline.c@bancokdb.com.br",
+].join("; ");
+const FALLBACK_CC = [
+  "sungwoo.hong@hanwha.com",
+  "202001126@hanwha.com",
+  "hyejin.kwon@hanwha.com",
+  "hyeonkyong.yun@hanwha.com",
+  "201402457@hanwha.com",
+  "kk9891271@hanwha.com",
+].join("; ");
+const DEFAULT_TO = process.env.ORDER_EMAIL_TO || FALLBACK_TO;
+const DEFAULT_CC = process.env.ORDER_EMAIL_CC || FALLBACK_CC;
 // 환경변수는 리터럴 "\n"을 줄바꿈으로 해석한다
 const GREETING =
   process.env.ORDER_EMAIL_GREETING?.replace(/\\n/g, "\n") ?? DEFAULT_GREETING;
