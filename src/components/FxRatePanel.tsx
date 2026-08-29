@@ -194,6 +194,14 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       )}
       {chartProps && <FxHistoryChart {...chartProps} />}
 
+      {ntnf &&
+        Date.now() - new Date(ntnf.dates[ntnf.dates.length - 1]).getTime() >
+          12 * 86_400_000 && (
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+            ⚠ 국채금리 데이터가 12일 이상 갱신되지 않았습니다(주간 스냅샷 확인).
+          </p>
+        )}
+
       <p className="mt-2 text-[11px] text-zinc-400">
         {error
           ? error
