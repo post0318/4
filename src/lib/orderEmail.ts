@@ -61,15 +61,7 @@ export function buildOrderEmail(data: OrderEmailData): {
   const { lines } = data;
   const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
 
-  const subject =
-    lines.length === 1
-      ? `[브라질국채 매수요청] ${bondName(lines[0].maturityDate)} ${fmtInt(
-          lines[0].quantity
-        )}좌 (${data.orderDate})`
-      : `[브라질국채 매수요청] ${lines.length}개 종목 · USD ${fmt(
-          totalUsd,
-          2
-        )} (${data.orderDate})`;
+  const subject = `[브라질국채 매수요청] ${data.orderDate}`;
 
   // ---- 텍스트 본문 ----
   const textRows = lines.map(
