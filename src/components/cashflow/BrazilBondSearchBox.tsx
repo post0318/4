@@ -114,7 +114,7 @@ export function BrazilBondSearchBox({ disabled, onApply }: BrazilBondSearchBoxPr
     onApply(fields);
     setOpen(false);
 
-    fetch("/api/country-rating?slug=brazil")
+    fetch("/api/cashflow/country-rating?slug=brazil")
       .then((res) => res.json())
       .then((data: { rating?: string | null }) => {
         if (data.rating) onApply({ creditRating: data.rating });
@@ -125,7 +125,7 @@ export function BrazilBondSearchBox({ disabled, onApply }: BrazilBondSearchBoxPr
     // ECB 기준 무료 공개 API(Frankfurter.dev)로 현재 환율을 조회해 매수/만기
     // 환율의 기본값으로 채워 넣는다(investing.com은 봇 차단으로 서버에서
     // 조회 불가). 사용자가 필요하면 직접 수정할 수 있다.
-    fetch("/api/fx-rate?base=BRL&quote=KRW")
+    fetch("/api/cashflow/fx-rate?base=BRL&quote=KRW")
       .then((res) => res.json())
       .then((data: { rate?: number | null }) => {
         if (typeof data.rate === "number") {

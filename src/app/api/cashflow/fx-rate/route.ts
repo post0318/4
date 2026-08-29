@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFxRate } from "@/lib/cashflow/server/fxRate";
 
+// ECB 환율은 하루 1회 갱신 — 6시간 재검증
+export const revalidate = 21600;
+
 export async function GET(request: NextRequest) {
   const base = request.nextUrl.searchParams.get("base");
   const quote = request.nextUrl.searchParams.get("quote");

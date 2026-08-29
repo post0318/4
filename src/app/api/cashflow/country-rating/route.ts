@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchCountryRating, formatCountryRating } from "@/lib/cashflow/server/countryRating";
 
+// 국가신용등급은 자주 바뀌지 않음 — 12시간 재검증
+export const revalidate = 43200;
+
 export async function GET(request: NextRequest) {
   const slug = request.nextUrl.searchParams.get("slug");
   if (!slug) {

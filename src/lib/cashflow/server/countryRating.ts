@@ -24,32 +24,32 @@ async function fetchTable(): Promise<Map<string, CountryRating>> {
     headers: { "User-Agent": "Mozilla/5.0" },
   });
   if (!res.ok) throw new Error(`tradingeconomics.com 요청 실패 (${res.status})`);
-  const html = await res.text();
+
+  // 페이지에는 국가별 등급이 이스케이프된 JSON으로 임베드돼 있다:
+  // {"country":"Brazil","url":"/brazil/rating","S&P":"BB","Moody's":"Ba1","DBRS":"BB",...}
+  // HTML 테이블 스크레이핑보다 안정적이라 이 JSON을 파싱한다.
+  const html = (await res.text())
+    .replace(/\\u0026/g, "&")
+    .replace(/\\u0027/g, "'")
+    .replace(/\\"/g, '"')
+    .replace(/\\\//g, "/");
 
   const table = new Map<string, CountryRating>();
-  const rowRe = /<a[^>]*href="\/([a-z-]+)\/rating"[^>]*>.*?<\/a>([\s\S]*?)<\/tr>/g;
-  let row: RegExpExecArray | null;
-  while ((row = rowRe.exec(html))) {
-    const slug = row[1];
-    const cellsHtml = row[2];
-    const cellRe = /<td[^>]*>([\s\S]*?)<\/td>/g;
-    const cells: string[] = [];
-    let cell: RegExpExecArray | null;
-    while ((cell = cellRe.exec(cellsHtml))) {
-      const text = cell[1]
-        .replace(/<[^>]+>/g, "")
-        .replace(/&amp;/g, "&")
-        .replace(/&#x27;/g, "'")
-        .trim();
-      cells.push(text);
+  const re =
+    /"url":"\/([a-z-]+)\/rating"[^{}]*?"S&P":"([^"]*)"[^{}]*?"Moody's":"([^"]*)"(?:[^{}]*?"DBRS":"([^"]*)")?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const [, slug, sp, moodys, dbrs] = m;
+    if (!table.has(slug)) {
+      table.set(slug, {
+        sp: sp || null,
+        moodys: moodys || null,
+        dbrs: dbrs || null,
+      });
     }
-    const [sp, moodys, dbrs] = cells;
-    table.set(slug, {
-      sp: sp || null,
-      moodys: moodys || null,
-      dbrs: dbrs || null,
-    });
   }
+
+  if (table.size === 0) throw new Error("신용등급 표를 파싱하지 못했습니다.");
 
   cache = { at: Date.now(), table };
   return table;
