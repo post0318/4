@@ -1,10 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  FxHistoryChart,
-  type ChartSeries,
-} from "@/components/FxHistoryChart";
+import { useEffect, useState } from "react";
+import { FxHistoryChart, type ChartSeries } from "@/components/FxHistoryChart";
 import { fmtNum, fmtTimestamp } from "@/lib/format";
 import type { FxRates } from "@/lib/types";
 
@@ -15,7 +12,7 @@ interface FxRatePanelProps {
   onRefresh: () => void;
 }
 
-type PairKey = "krwBrl" | "usdBrl" | "usdKrw";
+type CardKey = "krwBrl" | "usdBrl" | "selic";
 
 interface FxHistory {
   dates: string[];
@@ -24,29 +21,17 @@ interface FxHistory {
   krwBrl: number[];
 }
 
-const CARDS: {
-  key: PairKey;
-  label: string;
-  unit: string;
-  digits: number;
-  hint: string;
-}[] = [
-  { key: "krwBrl", label: "원/헤알", unit: "₩", digits: 2, hint: "1 BRL · 파생" },
-  { key: "usdBrl", label: "달러/헤알", unit: "R$", digits: 4, hint: "1 USD" },
-  { key: "usdKrw", label: "원/달러", unit: "₩", digits: 2, hint: "1 USD" },
-];
-
 /**
- * 브라질 시장정보 — 원/헤알·달러/헤알·원/달러 환율. 원/헤알은 파생값이다.
- * 카드를 누르면 아래에 그 통화쌍의 7년 일간 추이 + 브라질 기준금리(오른쪽 축)
- * 차트가 열린다. 시작 시 원/헤알을 기본으로 보여준다.
+ * 브라질 시장정보 — 원/헤알·달러/헤알 환율과 브라질 기준금리(Selic).
+ * 원/헤알은 파생값, 원/달러는 카드로 노출하지 않지만 수량 계산용으로 별도 조회한다.
+ * 카드를 누르면 아래에 해당 지표의 7년 추이 차트가 열린다(시작 시 원/헤알).
  */
 export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelProps) {
-  const [selected, setSelected] = useState<PairKey>("krwBrl");
+  const [selected, setSelected] = useState<CardKey>("krwBrl");
   const [hist, setHist] = useState<FxHistory | null>(null);
   const [selic, setSelic] = useState<ChartSeries | null>(null);
-  const [histLoading, setHistLoading] = useState(true);
-  const [histError, setHistError] = useState<string | null>(null);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartError, setChartError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,19 +42,10 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     ])
       .then(([fxRes, selicRes]) => {
         if (cancelled) return;
-        if (
-          fxRes.status === "fulfilled" &&
-          Array.isArray(fxRes.value?.dates)
-        ) {
-          const d = fxRes.value as FxHistory;
-          setHist({
-            dates: d.dates,
-            usdKrw: d.usdKrw,
-            usdBrl: d.usdBrl,
-            krwBrl: d.krwBrl,
-          });
+        if (fxRes.status === "fulfilled" && Array.isArray(fxRes.value?.dates)) {
+          setHist(fxRes.value as FxHistory);
         } else {
-          setHistError("추이를 불러오지 못했습니다.");
+          setChartError("추이를 불러오지 못했습니다.");
         }
         if (
           selicRes.status === "fulfilled" &&
@@ -79,7 +55,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         }
       })
       .finally(() => {
-        if (!cancelled) setHistLoading(false);
+        if (!cancelled) setChartLoading(false);
       });
 
     return () => {
@@ -87,9 +63,57 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     };
   }, []);
 
-  const pick = useCallback((key: PairKey) => setSelected(key), []);
+  const selicNow = selic ? selic.values[selic.values.length - 1] : null;
 
-  const activeCard = CARDS.find((c) => c.key === selected)!;
+  const cards: {
+    key: CardKey;
+    label: string;
+    value: string;
+    hint: string;
+  }[] = [
+    {
+      key: "krwBrl",
+      label: "원/헤알",
+      value: rates ? `₩ ${fmtNum(rates.krwBrl, 2)}` : "-",
+      hint: "1 BRL · 파생",
+    },
+    {
+      key: "usdBrl",
+      label: "달러/헤알",
+      value: rates ? `R$ ${fmtNum(rates.usdBrl, 4)}` : "-",
+      hint: "1 USD",
+    },
+    {
+      key: "selic",
+      label: "브라질 기준금리",
+      value: selicNow != null ? `${fmtNum(selicNow, 2)}%` : "-",
+      hint: "Selic meta",
+    },
+  ];
+
+  const chartProps =
+    selected === "selic"
+      ? selic
+        ? {
+            label: "브라질 기준금리",
+            unit: "",
+            suffix: "%",
+            digits: 2,
+            stepped: true,
+            series: selic,
+          }
+        : null
+      : hist
+        ? {
+            label: selected === "krwBrl" ? "원/헤알" : "달러/헤알",
+            unit: selected === "krwBrl" ? "₩" : "R$",
+            digits: selected === "krwBrl" ? 2 : 4,
+            series: {
+              dates: hist.dates,
+              values: selected === "krwBrl" ? hist.krwBrl : hist.usdBrl,
+            },
+          }
+        : null;
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -108,13 +132,13 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {CARDS.map((c) => {
+        {cards.map((c) => {
           const active = selected === c.key;
           return (
             <button
               key={c.key}
               type="button"
-              onClick={() => pick(c.key)}
+              onClick={() => setSelected(c.key)}
               aria-pressed={active}
               className={`rounded-lg p-3 text-left transition-colors ${
                 active
@@ -124,7 +148,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
             >
               <p className="text-xs text-zinc-500 dark:text-zinc-400">{c.label}</p>
               <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-                {rates ? `${c.unit} ${fmtNum(rates[c.key], c.digits)}` : "-"}
+                {c.value}
               </p>
               <p className="text-[11px] text-zinc-400">{c.hint}</p>
             </button>
@@ -132,23 +156,15 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         })}
       </div>
 
-      {histLoading && (
+      {chartLoading && (
         <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
           추이 불러오는 중…
         </p>
       )}
-      {histError && !hist && (
-        <p className="mt-2 text-[11px] text-red-500">{histError}</p>
+      {chartError && !hist && (
+        <p className="mt-2 text-[11px] text-red-500">{chartError}</p>
       )}
-      {hist && (
-        <FxHistoryChart
-          label={activeCard.label}
-          unit={activeCard.unit}
-          digits={activeCard.digits}
-          fx={{ dates: hist.dates, values: hist[activeCard.key] }}
-          selic={selic}
-        />
-      )}
+      {chartProps && <FxHistoryChart {...chartProps} />}
 
       <p className="mt-2 text-[11px] text-zinc-400">
         {error

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
+import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -231,7 +232,7 @@ export function OrderConsole() {
     <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
       <header>
         <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-          브라질 국채 매수 프로세스 자동화
+          브라질 트레이딩
         </h1>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           주문일 {orderDate} · 결제일 {settlementDate} (D+0 브라질 영업일)
@@ -239,6 +240,8 @@ export function OrderConsole() {
       </header>
 
       <FxRatePanel rates={fx} loading={fxLoading} error={fxError} onRefresh={loadFx} />
+
+      <BrazilBriefing />
 
       <BondOrderTable
         rows={rows}

@@ -37,30 +37,38 @@ function dateKey(d: Date): string {
 
 const holidayCache = new Map<number, Set<string>>();
 
+export interface BrazilHoliday {
+  date: Date;
+  name: string;
+}
+
+/** 해당 연도 브라질 국경일(ANBIMA/B3 기준) 목록 — 이름 포함 */
+export function brazilHolidayList(year: number): BrazilHoliday[] {
+  const easter = easterSunday(year);
+  const list: BrazilHoliday[] = [
+    { date: new Date(year, 0, 1), name: "신정" },
+    { date: addDays(easter, -48), name: "카니발" },
+    { date: addDays(easter, -47), name: "카니발" },
+    { date: addDays(easter, -2), name: "성금요일" },
+    { date: new Date(year, 3, 21), name: "치라덴치스의 날" },
+    { date: new Date(year, 4, 1), name: "노동절" },
+    { date: addDays(easter, 60), name: "성체축일" },
+    { date: new Date(year, 8, 7), name: "독립기념일" },
+    { date: new Date(year, 9, 12), name: "아파레시다 성모의 날" },
+    { date: new Date(year, 10, 2), name: "위령의 날" },
+    { date: new Date(year, 10, 15), name: "공화국 선포일" },
+    { date: new Date(year, 11, 25), name: "크리스마스" },
+  ];
+  if (year >= 2024) {
+    list.push({ date: new Date(year, 10, 20), name: "흑인 의식의 날" });
+  }
+  return list;
+}
+
 function brazilHolidaysOfYear(year: number): Set<string> {
   const cached = holidayCache.get(year);
   if (cached) return cached;
-
-  const easter = easterSunday(year);
-  const dates = [
-    new Date(year, 0, 1), // 신정
-    addDays(easter, -48), // 카니발 월요일
-    addDays(easter, -47), // 카니발 화요일
-    addDays(easter, -2), // 성금요일
-    new Date(year, 3, 21), // 치라덴치스의 날
-    new Date(year, 4, 1), // 노동절
-    addDays(easter, 60), // 성체축일(Corpus Christi)
-    new Date(year, 8, 7), // 독립기념일
-    new Date(year, 9, 12), // 아파레시다 성모의 날
-    new Date(year, 10, 2), // 위령의 날
-    new Date(year, 10, 15), // 공화국 선포일
-    new Date(year, 11, 25), // 크리스마스
-  ];
-  if (year >= 2024) {
-    dates.push(new Date(year, 10, 20)); // 흑인 의식의 날(2024년부터 국경일, Lei 14.759/2023)
-  }
-
-  const set = new Set(dates.map(dateKey));
+  const set = new Set(brazilHolidayList(year).map((h) => dateKey(h.date)));
   holidayCache.set(year, set);
   return set;
 }
