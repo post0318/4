@@ -5,6 +5,7 @@ import { FxRatePanel } from "@/components/FxRatePanel";
 import { CurrencyExchange } from "@/components/CurrencyExchange";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { DurationPanel } from "@/components/DurationPanel";
+import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
@@ -241,19 +242,21 @@ export function OrderConsole() {
     { key: "trading" as const, label: "트레이딩" },
     { key: "cashflow" as const, label: "현금흐름" },
     { key: "simulation" as const, label: "시뮬레이션" },
-    { key: "duration" as const, label: "듀레이션" },
+    { key: "duration" as const, label: "금리/환율 민감도" },
   ];
 
   return (
     <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
       <header>
         <h1 className="flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">
-          <span
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={BRAZIL_FLAG_DATA_URI}
+            alt=""
             aria-hidden="true"
-            className="flag-wave inline-block shrink-0 select-none text-2xl leading-none"
-          >
-            🇧🇷
-          </span>
+            draggable={false}
+            className="flag-wave h-4 w-auto shrink-0 select-none"
+          />
           브라질 트레이딩
         </h1>
       </header>
