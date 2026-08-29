@@ -32,7 +32,6 @@ interface IncomingLine {
   nameKo: string;
   namePt: string;
   maturityDate: string;
-  couponRatePct: number;
   buyYieldPct: number;
   krwAmount: number;
   pu: number;
@@ -151,7 +150,6 @@ export async function POST(request: NextRequest) {
       nameKo: line.nameKo,
       namePt: line.namePt,
       maturityDate: line.maturityDate,
-      couponRatePct: line.couponRatePct,
       buyYieldPct: line.buyYieldPct,
       krwAmount: line.krwAmount,
       usdAmount: r.usdAmount,

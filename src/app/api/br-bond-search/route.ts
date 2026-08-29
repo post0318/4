@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLatestNtnF } from "@/lib/server/brazilBondData";
-import {
-  NTNF_COUPON_RATE_PCT,
-  getNtnfMeta,
-  ntnfDisplayName,
-} from "@/lib/ntnfMeta";
+import { getNtnfMeta, ntnfDisplayName } from "@/lib/ntnfMeta";
 
 /**
  * 브라질국채(NTN-F) 목록 (요구사항 2).
@@ -31,7 +27,6 @@ export async function GET() {
           `Tesouro Prefixado com Juros Semestrais ${b.maturityDate.slice(0, 4)}`,
         isin: meta?.isin ?? null,
         isinVerified: meta?.isinVerified ?? false,
-        couponRatePct: NTNF_COUPON_RATE_PCT,
         buyYieldPct: b.sellRate,
         sellYieldPct: b.buyRate,
       };

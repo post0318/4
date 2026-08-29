@@ -11,7 +11,6 @@ export interface PendingLine {
   nameKo: string;
   namePt: string;
   maturityDate: string;
-  couponRatePct: number;
   buyYieldPct: number;
   krwAmount: number;
   pu: number;

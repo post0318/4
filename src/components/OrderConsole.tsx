@@ -141,7 +141,6 @@ export function OrderConsole() {
         nameKo: r.bond.nameKo,
         namePt: r.bond.namePt,
         maturityDate: r.bond.maturityDate,
-        couponRatePct: r.bond.couponRatePct,
         buyYieldPct: r.bond.buyYieldPct as number,
         krwAmount: Number(r.krwInput),
         pu: r.pu as number,

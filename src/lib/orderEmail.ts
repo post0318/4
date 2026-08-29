@@ -14,7 +14,6 @@ export interface BondOrderLine {
   nameKo: string;
   namePt: string;
   maturityDate: string;
-  couponRatePct: number;
   /** 매수수익률 (연, %) */
   buyYieldPct: number;
   /** 원화투자금액 (KRW) */
@@ -82,11 +81,10 @@ export function buildOrderEmail(data: OrderEmailData): {
         ["종목명", `${l.nameKo} / ${l.namePt}`],
         ["ISIN", `${l.isin}${l.isinVerified ? "" : " (확인 필요)"}`],
         ["만기일", l.maturityDate],
-        ["표면이율", `연 ${fmt(l.couponRatePct, 2)}%`],
         ["매수수익률", `연 ${fmt(l.buyYieldPct, 4)}%`],
         ["매수단가 (PU)", `R$ ${fmt(l.pu, 4)}`],
         ["원화투자금액", `₩ ${fmtInt(l.krwAmount)}`],
-        ["달러 환전액", `$ ${fmt(l.usdAmount, 2)}`],
+        ["달러 환전액", fmt(l.usdAmount, 2)],
         ["헤알 환산액", `R$ ${fmt(l.brlAmount, 2)}`],
         ["매수가능수량", `${fmtInt(l.quantity)} 좌`],
         ["실매수금액 (BRL)", `R$ ${fmt(l.brlCost, 2)}`],
@@ -151,7 +149,7 @@ export function buildOrderEmail(data: OrderEmailData): {
         <td style="${tdStyle}">${fmt(l.pu, 4)}</td><td style="${tdStyle}">₩ ${fmtInt(
             l.krwAmount
           )}</td>
-        <td style="${tdStyle}">$ ${fmt(l.usdAmount, 2)}</td><td style="${tdStyle}"><b>${fmtInt(
+        <td style="${tdStyle}">${fmt(l.usdAmount, 2)}</td><td style="${tdStyle}"><b>${fmtInt(
             l.quantity
           )} 좌</b></td>
         <td style="${tdStyle}">₩ ${fmtInt(l.krwCost)}</td><td style="${tdStyle}">₩ ${fmtInt(

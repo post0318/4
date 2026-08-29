@@ -11,7 +11,6 @@ export interface BondItem {
   namePt: string;
   isin: string | null;
   isinVerified: boolean;
-  couponRatePct: number;
   /** 매수수익률 (Taxa Venda, 연 %) */
   buyYieldPct: number | null;
   /** 매도수익률 (Taxa Compra, 연 %) — 참고용 */

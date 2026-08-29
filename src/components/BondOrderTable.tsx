@@ -126,11 +126,11 @@ export function BondOrderTable({
                         }
                         maxLength={14}
                         placeholder={row.checked ? "예: 10,000,000" : ""}
-                        className="w-[7rem] rounded border border-zinc-300 px-1.5 py-1 text-right tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-300 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900"
+                        className="w-[6rem] rounded border border-zinc-300 px-1 py-1 text-right tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-300 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900"
                       />
                     </td>
                     <td className={`${td} ${dim} text-right`}>
-                      {order ? `$ ${fmtNum(order.usdAmount, 2)}` : "-"}
+                      {order ? fmtNum(order.usdAmount, 2) : "-"}
                     </td>
                     <td className={`${td} ${dim} text-right`}>
                       {row.pu !== null ? fmtNum(row.pu, 4) : "-"}
@@ -171,8 +171,8 @@ export function BondOrderTable({
         </p>
       )}
       <p className="mt-2 text-[11px] text-zinc-400">
-        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 표면이율은
-        전 종목 연 10% 고정. 매수가능수량은 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).
+        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 매수가능수량은
+        헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).
       </p>
     </section>
   );

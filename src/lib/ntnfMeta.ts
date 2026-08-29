@@ -62,9 +62,6 @@ const NTNF_META: Record<string, NtnfMeta> = {
   },
 };
 
-/** NTN-F는 2015년 이후 표면이율 연 10.00% 단일금리로 통일 발행된다 */
-export const NTNF_COUPON_RATE_PCT = 10;
-
 export function getNtnfMeta(maturityDate: string): NtnfMeta | null {
   const year = maturityDate.slice(0, 4);
   return NTNF_META[year] ?? null;
