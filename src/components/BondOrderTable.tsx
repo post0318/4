@@ -1,6 +1,6 @@
 "use client";
 
-import { fmtInt, fmtNum } from "@/lib/format";
+import { fmtInt, fmtNum, groupDigits } from "@/lib/format";
 import type { OrderResult } from "@/lib/quantity";
 import type { BondItem } from "@/lib/types";
 
@@ -120,7 +120,7 @@ export function BondOrderTable({
                     <td className={`${td} text-right`}>
                       <input
                         inputMode="numeric"
-                        value={row.krwInput}
+                        value={groupDigits(row.krwInput)}
                         disabled={!row.checked}
                         onChange={(e) =>
                           onAmountChange(
@@ -128,7 +128,7 @@ export function BondOrderTable({
                             e.target.value.replace(/[^\d]/g, "")
                           )
                         }
-                        placeholder={row.checked ? "예: 10000000" : ""}
+                        placeholder={row.checked ? "예: 10,000,000" : ""}
                         className="w-32 rounded border border-zinc-300 px-2 py-1 text-right tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-300 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900"
                       />
                     </td>
