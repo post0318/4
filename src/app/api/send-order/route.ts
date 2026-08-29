@@ -14,6 +14,7 @@ import {
   today,
 } from "@/lib/ntnfPricing";
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
+import { allValidEmails, parseRecipients } from "@/lib/recipients";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,7 @@ export const runtime = "nodejs";
  */
 
 const DEFAULT_TO = process.env.ORDER_EMAIL_TO ?? "";
+const DEFAULT_CC = process.env.ORDER_EMAIL_CC ?? "";
 // 환경변수는 리터럴 "\n"을 줄바꿈으로 해석한다
 const GREETING =
   process.env.ORDER_EMAIL_GREETING?.replace(/\\n/g, "\n") ?? DEFAULT_GREETING;
@@ -55,21 +57,23 @@ interface SendOrderBody {
   lines: IncomingLine[];
   fx: { usdKrw: number; usdBrl: number; krwBrl: number; asOf: string | null };
   to: string;
+  cc?: string;
   confirmed: boolean;
   note?: string;
 }
 
 async function sendEmail(params: {
-  to: string;
+  to: string[];
+  cc: string[];
   subject: string;
   text: string;
   html: string;
 }): Promise<{ delivered: boolean; provider: string }> {
   void params;
-  // TODO: 실제 전송 연결 지점.
+  // TODO: 실제 전송 연결 지점. (params.to / params.cc 는 주소 배열)
   //  - Resend:  const { Resend } = await import("resend");
   //             await new Resend(process.env.RESEND_API_KEY).emails.send({
-  //               from: process.env.ORDER_EMAIL_FROM!, to, subject, text, html });
+  //               from: process.env.ORDER_EMAIL_FROM!, to, cc, subject, text, html });
   //  - Gmail :  const nodemailer = await import("nodemailer"); SMTP + 앱 비밀번호
   return { delivered: false, provider: "stub" };
 }
@@ -82,7 +86,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 본문" }, { status: 400 });
   }
 
-  const { lines, fx, to, confirmed, note } = body ?? {};
+  const { lines, fx, to, cc, confirmed, note } = body ?? {};
 
   if (!confirmed) {
     return NextResponse.json(
@@ -91,13 +95,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const recipient = (to || DEFAULT_TO).trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+  // 받는사람·참조는 ; 또는 , 로 여러 명 지정 가능. "이름 <a@b.com>" 형식 허용.
+  const toList = parseRecipients(to || DEFAULT_TO);
+  if (!allValidEmails(toList)) {
     return NextResponse.json(
-      { error: "수신자 이메일 주소가 올바르지 않습니다." },
+      { error: "받는사람 이메일 주소가 올바르지 않습니다." },
       { status: 400 }
     );
   }
+  const ccList = parseRecipients(cc ?? DEFAULT_CC);
+  if (ccList.length > 0 && !allValidEmails(ccList)) {
+    return NextResponse.json(
+      { error: "참조 이메일 주소가 올바르지 않습니다." },
+      { status: 400 }
+    );
+  }
+  const recipient = toList.join(", ");
 
   if (!Array.isArray(lines) || lines.length === 0) {
     return NextResponse.json(
@@ -201,11 +214,18 @@ export async function POST(request: NextRequest) {
   };
 
   const { subject, text, html } = buildOrderEmail(emailData);
-  const result = await sendEmail({ to: recipient, subject, text, html });
+  const result = await sendEmail({
+    to: toList,
+    cc: ccList,
+    subject,
+    text,
+    html,
+  });
 
+  const ccLine = ccList.length ? `\nCc: ${ccList.join(", ")}` : "";
   if (!result.delivered) {
     console.log(
-      `\n───── [send-order STUB] 미전송 ─────\nTo: ${recipient}\nSubject: ${subject}\n\n${text}\n───────────────────────────────────\n`
+      `\n───── [send-order STUB] 미전송 ─────\nTo: ${recipient}${ccLine}\nSubject: ${subject}\n\n${text}\n───────────────────────────────────\n`
     );
   }
 
@@ -214,6 +234,7 @@ export async function POST(request: NextRequest) {
     delivered: result.delivered,
     provider: result.provider,
     to: recipient,
+    cc: ccList.join(", "),
     subject,
     lines: resultLines,
     preview: text,
@@ -221,5 +242,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ defaultTo: DEFAULT_TO });
+  return NextResponse.json({ defaultTo: DEFAULT_TO, defaultCc: DEFAULT_CC });
 }

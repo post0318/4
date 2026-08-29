@@ -19,7 +19,8 @@ npm run refresh-ntnf # NTN-F 시세 스냅샷 수동 갱신
 
 `.env.example`를 `.env.local`로 복사해 채운다.
 
-- `ORDER_EMAIL_TO` — 주문 이메일 수신자 기본값 (화면에서 수정 가능)
+- `ORDER_EMAIL_TO` / `ORDER_EMAIL_CC` — 주문 이메일 받는사람·참조 기본값
+  (화면에서 수정 가능, 여러 명은 `;` 로 구분, `이름 <a@b.com>` 형식 허용)
 - `ORDER_EMAIL_SUBJECT_PREFIX` / `ORDER_EMAIL_GREETING` / `ORDER_EMAIL_SIGNATURE`
   — 주문 메일 제목 접두어("{접두어} {주문일}")·인사말·서명 (미설정 시
   `src/lib/orderEmail.ts` 기본값). 인사말 줄바꿈은 리터럴 `\n`.

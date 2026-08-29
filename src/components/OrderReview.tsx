@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { fmtInt, fmtNum } from "@/lib/format";
+import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import type { FxRates } from "@/lib/types";
 
 /** 발송 대기 중인 종목 한 줄 (체크됨 + 수량 산출 완료) */
@@ -28,21 +29,37 @@ interface OrderReviewProps {
   incompleteCount: number;
   fx: FxRates | null;
   defaultTo: string;
+  defaultCc: string;
 }
 
 type SendState =
   | { status: "idle" }
   | { status: "sending" }
-  | { status: "done"; delivered: boolean; to: string; subject: string; preview: string }
+  | {
+      status: "done";
+      delivered: boolean;
+      to: string;
+      cc: string;
+      subject: string;
+      preview: string;
+    }
   | { status: "error"; message: string };
 
 /**
  * 발송 전 확인 후 발송 (요구사항 5). 체크된 종목만 발송한다 (요구사항 4).
  */
-export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderReviewProps) {
-  // 사용자가 수정하기 전까지는 기본 수신자(defaultTo, 뒤늦게 로드될 수 있음)를 따른다
+export function OrderReview({
+  lines,
+  incompleteCount,
+  fx,
+  defaultTo,
+  defaultCc,
+}: OrderReviewProps) {
+  // 사용자가 수정하기 전까지는 기본 수신자/참조(뒤늦게 로드될 수 있음)를 따른다
   const [toOverride, setToOverride] = useState<string | null>(null);
   const to = toOverride ?? defaultTo;
+  const [ccOverride, setCcOverride] = useState<string | null>(null);
+  const cc = ccOverride ?? defaultCc;
   const [note, setNote] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [send, setSend] = useState<SendState>({ status: "idle" });
@@ -64,9 +81,17 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
   const [confirmedSig, setConfirmedSig] = useState<string | null>(null);
   const confirmed = confirmedSig === signature;
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim());
+  // 수신자·참조는 ; 또는 , 로 여러 명 지정 가능. "이름 <a@b.com>" 형식 허용.
+  const recipients = parseRecipients(to);
+  const ccList = parseRecipients(cc);
+  const emailValid = allValidEmails(recipients);
+  const ccValid = ccList.length === 0 || allValidEmails(ccList);
   const canSend =
-    lines.length > 0 && confirmed && emailValid && send.status !== "sending";
+    lines.length > 0 &&
+    confirmed &&
+    emailValid &&
+    ccValid &&
+    send.status !== "sending";
 
   const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
 
@@ -82,6 +107,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
           lines,
           fx,
           to: to.trim(),
+          cc: cc.trim() || undefined,
           confirmed: true,
           note: note.trim() || undefined,
         }),
@@ -95,6 +121,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
         status: "done",
         delivered: data.delivered,
         to: data.to,
+        cc: data.cc ?? "",
         subject: data.subject,
         preview: data.preview,
       });
@@ -145,19 +172,41 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
       </div>
 
       <label className="block text-xs text-zinc-500 dark:text-zinc-400">
-        수신자 이메일
+        수신자 이메일 <span className="text-zinc-400">(여러 명은 ; 로 구분)</span>
       </label>
-      <input
-        type="email"
+      <textarea
         value={to}
         onChange={(e) => setToOverride(e.target.value)}
-        placeholder="orders@example.com"
+        rows={2}
+        placeholder="a@example.com; b@example.com"
         className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
       />
-      {!emailValid && to.length > 0 && (
+      {!emailValid && to.trim().length > 0 && (
         <p className="mt-1 text-[11px] text-red-500">
-          이메일 주소 형식이 올바르지 않습니다.
+          이메일 주소 형식이 올바르지 않습니다. (; 로 구분)
         </p>
+      )}
+      {emailValid && (
+        <p className="mt-1 text-[11px] text-zinc-400">수신자 {recipients.length}명</p>
+      )}
+
+      <label className="mt-3 block text-xs text-zinc-500 dark:text-zinc-400">
+        참조 (CC) <span className="text-zinc-400">(여러 명은 ; 로 구분)</span>
+      </label>
+      <textarea
+        value={cc}
+        onChange={(e) => setCcOverride(e.target.value)}
+        rows={2}
+        placeholder="c@example.com; d@example.com"
+        className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+      />
+      {!ccValid && cc.trim().length > 0 && (
+        <p className="mt-1 text-[11px] text-red-500">
+          참조 이메일 주소 형식이 올바르지 않습니다. (; 로 구분)
+        </p>
+      )}
+      {ccValid && ccList.length > 0 && (
+        <p className="mt-1 text-[11px] text-zinc-400">참조 {ccList.length}명</p>
       )}
 
       <label className="mt-3 block text-xs text-zinc-500 dark:text-zinc-400">
@@ -205,6 +254,11 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
               ? `발송 완료 → ${send.to}`
               : `발송 준비 완료 (전송 미연동 · stub) → ${send.to}`}
           </p>
+          {send.cc && (
+            <p className="mt-1 text-emerald-600 dark:text-emerald-400">
+              참조: {send.cc}
+            </p>
+          )}
           <p className="mt-1 text-emerald-600 dark:text-emerald-400">
             제목: {send.subject}
           </p>
@@ -224,8 +278,13 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
               이 내용으로 발송할까요?
             </h3>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              수신자 {to.trim()}
+              받는사람 {recipients.length}명 · {recipients.join(", ")}
             </p>
+            {ccList.length > 0 && (
+              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                참조 {ccList.length}명 · {ccList.join(", ")}
+              </p>
+            )}
             <ul className="mt-3 space-y-2">
               {lines.map((l) => (
                 <li

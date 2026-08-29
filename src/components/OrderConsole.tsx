@@ -30,6 +30,7 @@ export function OrderConsole() {
   // 실제 주문수량 override. 값이 없으면 매수가능수량을 그대로 쓴다.
   const [orderQtys, setOrderQtys] = useState<Record<string, string>>({});
   const [defaultTo, setDefaultTo] = useState("");
+  const [defaultCc, setDefaultCc] = useState("");
 
   const applyFxResponse = useCallback((d: FxRates & { error?: string }) => {
     if (d.error || typeof d.usdKrw !== "number") {
@@ -83,10 +84,11 @@ export function OrderConsole() {
       }
 
       try {
-        const d: { defaultTo?: string } = await fetch("/api/send-order").then(
-          (r) => r.json()
-        );
+        const d: { defaultTo?: string; defaultCc?: string } = await fetch(
+          "/api/send-order"
+        ).then((r) => r.json());
         if (!cancelled && d.defaultTo) setDefaultTo(d.defaultTo);
+        if (!cancelled && d.defaultCc) setDefaultCc(d.defaultCc);
       } catch {
         /* 기본 수신자 없음 — 무시 */
       }
@@ -256,6 +258,7 @@ export function OrderConsole() {
         incompleteCount={incompleteCount}
         fx={fx}
         defaultTo={defaultTo}
+        defaultCc={defaultCc}
       />
 
       <footer className="pb-8 text-[11px] text-zinc-400">
