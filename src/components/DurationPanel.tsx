@@ -61,8 +61,8 @@ function ReturnMatrix({
   return (
     <div>
       <p className="mb-1 text-[12px] text-zinc-500 dark:text-zinc-400">
-        환율 시나리오별 예상 원화수익률 — 현재 매수금리로 지금 매수해 만기까지 보유
-        (만기 보유라 금리변동 평가손익 없음)
+        현재 매수금리로 지금 매수해 만기까지 보유 (만기 보유라 금리변동 평가손익
+        없음 — 금리 손익은 위 가격변동 표 참고)
       </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[12px]">
@@ -242,6 +242,7 @@ export function DurationPanel({ bonds, fx }: Props) {
   const td = "px-1.5 py-1 whitespace-nowrap tabular-nums";
 
   return (
+    <div className="space-y-4">
     <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         금리/환율 민감도
@@ -368,19 +369,25 @@ export function DurationPanel({ bonds, fx }: Props) {
         </table>
       </div>
 
-      {fx?.krwBrl ? (
-        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
-      ) : (
-        <p className="text-[11px] text-zinc-400">
-          환율을 불러오면 예상수익률 요약표가 표시됩니다.
-        </p>
-      )}
-
       <p className="text-[11px] text-zinc-400">
         수정듀레이션 D*는 수익률 100bp 변화 시 대략적인 PU 변화율(년)입니다. 가격변동
         ≈ −D*·Δy + ½·컨벡시티·Δy², 원화가치변동 = (1+가격변동)(1+환율변동)−1. 결제일
         D+0, NTN-F(액면 R$1,000). 근사치입니다.
       </p>
     </section>
+
+    <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        환율 시나리오별 예상 수익률
+      </h2>
+      {fx?.krwBrl ? (
+        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
+      ) : (
+        <p className="text-[11px] text-zinc-400">
+          환율을 불러오면 표시됩니다.
+        </p>
+      )}
+    </section>
+    </div>
   );
 }
