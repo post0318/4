@@ -60,12 +60,12 @@ function ReturnMatrix({
 
   return (
     <div>
-      <p className="mb-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+      <p className="mb-1 text-[12px] text-zinc-500 dark:text-zinc-400">
         환율 시나리오별 예상 원화수익률 — 현재 매수금리로 지금 매수해 만기까지 보유
         (만기 보유라 금리변동 평가손익 없음)
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] table-fixed border-collapse text-[11px]">
+        <table className="w-full min-w-[760px] table-fixed border-collapse text-[12px]">
           <colgroup>
             <col className="w-[7.14%]" />
             <col className="w-[7.14%]" />
@@ -143,7 +143,7 @@ function ReturnMatrix({
           </tbody>
         </table>
       </div>
-      <p className="mt-1 text-[10px] text-zinc-400">
+      <p className="mt-1 text-[11px] text-zinc-400">
         총누적수익률 = 잔존기간 전체 수익률, 연환산수익률 = 이를 연 단위로 환산.
         헤알화 강세(＋)일수록 붉게.
       </p>
