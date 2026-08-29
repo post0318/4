@@ -12,7 +12,7 @@ interface FxRatePanelProps {
   onRefresh: () => void;
 }
 
-type CardKey = "krwBrl" | "usdBrl" | "rates";
+type CardKey = "krwBrl" | "usdKrw" | "usdBrl" | "rates";
 
 interface FxHistory {
   dates: string[];
@@ -22,8 +22,8 @@ interface FxHistory {
 }
 
 /**
- * 브라질 시장정보 — 원/헤알·달러/헤알 환율과 브라질 기준금리(Selic).
- * 원/헤알은 파생값, 원/달러는 카드로 노출하지 않지만 수량 계산용으로 별도 조회한다.
+ * 브라질 시장정보 — 원/헤알·원/달러·달러/헤알 환율과 브라질 기준금리(Selic).
+ * 원/헤알은 usdKrw/usdBrl 파생값(표시·수량계산 일치용).
  * 카드를 누르면 아래에 해당 지표의 7년 추이 차트가 열린다(시작 시 원/헤알).
  */
 export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelProps) {
@@ -100,6 +100,12 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       hint: "1 USD",
     },
     {
+      key: "usdKrw",
+      label: "원/달러",
+      value: rates ? `₩ ${fmtNum(rates.usdKrw, 2)}` : "-",
+      hint: "1 USD",
+    },
+    {
       key: "rates",
       label: "브라질 기준금리",
       value: selicNow != null ? `${fmtNum(selicNow, 2)}%` : "-",
@@ -115,6 +121,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     stepped?: boolean;
     series: ChartSeries;
     overlay?: { series: ChartSeries; label: string; stepped?: boolean };
+    strength?: { name: string; invert?: boolean };
   } | null = null;
   if (selected === "rates" && ntnf) {
     chartProps = {
@@ -127,15 +134,39 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         ? { series: selic, label: "기준금리", stepped: true }
         : undefined,
     };
-  } else if ((selected === "krwBrl" || selected === "usdBrl") && hist) {
-    chartProps = {
-      label: selected === "krwBrl" ? "원/헤알" : "달러/헤알",
-      unit: selected === "krwBrl" ? "₩" : "R$",
-      digits: selected === "krwBrl" ? 2 : 4,
-      series: {
-        dates: hist.dates,
-        values: selected === "krwBrl" ? hist.krwBrl : hist.usdBrl,
+  } else if (
+    (selected === "krwBrl" || selected === "usdKrw" || selected === "usdBrl") &&
+    hist
+  ) {
+    const meta = {
+      krwBrl: {
+        label: "원/헤알",
+        unit: "₩",
+        digits: 2,
+        values: hist.krwBrl,
+        strength: { name: "헤알" },
       },
+      usdKrw: {
+        label: "원/달러",
+        unit: "₩",
+        digits: 2,
+        values: hist.usdKrw,
+        strength: { name: "달러" },
+      },
+      usdBrl: {
+        label: "달러/헤알",
+        unit: "R$",
+        digits: 4,
+        values: hist.usdBrl,
+        strength: { name: "헤알", invert: true },
+      },
+    }[selected];
+    chartProps = {
+      label: meta.label,
+      unit: meta.unit,
+      digits: meta.digits,
+      series: { dates: hist.dates, values: meta.values },
+      strength: meta.strength,
     };
   }
 
@@ -155,7 +186,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cards.map((c) => {
           const active = selected === c.key;
           return (

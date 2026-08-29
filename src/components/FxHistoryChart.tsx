@@ -27,6 +27,12 @@ interface FxHistoryChartProps {
   series: ChartSeries;
   /** 같은 축에 겹쳐 그릴 두 번째 선 (예: 국채금리 vs 기준금리) */
   overlay?: Overlay;
+  /**
+   * 오른쪽 위 변화율을 "통화 강세/약세" 관점으로 표시할 때 지정.
+   * name: 관점의 주체 통화("헤알"·"달러"), invert: 시계열 상승이 곧 약세면 true
+   * (예: R$/USD 상승 = 헤알 약세 → invert:true).
+   */
+  strength?: { name: string; invert?: boolean };
 }
 
 const W = 900;
@@ -69,6 +75,7 @@ export function FxHistoryChart({
   stepped = false,
   series,
   overlay,
+  strength,
 }: FxHistoryChartProps) {
   const [hoverT, setHoverT] = useState<number | null>(null);
 
@@ -131,6 +138,11 @@ export function FxHistoryChart({
   const change = last - first;
   const changePct = (change / first) * 100;
 
+  // "통화 강세/약세" 관점: invert면 시계열 상승이 약세이므로 부호를 뒤집는다.
+  const strengthPct = strength?.invert
+    ? (first / last - 1) * 100
+    : (last / first - 1) * 100;
+
   const hv = hoverT != null ? valueAt(series, hoverT) : null;
   const hov = hoverT != null && overlay ? valueAt(overlay.series, hoverT) : null;
   const hDate =
@@ -154,18 +166,32 @@ export function FxHistoryChart({
           <span className="ml-1 font-normal text-zinc-400">· 7년</span>
         </p>
         {!overlay && (
-          <p className="text-[10px] tabular-nums">
-            <span
-              className={
-                change >= 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-red-600 dark:text-red-400"
-              }
-            >
-              {change >= 0 ? "+" : ""}
-              {fmtNum(change, digits)} ({changePct >= 0 ? "+" : ""}
-              {fmtNum(changePct, 1)}%)
-            </span>
+          <p className="text-[10px] tabular-nums text-zinc-400">
+            {series.dates[0]} 대비{" "}
+            {strength ? (
+              <span
+                className={
+                  strengthPct >= 0
+                    ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                    : "font-semibold text-red-600 dark:text-red-400"
+                }
+              >
+                {strength.name} {strengthPct >= 0 ? "+" : ""}
+                {fmtNum(strengthPct, 1)}% ({strengthPct >= 0 ? "강세" : "약세"})
+              </span>
+            ) : (
+              <span
+                className={
+                  change >= 0
+                    ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                    : "font-semibold text-red-600 dark:text-red-400"
+                }
+              >
+                {change >= 0 ? "+" : ""}
+                {fmtNum(change, digits)} ({changePct >= 0 ? "+" : ""}
+                {fmtNum(changePct, 1)}%)
+              </span>
+            )}
           </p>
         )}
       </div>
@@ -274,7 +300,7 @@ export function FxHistoryChart({
         {hDate && hv != null ? (
           <>
             {hDate} · {fmtVal(hv)}
-            {hov != null && overlay ? (
+            {hov != null && overlay && (
               <>
                 {" · "}
                 <span className="text-amber-600 dark:text-amber-400">
@@ -282,12 +308,16 @@ export function FxHistoryChart({
                   {suffix}
                 </span>
               </>
-            ) : null}
+            )}
           </>
-        ) : (
+        ) : overlay ? (
           <>
             {series.dates[0]} ~ {series.dates[series.dates.length - 1]}
           </>
+        ) : (
+          <span className="text-zinc-400">
+            그래프에 마우스를 올리면 해당일 값이 표시됩니다
+          </span>
         )}
       </p>
     </div>

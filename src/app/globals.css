@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 제목 옆 브라질 국기: 깃대(왼쪽) 기준으로 은은하게 펄럭이는 느낌 */
+@keyframes flag-wave {
+  0%,
+  100% {
+    transform: perspective(120px) rotateY(0deg) skewY(0deg);
+  }
+  33% {
+    transform: perspective(120px) rotateY(4deg) skewY(0.8deg);
+  }
+  66% {
+    transform: perspective(120px) rotateY(-4deg) skewY(-0.8deg);
+  }
+}
+
+.flag-wave {
+  transform-origin: left center;
+  animation: flag-wave 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flag-wave {
+    animation: none;
+  }
+}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
+import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
@@ -240,7 +241,15 @@ export function OrderConsole() {
   return (
     <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
       <header>
-        <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+        <h1 className="flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={BRAZIL_FLAG_DATA_URI}
+            alt=""
+            aria-hidden="true"
+            className="flag-wave h-6 w-6 shrink-0 select-none"
+            draggable={false}
+          />
           브라질 트레이딩
         </h1>
       </header>

@@ -130,6 +130,11 @@ export async function fetchBrazilNews(limit = 5): Promise<NewsItem[]> {
 const GLOBAL_QUERY =
   'Brazil (economy OR politics OR markets OR Lula OR "central bank" OR real OR bonds OR Petrobras)';
 
+// 거시·정치·시장과 무관한 기업/기술/문화 기사 제외 (국채 판단에 도움 안 됨).
+// 단, 중앙은행 규제·관세 등 정책 맥락이면 통과되도록 키워드를 좁게 잡는다.
+const GLOBAL_OFF_TOPIC =
+  /openai|chatgpt|\bllm\b|generative ai|data ?cent(er|re)|streaming|netflix|spotify|tiktok|world cup|olympics?|neymar|\bfootball\b|\bsoccer\b|carnival|celebrity|box office|\bfilm\b|\bmovie\b/i;
+
 /**
  * 브라질 관련 글로벌(영문) 뉴스 상위 N개. Google 뉴스 영문 검색 피드는 보도량
  * 기준으로 정렬되므로 "글로벌 상위"에 가깝다. 제목은 en→ko 번역.
@@ -142,7 +147,7 @@ export async function fetchGlobalBrazilNews(limit = 5): Promise<NewsItem[]> {
   const seen = new Set<string>();
   const picked: RawItem[] = [];
   for (const it of list) {
-    if (NOISE.test(it.title)) continue;
+    if (NOISE.test(it.title) || GLOBAL_OFF_TOPIC.test(it.title)) continue;
     const tkey = it.title.toLowerCase().slice(0, 40);
     if (seen.has(tkey)) continue;
     seen.add(tkey);

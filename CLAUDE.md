@@ -39,8 +39,17 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/app/api/br-selic` — 브라질 기준금리(Selic) 7년 추이(BCB SGS 432, 무인증)
 - `src/app/api/ntnf-yield` — 브라질 국채금리(NTN-F ~10년 롤링) 7년 추이. 커밋된
   `ntnf-yield-history.json`(주간 GitHub Actions 갱신)을 반환
-- `src/app/api/br-news` — 브라질 뉴스 5건(G1 RSS + MyMemory pt→ko, 30m 재검증)
-- `src/app/api/br-agenda` — 향후 1개월 경제지표(IBGE 캘린더)·시장 휴장일
+- `src/app/api/br-news` — 현지 뉴스 최대 5건(좋은아침뉴스 `bomdianews.com.br`
+  RSS, 한국어 원문·번역 불필요). `RELEVANT` 허용목록(금리·헤알·환율·국채·재정·
+  세제·물가·무역·신용등급·정치 등)에 걸리는 글만 통과 → 관련 글이 적으면 5건
+  미만. + 브라질 관련 글로벌 영문 뉴스(Google 뉴스, 제목 자동 번역,
+  `GLOBAL_OFF_TOPIC`로 AI·스트리밍·스포츠·연예 제외, 현지의 ~1.4배·5~9건).
+  30m 재검증
+- `src/app/api/br-daily-report` — 한국브라질소사이어티(KOBRAS) 「브라질 데일리
+  리포트」 최신호. 네이버 블로그 `dari0202` RSS에서 최신 글을 찾아 PostView 본문의
+  [KOBRAS Daily Brief](핵심 분석) 섹션만 파싱. 1h 재검증
+- `src/app/api/br-agenda` — 15일 전 ~ 2개월 후 경제지표(IBGE 캘린더)·시장 휴장일·
+  대선 일정
 - `src/app/api/br-bond-search` — 스냅샷 + 메타 머지
 - `src/app/api/send-order` — 서버 재계산 대조 후 발송. **이메일 전송은 현재
   stub** — `sendEmail()` 어댑터에 Resend 또는 Gmail SMTP 연결하면 됨.
