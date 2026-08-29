@@ -42,32 +42,38 @@ interface MatrixBond {
 
 /**
  * 환율 시나리오(행) × 종목(열) 예상 원화수익률 요약표.
- * 각 셀: 종목을 지금 매수해 만기까지 보유했을 때의 원화 연환산·누적 수익률
- * (금리 슬라이더 Δ 반영, 행의 환율변동 결합).
+ * 각 셀: 현재 매수금리로 지금 매수해 만기까지 보유했을 때의 원화 연환산·누적 수익률
+ * (행의 환율변동 결합). 만기 보유이므로 금리변동에 따른 평가손익은 없다 —
+ * 금리변동 손익은 위쪽 "가격변동" 표(중도 매도 기준)를 참고.
  */
 function ReturnMatrix({
   bonds,
   baseFx,
-  dy,
 }: {
   bonds: MatrixBond[];
   baseFx: number;
-  dy: number;
 }) {
   const th =
-    "px-1.5 py-1 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800";
+    "px-1 py-1 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800";
   const cell =
-    "px-1.5 py-1 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
+    "px-1 py-1 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
 
   return (
     <div>
       <p className="mb-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-        환율 시나리오별 예상 원화수익률 — 지금 매수해 만기까지 보유 (금리 Δ{" "}
-        {dy >= 0 ? "+" : ""}
-        {fmtNum(dy, 2)}%p 반영)
+        환율 시나리오별 예상 원화수익률 — 현재 매수금리로 지금 매수해 만기까지 보유
+        (만기 보유라 금리변동 평가손익 없음)
       </p>
       <div className="overflow-x-auto">
-        <table className="border-collapse text-[11px]">
+        <table className="w-full min-w-[640px] table-fixed border-collapse text-[11px]">
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[13%]" />
+            {bonds.flatMap((b) => [
+              <col key={`${b.label}-a`} className="w-[6.16%]" />,
+              <col key={`${b.label}-t`} className="w-[6.16%]" />,
+            ])}
+          </colgroup>
           <thead>
             <tr>
               <th className={th} rowSpan={2}>
@@ -203,17 +209,17 @@ export function DurationPanel({ bonds, fx }: Props) {
     [sorted, dy, dfx]
   );
 
-  // 요약표: 종목별 "만기까지 보유 시 헤알 수익률" (금리 Δ 반영)
+  // 요약표: 종목별 "현재 매수금리로 만기까지 보유 시 헤알 수익률" (금리 Δ 무관)
   const matrixBonds: MatrixBond[] = useMemo(
     () =>
       sorted.map((b) => ({
         label: b.maturityDate.slice(0, 4),
         hold:
           b.buyYieldPct != null
-            ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, dy)
+            ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0)
             : null,
       })),
-    [sorted, dy]
+    [sorted]
   );
 
   if (sorted.length === 0) {
@@ -356,7 +362,7 @@ export function DurationPanel({ bonds, fx }: Props) {
       </div>
 
       {fx?.krwBrl ? (
-        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} dy={dy} />
+        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
       ) : (
         <p className="text-[11px] text-zinc-400">
           환율을 불러오면 예상수익률 요약표가 표시됩니다.
