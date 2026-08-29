@@ -127,9 +127,13 @@ export function isKoreaBusinessDay(date: Date): boolean {
 
 /**
  * 지정한 연·월(0-based month)의 월지급일 = 그 달 10일, 한국 비영업일이면 다음 영업일.
+ *
+ * 반환값은 UTC 자정 기준으로 맞춘다. 다른 날짜(결제일 등)가 "YYYY-MM-DD" 문자열
+ * 파싱으로 만들어져 UTC 자정인데, 여기서 로컬 자정 Date를 돌려주면 toISOString()
+ * 직렬화 시 KST 등 UTC+ 환경에서 하루가 당겨져 표시·일수계산이 어긋난다.
  */
 export function koreaPaymentDate(year: number, month: number): Date {
   let d = new Date(year, month, 10);
   while (!isKoreaBusinessDay(d)) d = addDays(d, 1);
-  return d;
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
