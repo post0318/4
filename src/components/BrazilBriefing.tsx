@@ -15,7 +15,8 @@ interface AgendaItem {
   date: string;
   titleKo: string;
   category: "경제지표" | "휴장";
-  link: string | null;
+  guidance: string | null;
+  actual: string | null;
 }
 
 function relTime(iso: string): string {
@@ -72,7 +73,7 @@ export function BrazilBriefing() {
         <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           브라질 현지 뉴스{" "}
           <span className="text-[11px] font-normal text-zinc-400">
-            (G1 · 제목 기계번역)
+            (Google 뉴스 · 자동 번역)
           </span>
         </h2>
         {!news && !newsError && (
@@ -111,7 +112,7 @@ export function BrazilBriefing() {
         <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           브라질 주요일정{" "}
           <span className="text-[11px] font-normal text-zinc-400">
-            (향후 약 1개월)
+            (전후 15일 · 예상/발표)
           </span>
         </h2>
         {!agenda && (
@@ -121,32 +122,52 @@ export function BrazilBriefing() {
         )}
         {agenda && agenda.length === 0 && (
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            예정된 일정이 없습니다.
+            해당 기간 주요일정이 없습니다.
           </p>
         )}
         <ul className="space-y-1.5">
-          {agenda?.map((a, i) => (
-            <li
-              key={`${a.date}-${i}`}
-              className="flex items-baseline gap-2 text-xs"
-            >
-              <span className="w-16 shrink-0 tabular-nums text-zinc-500 dark:text-zinc-400">
-                {fmtDate(a.date)}
-              </span>
-              <span
-                className={`shrink-0 rounded px-1 text-[10px] ${
-                  a.category === "휴장"
-                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                }`}
+          {agenda?.map((a, i) => {
+            const past = a.date < new Date().toISOString().slice(0, 10);
+            return (
+              <li
+                key={`${a.date}-${i}`}
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs"
               >
-                {a.category}
-              </span>
-              <span className="text-zinc-800 dark:text-zinc-100">
-                {a.titleKo}
-              </span>
-            </li>
-          ))}
+                <span
+                  className={`w-16 shrink-0 tabular-nums ${
+                    past
+                      ? "text-zinc-400 dark:text-zinc-500"
+                      : "font-medium text-zinc-600 dark:text-zinc-300"
+                  }`}
+                >
+                  {fmtDate(a.date)}
+                </span>
+                <span
+                  className={`shrink-0 rounded px-1 text-[10px] ${
+                    a.category === "휴장"
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                      : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  {a.category}
+                </span>
+                <span className="text-zinc-800 dark:text-zinc-100">
+                  {a.titleKo}
+                </span>
+                {(a.guidance || a.actual) && (
+                  <span className="tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {a.guidance && <>예상 {a.guidance}</>}
+                    {a.guidance && a.actual && " → "}
+                    {a.actual && (
+                      <span className="font-semibold text-blue-700 dark:text-blue-300">
+                        발표 {a.actual}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>

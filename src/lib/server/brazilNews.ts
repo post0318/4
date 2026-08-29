@@ -1,15 +1,25 @@
 /**
- * 브라질 현지 뉴스(경제·정치·사회)를 G1(globo.com) RSS에서 모아, 제목을
- * MyMemory(무인증 무료 MT)로 pt→ko 번역해 반환한다. 번역 실패 시 원문을 쓴다.
- * 결과는 라우트에서 캐시(revalidate)하므로 MT 무료 한도 안에서 동작한다.
+ * 브라질 현지 주요 뉴스를 Google 뉴스(pt-BR) RSS에서 모은다. "주요 뉴스" 피드는
+ * 노출도(보도량)가 높은 순으로 클러스터링되므로 "가장 많이 다뤄진 뉴스"에 가깝다.
+ * 제목은 translatePtToKo로 한글 번역하고, 실패 시 원문을 쓴다. 결과는 라우트에서
+ * 캐시(revalidate)한다.
  */
 
 import { translatePtToKo } from "@/lib/server/translate";
 
+const UA = "Mozilla/5.0 (compatible; brazil-trading/1.0)";
+const GN = (path: string) =>
+  `https://news.google.com/rss/${path}${
+    path.includes("?") ? "&" : "?"
+  }hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+
+// 라운드로빈으로 한 건씩 뽑아 경제·정치·사회를 고르게 섞는다
+const MACRO_QUERY =
+  "(economia OR juros OR inflação OR Copom OR fiscal OR dólar OR \"Banco Central\") Brasil";
 const FEEDS: { url: string; category: string }[] = [
-  { url: "https://g1.globo.com/rss/g1/economia/", category: "경제" },
-  { url: "https://g1.globo.com/rss/g1/politica/", category: "정치" },
-  { url: "https://g1.globo.com/rss/g1/brasil/", category: "사회" },
+  { url: GN(`search?q=${encodeURIComponent(MACRO_QUERY)}`), category: "경제" },
+  { url: GN("headlines/section/topic/NATION"), category: "정치·사회" },
+  { url: GN(""), category: "주요" },
 ];
 
 export interface NewsItem {
@@ -17,53 +27,61 @@ export interface NewsItem {
   titlePt: string;
   link: string;
   category: string;
-  /** ISO */
   publishedAt: string;
   source: string;
 }
 
-function decodeEntities(s: string): string {
+// 경제·정치·사회와 무관한 잡음(복권·운세·연예·스포츠 결과 등) 제외
+const NOISE =
+  /lotof[aá]cil|mega-?sena|lotomania|\bquina\b|dupla sena|loteria|hor[oó]scopo|\bsigno|zod[ií]aco|bbb\s*\d|big brother|novela|resultado do concurso|escala[çc][aã]o|pr[oó]ximo jogo/i;
+
+function decode(s: string): string {
   return s
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/&amp;/g, "&")
     .trim();
 }
 
-function pick(tag: string, xml: string): string | null {
-  const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i"));
-  return m ? decodeEntities(m[1]) : null;
+function tag(name: string, xml: string): string | null {
+  const m = xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "i"));
+  return m ? decode(m[1]) : null;
 }
 
 interface RawItem {
   title: string;
   link: string;
-  publishedAt: string;
+  source: string;
   category: string;
+  publishedAt: string;
 }
 
 async function fetchFeed(url: string, category: string): Promise<RawItem[]> {
   try {
-    const res = await fetch(url, {
-      headers: { "user-agent": "Mozilla/5.0 (brazil-trading)" },
-    });
+    const res = await fetch(url, { headers: { "user-agent": UA } });
     if (!res.ok) return [];
     const xml = await res.text();
-    const items = xml.match(/<item[\s\S]*?<\/item>/gi) ?? [];
-    return items
-      .map((block) => {
-        const title = pick("title", block);
-        const link = pick("link", block);
-        const pub = pick("pubDate", block);
-        if (!title || !link) return null;
+    const blocks = xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [];
+    return blocks
+      .map((b) => {
+        const rawTitle = tag("title", b);
+        const link = tag("link", b);
+        if (!rawTitle || !link) return null;
+        const source = tag("source", b) ?? "Google 뉴스";
+        // "헤드라인 - 매체" 형식에서 매체명 꼬리 제거
+        const title = rawTitle
+          .replace(new RegExp(`\\s*[-–]\\s*${source}\\s*$`), "")
+          .trim();
+        const pub = tag("pubDate", b);
         const d = pub ? new Date(pub) : null;
         return {
           title,
           link,
+          source,
           category,
           publishedAt:
             d && !Number.isNaN(d.getTime())
@@ -79,24 +97,38 @@ async function fetchFeed(url: string, category: string): Promise<RawItem[]> {
 
 export async function fetchBrazilNews(limit = 5): Promise<NewsItem[]> {
   const feeds = await Promise.all(FEEDS.map((f) => fetchFeed(f.url, f.category)));
-  const byLink = new Map<string, RawItem>();
-  for (const item of feeds.flat()) {
-    if (!byLink.has(item.link)) byLink.set(item.link, item);
-  }
-  const merged = [...byLink.values()]
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, limit);
 
-  const translated = await Promise.all(
-    merged.map(async (item) => ({
+  // 피드별 큐를 만들어 라운드로빈으로 뽑는다(카테고리 균형). 링크·제목 중복 제거.
+  const queues = feeds.map((list) =>
+    list.filter((it) => !NOISE.test(it.title))
+  );
+  const seenLink = new Set<string>();
+  const seenTitle = new Set<string>();
+  const picked: RawItem[] = [];
+  let progressed = true;
+  while (picked.length < limit && progressed) {
+    progressed = false;
+    for (const q of queues) {
+      if (picked.length >= limit) break;
+      const item = q.shift();
+      if (!item) continue;
+      progressed = true;
+      const tkey = item.title.toLowerCase().slice(0, 40);
+      if (seenLink.has(item.link) || seenTitle.has(tkey)) continue;
+      seenLink.add(item.link);
+      seenTitle.add(tkey);
+      picked.push(item);
+    }
+  }
+
+  return Promise.all(
+    picked.map(async (item) => ({
       titleKo: (await translatePtToKo(item.title)) ?? item.title,
       titlePt: item.title,
       link: item.link,
       category: item.category,
       publishedAt: item.publishedAt,
-      source: "G1",
+      source: item.source,
     }))
   );
-
-  return translated;
 }
