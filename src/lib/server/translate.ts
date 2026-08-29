@@ -6,10 +6,12 @@
  * ok:false 로 표시해 화면에서 원문을 우선 노출하게 한다.
  */
 
-async function viaGoogle(
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function viaGoogleOnce(
   text: string,
-  sl = "pt",
-  tl = "ko"
+  sl: string,
+  tl: string
 ): Promise<string | null> {
   try {
     const url =
@@ -29,12 +31,24 @@ async function viaGoogle(
   }
 }
 
-async function viaMyMemory(text: string): Promise<string | null> {
+/** 무인증 엔드포인트가 429/빈응답을 자주 내므로 1회 재시도한다(짧은 백오프). */
+async function viaGoogle(
+  text: string,
+  sl = "pt",
+  tl = "ko"
+): Promise<string | null> {
+  const first = await viaGoogleOnce(text, sl, tl);
+  if (first) return first;
+  await wait(400);
+  return viaGoogleOnce(text, sl, tl);
+}
+
+async function viaMyMemory(text: string, sl = "pt"): Promise<string | null> {
   try {
     const res = await fetch(
       `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
         text
-      )}&langpair=pt|ko`
+      )}&langpair=${sl}|ko`
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -51,17 +65,17 @@ async function viaMyMemory(text: string): Promise<string | null> {
 }
 
 export async function translatePtToKo(text: string): Promise<string | null> {
-  return (await viaGoogle(text)) ?? (await viaMyMemory(text));
+  return (await viaGoogle(text)) ?? (await viaMyMemory(text, "pt"));
 }
 
-/** 임의 원어(en/pt 등) → ko. Google 우선, pt는 MyMemory 폴백. */
+/** 임의 원어(en/pt 등) → ko. Google 우선, 실패 시 MyMemory 폴백(en·pt 지원). */
 export async function translateToKo(
   text: string,
   sl: string
 ): Promise<string | null> {
   const g = await viaGoogle(text, sl, "ko");
   if (g) return g;
-  return sl === "pt" ? await viaMyMemory(text) : null;
+  return sl === "pt" || sl === "en" ? await viaMyMemory(text, sl) : null;
 }
 
 function contentWords(s: string): Set<string> {

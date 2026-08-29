@@ -157,22 +157,30 @@ export async function fetchGlobalBrazilNews(limit = 5): Promise<NewsItem[]> {
   return translateItems(picked, "en");
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * 제목을 번역·검증한다. 무인증 Google 엔드포인트는 동시요청이 몰리면 429/빈응답을
+ * 돌려주고, 그러면 번역 실패 → 원문 노출 + "번역 불확실" 표시가 늘어난다.
+ * 그래서 한 건씩 순차 처리하고 사이에 짧은 간격을 둔다(라우트가 30분 캐시라 지연 OK).
+ */
 async function translateItems(
   items: RawItem[],
   sl: "pt" | "en"
 ): Promise<NewsItem[]> {
-  return Promise.all(
-    items.map(async (item) => {
-      const { ko, ok } = await translateChecked(item.title, sl);
-      return {
-        titleKo: ko ?? item.title,
-        titlePt: item.title,
-        translationOk: ok && ko != null,
-        link: item.link,
-        category: item.category,
-        publishedAt: item.publishedAt,
-        source: item.source,
-      };
-    })
-  );
+  const out: NewsItem[] = [];
+  for (const item of items) {
+    const { ko, ok } = await translateChecked(item.title, sl);
+    out.push({
+      titleKo: ko ?? item.title,
+      titlePt: item.title,
+      translationOk: ok && ko != null,
+      link: item.link,
+      category: item.category,
+      publishedAt: item.publishedAt,
+      source: item.source,
+    });
+    await sleep(150);
+  }
+  return out;
 }
