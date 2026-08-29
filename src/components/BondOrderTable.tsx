@@ -26,8 +26,8 @@ interface BondOrderTableProps {
 
 /**
  * 브라질국채(NTN-F) 전 종목을 표로 표시한다 (요구사항 2·3).
- * 각 행: [체크박스] 종목명·ISIN·만기·표면이율·매수수익률 + (체크 시) 원화투자금액
- * 입력 → 달러환전액·PU·매수수량·실매수금액을 같은 행의 열로 산출.
+ * 각 행: [체크박스] 종목명·ISIN·만기·매수수익률 + (체크 시) 원화투자금액
+ * 입력 → 달러환전액·PU·매수가능수량·실매수금액을 같은 행의 열로 산출.
  * 체크된 종목만 활성화되고 이메일 발송 대상이 된다.
  */
 export function BondOrderTable({
@@ -48,7 +48,7 @@ export function BondOrderTable({
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          종목 · 매수수량 <span className="text-zinc-400">({rows.length}개)</span>
+          종목 · 매수가능수량 <span className="text-zinc-400">({rows.length}개)</span>
         </h2>
         <span className="text-[11px] text-zinc-400">
           {asOfDate ? `시세 기준일 ${asOfDate} · 결제일 ${settlementDate}` : ""}
@@ -69,12 +69,11 @@ export function BondOrderTable({
                 <th className={th}>종목명</th>
                 <th className={th}>ISIN</th>
                 <th className={th}>만기일</th>
-                <th className={th}>표면이율</th>
                 <th className={th}>매수수익률</th>
                 <th className={`${th} text-right`}>원화투자금액</th>
                 <th className={`${th} text-right`}>달러($)</th>
                 <th className={`${th} text-right`}>PU (R$)</th>
-                <th className={`${th} text-right`}>매수수량</th>
+                <th className={`${th} text-right`}>매수가능수량</th>
                 <th className={`${th} text-right`}>실매수금액(₩)</th>
                 <th className={`${th} text-right`}>잔여(₩)</th>
               </tr>
@@ -109,9 +108,6 @@ export function BondOrderTable({
                     </td>
                     <td className={`${td} ${dim}`}>{bond.isin ?? "-"}</td>
                     <td className={`${td} ${dim}`}>{bond.maturityDate}</td>
-                    <td className={`${td} ${dim} text-right`}>
-                      연 {fmtNum(bond.couponRatePct, 2)}%
-                    </td>
                     <td className={`${td} ${dim} text-right`}>
                       {bond.buyYieldPct !== null
                         ? `연 ${fmtNum(bond.buyYieldPct, 2)}%`
@@ -159,7 +155,7 @@ export function BondOrderTable({
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td className="px-2 py-4 text-center text-zinc-400" colSpan={12}>
+                  <td className="px-2 py-4 text-center text-zinc-400" colSpan={11}>
                     거래 중인 종목이 없습니다.
                   </td>
                 </tr>
@@ -171,12 +167,12 @@ export function BondOrderTable({
 
       {!fxReady && !loading && (
         <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-          환율을 불러오면 달러환전액·매수수량이 계산됩니다.
+          환율을 불러오면 달러환전액·매수가능수량이 계산됩니다.
         </p>
       )}
       <p className="mt-2 text-[11px] text-zinc-400">
-        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 매수수량은
-        헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).
+        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 표면이율은
+        전 종목 연 10% 고정. 매수가능수량은 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).
       </p>
     </section>
   );

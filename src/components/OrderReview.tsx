@@ -230,7 +230,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
                     <span>PU R$ {fmtNum(l.pu, 4)}</span>
                     <span>투자금액 ₩ {fmtInt(l.krwAmount)}</span>
                     <span className="font-bold text-blue-700 dark:text-blue-300">
-                      매수수량 {fmtInt(l.quantity)}좌
+                      매수가능수량 {fmtInt(l.quantity)}좌
                     </span>
                   </div>
                 </li>

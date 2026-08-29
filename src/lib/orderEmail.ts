@@ -25,7 +25,7 @@ export interface BondOrderLine {
   brlAmount: number;
   /** 매수단가 (PU, per título, BRL) */
   pu: number;
-  /** 매수수량 (정수, 좌) */
+  /** 매수가능수량 (정수, 좌) */
   quantity: number;
   /** 실매수금액 (BRL) */
   brlCost: number;
@@ -88,7 +88,7 @@ export function buildOrderEmail(data: OrderEmailData): {
         ["원화투자금액", `₩ ${fmtInt(l.krwAmount)}`],
         ["달러 환전액", `$ ${fmt(l.usdAmount, 2)}`],
         ["헤알 환산액", `R$ ${fmt(l.brlAmount, 2)}`],
-        ["매수수량", `${fmtInt(l.quantity)} 좌`],
+        ["매수가능수량", `${fmtInt(l.quantity)} 좌`],
         ["실매수금액 (BRL)", `R$ ${fmt(l.brlCost, 2)}`],
         ["실매수금액 (KRW 환산)", `₩ ${fmtInt(l.krwCost)}`],
         ["잔여현금 (KRW 환산)", `₩ ${fmtInt(l.krwLeftover)}`],
@@ -113,7 +113,7 @@ export function buildOrderEmail(data: OrderEmailData): {
     blocks +
     totals +
     (data.note ? `\n\n[메모]\n${data.note}` : "") +
-    "\n\n※ 환율은 중간환율(스프레드 미반영). 매수수량 = 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).";
+    "\n\n※ 환율은 중간환율(스프레드 미반영). 매수가능수량 = 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).";
 
   const thStyle =
     "padding:6px 8px;border:1px solid #d4d4d8;background:#f4f4f5;text-align:left;font-size:12px;white-space:nowrap";
@@ -134,7 +134,7 @@ export function buildOrderEmail(data: OrderEmailData): {
       <th style="${thStyle}">종목명</th><th style="${thStyle}">ISIN</th>
       <th style="${thStyle}">만기일</th><th style="${thStyle}">매수수익률</th>
       <th style="${thStyle}">PU(R$)</th><th style="${thStyle}">원화투자금액</th>
-      <th style="${thStyle}">달러($)</th><th style="${thStyle}">매수수량</th>
+      <th style="${thStyle}">달러($)</th><th style="${thStyle}">매수가능수량</th>
       <th style="${thStyle}">실매수금액(₩)</th><th style="${thStyle}">잔여(₩)</th>
     </tr></thead>
     <tbody>
@@ -180,7 +180,7 @@ export function buildOrderEmail(data: OrderEmailData): {
         )}</p>`
       : ""
   }
-  <p style="margin:12px 0 0;color:#6b7280;font-size:12px">※ 환율은 중간환율(스프레드 미반영). 매수수량 = 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).</p>
+  <p style="margin:12px 0 0;color:#6b7280;font-size:12px">※ 환율은 중간환율(스프레드 미반영). 매수가능수량 = 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000).</p>
 </div>`;
 
   return { subject, text, html };

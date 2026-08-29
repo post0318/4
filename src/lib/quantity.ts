@@ -1,7 +1,7 @@
 /**
- * 매수수량 산출 (핵심 요구사항 3).
+ * 매수가능수량 산출 (핵심 요구사항 3).
  *
- * 원화투자금액 → 달러 환전액 → 헤알 환산액 → NTN-F 매수수량(정수, 1좌 = 액면
+ * 원화투자금액 → 달러 환전액 → 헤알 환산액 → NTN-F 매수가능수량(정수, 1좌 = 액면
  * R$1,000). 환율은 모두 중간환율(스프레드 미반영)이며, 화면에 그 사실을 명시한다.
  * KRW→USD→BRL 경로만 쓰고 KRW/BRL은 usdBrl/usdKrw로 파생해 표시값과 계산을
  * 일치시킨다.
@@ -23,7 +23,7 @@ export interface OrderResult {
   usdAmount: number;
   /** 헤알 환산액 (BRL) */
   brlAmount: number;
-  /** 매수수량 (정수, 좌) */
+  /** 매수가능수량 (정수, 좌) */
   quantity: number;
   /** 실매수금액 (BRL) = quantity * pu */
   brlCost: number;
