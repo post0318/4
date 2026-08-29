@@ -8,10 +8,11 @@
 import { translateChecked } from "@/lib/server/translate";
 
 const UA = "Mozilla/5.0 (compatible; brazil-trading/1.0)";
-const GN = (path: string) =>
+const GN = (path: string, locale = "hl=pt-BR&gl=BR&ceid=BR:pt-419") =>
   `https://news.google.com/rss/${path}${
     path.includes("?") ? "&" : "?"
-  }hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+  }${locale}`;
+const EN_LOCALE = "hl=en-US&gl=US&ceid=US:en";
 
 // 라운드로빈으로 한 건씩 뽑아 경제·정치·사회를 고르게 섞는다
 const MACRO_QUERY =
@@ -123,9 +124,41 @@ export async function fetchBrazilNews(limit = 5): Promise<NewsItem[]> {
     }
   }
 
+  return translateItems(picked, "pt");
+}
+
+const GLOBAL_QUERY =
+  'Brazil (economy OR politics OR markets OR Lula OR "central bank" OR real OR bonds OR Petrobras)';
+
+/**
+ * 브라질 관련 글로벌(영문) 뉴스 상위 N개. Google 뉴스 영문 검색 피드는 보도량
+ * 기준으로 정렬되므로 "글로벌 상위"에 가깝다. 제목은 en→ko 번역.
+ */
+export async function fetchGlobalBrazilNews(limit = 5): Promise<NewsItem[]> {
+  const list = await fetchFeed(
+    GN(`search?q=${encodeURIComponent(GLOBAL_QUERY)}`, EN_LOCALE),
+    "글로벌"
+  );
+  const seen = new Set<string>();
+  const picked: RawItem[] = [];
+  for (const it of list) {
+    if (NOISE.test(it.title)) continue;
+    const tkey = it.title.toLowerCase().slice(0, 40);
+    if (seen.has(tkey)) continue;
+    seen.add(tkey);
+    picked.push(it);
+    if (picked.length >= limit) break;
+  }
+  return translateItems(picked, "en");
+}
+
+async function translateItems(
+  items: RawItem[],
+  sl: "pt" | "en"
+): Promise<NewsItem[]> {
   return Promise.all(
-    picked.map(async (item) => {
-      const { ko, ok } = await translateChecked(item.title);
+    items.map(async (item) => {
+      const { ko, ok } = await translateChecked(item.title, sl);
       return {
         titleKo: ko ?? item.title,
         titlePt: item.title,

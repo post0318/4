@@ -80,7 +80,6 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   }, []);
 
   const selicNow = selic ? selic.values[selic.values.length - 1] : null;
-  const ntnfNow = ntnf ? ntnf.values[ntnf.values.length - 1] : null;
 
   const cards: {
     key: CardKey;
@@ -92,7 +91,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       key: "krwBrl",
       label: "원/헤알",
       value: rates ? `₩ ${fmtNum(rates.krwBrl, 2)}` : "-",
-      hint: "1 BRL · 파생",
+      hint: "1 BRL",
     },
     {
       key: "usdBrl",
@@ -102,12 +101,9 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     },
     {
       key: "rates",
-      label: "브라질 금리",
-      value:
-        ntnfNow != null && selicNow != null
-          ? `국채 ${fmtNum(ntnfNow, 2)}% · Selic ${fmtNum(selicNow, 2)}%`
-          : "-",
-      hint: "국채 NTN-F ~10년 / 기준금리",
+      label: "브라질 기준금리",
+      value: selicNow != null ? `${fmtNum(selicNow, 2)}%` : "-",
+      hint: "Selic meta · 차트에 국채금리 함께",
     },
   ];
 

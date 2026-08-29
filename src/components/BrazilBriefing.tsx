@@ -40,8 +40,39 @@ function fmtDate(iso: string): string {
  * 환율 패널과 종목 표 사이에 놓이는 브라질 브리핑.
  * 상단: 현지 뉴스 5건(한글 번역·원문 링크). 하단: 향후 약 1개월 주요일정.
  */
+function NewsList({ items }: { items: NewsItem[] }) {
+  return (
+    <ul className="space-y-2">
+      {items.map((n) => (
+        <li key={n.link} className="text-xs">
+          <a
+            href={n.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400"
+          >
+            {n.titleKo}
+          </a>
+          {!n.translationOk && (
+            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+              번역 불확실
+            </span>
+          )}
+          <p className="mt-0.5 text-[11px] text-zinc-400">
+            <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
+              {n.category}
+            </span>{" "}
+            {n.source} · {relTime(n.publishedAt)}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function BrazilBriefing() {
   const [news, setNews] = useState<NewsItem[] | null>(null);
+  const [global, setGlobal] = useState<NewsItem[] | null>(null);
   const [newsError, setNewsError] = useState(false);
   const [agenda, setAgenda] = useState<AgendaItem[] | null>(null);
 
@@ -54,6 +85,7 @@ export function BrazilBriefing() {
         if (cancelled) return;
         if (Array.isArray(d.items) && d.items.length) setNews(d.items);
         else setNewsError(true);
+        if (Array.isArray(d.global)) setGlobal(d.global);
       })
       .catch(() => !cancelled && setNewsError(true));
 
@@ -92,31 +124,19 @@ export function BrazilBriefing() {
             자동 수집·번역이라 부정확할 수 있습니다. 원문 링크로 확인하세요.
           </p>
         )}
-        <ul className="space-y-2">
-          {news?.map((n) => (
-            <li key={n.link} className="text-xs">
-              <a
-                href={n.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400"
-              >
-                {n.titleKo}
-              </a>
-              {!n.translationOk && (
-                <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                  번역 불확실
-                </span>
-              )}
-              <p className="mt-0.5 text-[11px] text-zinc-400">
-                <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
-                  {n.category}
-                </span>{" "}
-                {n.source} · {relTime(n.publishedAt)}
-              </p>
-            </li>
-          ))}
-        </ul>
+        {news && <NewsList items={news} />}
+
+        {global && global.length > 0 && (
+          <>
+            <h3 className="mb-2 mt-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              브라질 관련 글로벌 뉴스{" "}
+              <span className="text-[11px] font-normal text-zinc-400">
+                (영문 · 자동 번역)
+              </span>
+            </h3>
+            <NewsList items={global} />
+          </>
+        )}
       </div>
 
       {/* 주요일정 */}

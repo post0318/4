@@ -54,6 +54,16 @@ export async function translatePtToKo(text: string): Promise<string | null> {
   return (await viaGoogle(text)) ?? (await viaMyMemory(text));
 }
 
+/** 임의 원어(en/pt 등) → ko. Google 우선, pt는 MyMemory 폴백. */
+export async function translateToKo(
+  text: string,
+  sl: string
+): Promise<string | null> {
+  const g = await viaGoogle(text, sl, "ko");
+  if (g) return g;
+  return sl === "pt" ? await viaMyMemory(text) : null;
+}
+
 function contentWords(s: string): Set<string> {
   return new Set(
     s
@@ -75,13 +85,14 @@ function dice(a: Set<string>, b: Set<string>): number {
 }
 
 export async function translateChecked(
-  pt: string
+  src: string,
+  sl = "pt"
 ): Promise<{ ko: string | null; ok: boolean }> {
-  const ko = await translatePtToKo(pt);
+  const ko = await translateToKo(src, sl);
   if (!ko) return { ko: null, ok: false };
-  if (ko.trim() === pt.trim()) return { ko, ok: false }; // 미번역
+  if (ko.trim() === src.trim()) return { ko, ok: false }; // 미번역
 
-  const back = await viaGoogle(ko, "ko", "pt");
+  const back = await viaGoogle(ko, "ko", sl);
   if (!back) return { ko, ok: true }; // 역번역 실패 → 판단 보류
-  return { ko, ok: dice(contentWords(back), contentWords(pt)) >= 0.3 };
+  return { ko, ok: dice(contentWords(back), contentWords(src)) >= 0.3 };
 }
