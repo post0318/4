@@ -157,30 +157,49 @@ export async function fetchGlobalBrazilNews(limit = 5): Promise<NewsItem[]> {
   return translateItems(picked, "en");
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /**
- * 제목을 번역·검증한다. 무인증 Google 엔드포인트는 동시요청이 몰리면 429/빈응답을
- * 돌려주고, 그러면 번역 실패 → 원문 노출 + "번역 불확실" 표시가 늘어난다.
- * 그래서 한 건씩 순차 처리하고 사이에 짧은 간격을 둔다(라우트가 30분 캐시라 지연 OK).
+ * 제목을 번역·검증한다. 무인증 Google 엔드포인트가 rate limit(429)에 걸리면
+ * 번역이 느려지거나 실패하므로:
+ *  - 동시 요청은 소수(POOL)로 제한하고
+ *  - 전체 시간예산(DEADLINE_MS)을 넘기면 남은 항목은 원문 그대로 반환한다
+ *    (라우트가 타임아웃돼 글로벌 뉴스가 통째로 사라지는 것을 방지).
+ * 번역을 못 한 항목은 원문을 보여주되 "번역 불확실" 배지는 달지 않는다
+ * (번역이 틀린 게 아니라 안 한 것이므로).
  */
+const POOL = 5;
+const DEADLINE_MS = 7000;
+
 async function translateItems(
   items: RawItem[],
   sl: "pt" | "en"
 ): Promise<NewsItem[]> {
-  const out: NewsItem[] = [];
-  for (const item of items) {
-    const { ko, ok } = await translateChecked(item.title, sl);
-    out.push({
-      titleKo: ko ?? item.title,
+  const checked = new Array<{ ko: string | null; ok: boolean } | null>(
+    items.length
+  ).fill(null);
+  const deadline = Date.now() + DEADLINE_MS;
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length && Date.now() < deadline) {
+      const i = next++;
+      checked[i] = await translateChecked(items[i].title, sl);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(POOL, items.length) }, worker)
+  );
+
+  return items.map((item, i) => {
+    const r = checked[i];
+    return {
+      titleKo: r?.ko ?? item.title,
       titlePt: item.title,
-      translationOk: ok && ko != null,
+      // 번역 성공 → 검증 결과, 번역 안 함(원문 노출) → 배지 없음
+      translationOk: r?.ko ? r.ok : true,
       link: item.link,
       category: item.category,
       publishedAt: item.publishedAt,
       source: item.source,
-    });
-    await sleep(150);
-  }
-  return out;
+    };
+  });
 }
