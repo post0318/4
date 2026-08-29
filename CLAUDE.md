@@ -37,6 +37,8 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/app/api/fx-rates` — USD/KRW·USD/BRL 조회, KRW/BRL 파생
 - `src/app/api/fx-history` — 7년치 일간 환율 추이(Frankfurter 시계열, 12h 재검증)
 - `src/app/api/br-selic` — 브라질 기준금리(Selic) 7년 추이(BCB SGS 432, 무인증)
+- `src/app/api/ntnf-yield` — 브라질 국채금리(NTN-F ~10년 롤링) 7년 추이. 커밋된
+  `ntnf-yield-history.json`(주간 GitHub Actions 갱신)을 반환
 - `src/app/api/br-news` — 브라질 뉴스 5건(G1 RSS + MyMemory pt→ko, 30m 재검증)
 - `src/app/api/br-agenda` — 향후 1개월 경제지표(IBGE 캘린더)·시장 휴장일
 - `src/app/api/br-bond-search` — 스냅샷 + 메타 머지

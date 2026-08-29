@@ -82,14 +82,15 @@ async function main() {
     bonds,
   };
 
-  const outPath = join(
+  const serverDir = join(
     dirname(fileURLToPath(import.meta.url)),
     "..",
     "src",
     "lib",
-    "server",
-    "ntnf-snapshot.json"
+    "server"
   );
+
+  const outPath = join(serverDir, "ntnf-snapshot.json");
   writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + "\n");
   console.log(
     `[fetch-ntnf-snapshot] 저장 완료: ${outPath}\n  기준일 ${asOfDate}, 종목 ${bonds.length}개`
@@ -97,6 +98,59 @@ async function main() {
   for (const b of bonds) {
     console.log(`  ${b.maturityDate}  매수 ${b.buyRate}%  매도 ${b.sellRate}%`);
   }
+
+  // ── 브라질 장기국채금리 추이 (NTN-F ~10년) ──
+  // NTN-F 개별 종목은 발행~상환 기간만 존재해 7년 연속 히스토리가 없다. 그래서
+  // 매 영업일마다 "만기가 (해당일+10년)에 가장 가까운 NTN-F"의 매도수익률(Taxa
+  // Venda)을 골라 롤링 10년물 금리 시계열을 구성한다.
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 7);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+
+  const byDate = new Map();
+  for (const r of rows) {
+    if (typeof r.sellRate !== "number" || r.dataBase < cutoffIso) continue;
+    if (!byDate.has(r.dataBase)) byDate.set(r.dataBase, []);
+    byDate.get(r.dataBase).push(r);
+  }
+
+  const points = [];
+  for (const [date, list] of [...byDate.entries()].sort()) {
+    const target = new Date(date);
+    target.setFullYear(target.getFullYear() + 10);
+    let best = null;
+    let bestDiff = Infinity;
+    for (const r of list) {
+      const diff = Math.abs(new Date(r.maturityDate) - target);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = r;
+      }
+    }
+    if (best) {
+      points.push({
+        date,
+        ytm: best.sellRate,
+        maturityYear: Number(best.maturityDate.slice(0, 4)),
+      });
+    }
+  }
+
+  const yieldHistory = {
+    label: "브라질 국채금리 (NTN-F ~10년)",
+    asOfDate: points.length ? points[points.length - 1].date : asOfDate,
+    generatedAt: new Date().toISOString(),
+    source: CSV_URL,
+    note: "매 영업일 만기가 (해당일+10년)에 가장 가까운 NTN-F의 Taxa Venda",
+    points,
+  };
+  const yieldPath = join(serverDir, "ntnf-yield-history.json");
+  writeFileSync(yieldPath, JSON.stringify(yieldHistory, null, 2) + "\n");
+  console.log(
+    `[fetch-ntnf-snapshot] 금리추이 저장: ${yieldPath}\n  ${points.length}일, 최신 ${yieldHistory.asOfDate} ${
+      points.length ? points[points.length - 1].ytm + "%" : ""
+    }`
+  );
 }
 
 main().catch((err) => {

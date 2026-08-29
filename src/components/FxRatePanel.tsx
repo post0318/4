@@ -12,7 +12,7 @@ interface FxRatePanelProps {
   onRefresh: () => void;
 }
 
-type CardKey = "krwBrl" | "usdBrl" | "selic";
+type CardKey = "krwBrl" | "usdBrl" | "selic" | "ntnfYield";
 
 interface FxHistory {
   dates: string[];
@@ -30,6 +30,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   const [selected, setSelected] = useState<CardKey>("krwBrl");
   const [hist, setHist] = useState<FxHistory | null>(null);
   const [selic, setSelic] = useState<ChartSeries | null>(null);
+  const [ntnf, setNtnf] = useState<ChartSeries | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState<string | null>(null);
 
@@ -39,8 +40,9 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     Promise.allSettled([
       fetch("/api/fx-history").then((r) => r.json()),
       fetch("/api/br-selic").then((r) => r.json()),
+      fetch("/api/ntnf-yield").then((r) => r.json()),
     ])
-      .then(([fxRes, selicRes]) => {
+      .then(([fxRes, selicRes, ntnfRes]) => {
         if (cancelled) return;
         if (fxRes.status === "fulfilled" && Array.isArray(fxRes.value?.dates)) {
           setHist(fxRes.value as FxHistory);
@@ -53,6 +55,12 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         ) {
           setSelic(selicRes.value as ChartSeries);
         }
+        if (
+          ntnfRes.status === "fulfilled" &&
+          Array.isArray(ntnfRes.value?.dates)
+        ) {
+          setNtnf(ntnfRes.value as ChartSeries);
+        }
       })
       .finally(() => {
         if (!cancelled) setChartLoading(false);
@@ -64,6 +72,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   }, []);
 
   const selicNow = selic ? selic.values[selic.values.length - 1] : null;
+  const ntnfNow = ntnf ? ntnf.values[ntnf.values.length - 1] : null;
 
   const cards: {
     key: CardKey;
@@ -89,31 +98,50 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       value: selicNow != null ? `${fmtNum(selicNow, 2)}%` : "-",
       hint: "Selic meta",
     },
+    {
+      key: "ntnfYield",
+      label: "브라질 국채금리",
+      value: ntnfNow != null ? `${fmtNum(ntnfNow, 2)}%` : "-",
+      hint: "NTN-F ~10년",
+    },
   ];
 
-  const chartProps =
-    selected === "selic"
-      ? selic
-        ? {
-            label: "브라질 기준금리",
-            unit: "",
-            suffix: "%",
-            digits: 2,
-            stepped: true,
-            series: selic,
-          }
-        : null
-      : hist
-        ? {
-            label: selected === "krwBrl" ? "원/헤알" : "달러/헤알",
-            unit: selected === "krwBrl" ? "₩" : "R$",
-            digits: selected === "krwBrl" ? 2 : 4,
-            series: {
-              dates: hist.dates,
-              values: selected === "krwBrl" ? hist.krwBrl : hist.usdBrl,
-            },
-          }
-        : null;
+  let chartProps: {
+    label: string;
+    unit: string;
+    suffix?: string;
+    digits: number;
+    stepped?: boolean;
+    series: ChartSeries;
+  } | null = null;
+  if (selected === "selic" && selic) {
+    chartProps = {
+      label: "브라질 기준금리",
+      unit: "",
+      suffix: "%",
+      digits: 2,
+      stepped: true,
+      series: selic,
+    };
+  } else if (selected === "ntnfYield" && ntnf) {
+    chartProps = {
+      label: "브라질 국채금리 (NTN-F ~10년)",
+      unit: "",
+      suffix: "%",
+      digits: 2,
+      series: ntnf,
+    };
+  } else if ((selected === "krwBrl" || selected === "usdBrl") && hist) {
+    chartProps = {
+      label: selected === "krwBrl" ? "원/헤알" : "달러/헤알",
+      unit: selected === "krwBrl" ? "₩" : "R$",
+      digits: selected === "krwBrl" ? 2 : 4,
+      series: {
+        dates: hist.dates,
+        values: selected === "krwBrl" ? hist.krwBrl : hist.usdBrl,
+      },
+    };
+  }
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -131,7 +159,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cards.map((c) => {
           const active = selected === c.key;
           return (
@@ -170,9 +198,9 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         {error
           ? error
           : rates
-            ? `환율 기준시각 ${fmtTimestamp(
+            ? `환율 ${fmtTimestamp(
                 rates.asOf
-              )} · 출처 Frankfurter(ECB) · 기준금리 브라질 중앙은행`
+              )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 국채금리 재무부(주간)`
             : "환율을 불러오는 중입니다."}
       </p>
     </section>
