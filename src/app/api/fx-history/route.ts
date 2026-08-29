@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchFxSeries } from "@/lib/server/fxRate";
+import { BOUNDS, sanitizeSeries } from "@/lib/server/sanity";
 
 // 12시간마다 재검증 (ECB는 하루 1회 갱신)
 export const revalidate = 43200;
@@ -22,14 +23,28 @@ export async function GET() {
     );
   }
 
-  const krwBrl = series.usdKrw.map((k, i) =>
-    Math.round((k / series.usdBrl[i]) * 100) / 100
+  // 팩트 검증: 두 다리(USD/KRW·USD/BRL)를 각각 범위 검사하고, 한 쪽이라도
+  // 이상한 날짜는 통째로 버려 파생 원/헤알까지 정합성을 지킨다.
+  const okIdx: number[] = [];
+  series.dates.forEach((d, i) => {
+    const a = sanitizeSeries([d], [series.usdKrw[i]], BOUNDS.usdKrw);
+    const b = sanitizeSeries([d], [series.usdBrl[i]], BOUNDS.usdBrl);
+    if (a.values.length && b.values.length) okIdx.push(i);
+  });
+  const dropped = series.dates.length - okIdx.length;
+  const dates = okIdx.map((i) => series.dates[i]);
+  const usdKrw = okIdx.map((i) => series.usdKrw[i]);
+  const usdBrl = okIdx.map((i) => series.usdBrl[i]);
+  const krwBrl = okIdx.map(
+    (i) => Math.round((series.usdKrw[i] / series.usdBrl[i]) * 100) / 100
   );
 
   return NextResponse.json({
-    dates: series.dates,
-    usdKrw: series.usdKrw,
-    usdBrl: series.usdBrl,
+    dates,
+    usdKrw,
+    usdBrl,
     krwBrl,
+    dropped,
+    source: "Frankfurter (ECB reference rates)",
   });
 }

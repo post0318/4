@@ -84,6 +84,11 @@ export function BrazilBriefing() {
         {newsError && (
           <p className="text-xs text-red-500">뉴스를 불러오지 못했습니다.</p>
         )}
+        {news && (
+          <p className="mb-2 text-[11px] text-zinc-400">
+            자동 수집·번역이라 부정확할 수 있습니다. 원문 링크로 확인하세요.
+          </p>
+        )}
         <ul className="space-y-2">
           {news?.map((n) => (
             <li key={n.link} className="text-xs">

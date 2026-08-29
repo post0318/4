@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchFxRate } from "@/lib/server/fxRate";
+import { BOUNDS, inRange } from "@/lib/server/sanity";
 
 /**
  * 원/달러·달러/헤알 환율을 한 번에 조회한다 (요구사항 1).
@@ -13,9 +14,10 @@ export async function GET() {
       fetchFxRate("USD", "BRL"),
     ]);
 
-    if (typeof usdKrw !== "number" || typeof usdBrl !== "number") {
+    // 팩트 검증: 상식적 범위를 벗어나면 소스 오류로 보고 거부한다
+    if (!inRange(usdKrw, BOUNDS.usdKrw) || !inRange(usdBrl, BOUNDS.usdBrl)) {
       return NextResponse.json(
-        { error: "환율 조회에 실패했습니다." },
+        { error: "환율 값이 정상 범위를 벗어났습니다. 잠시 후 다시 시도하세요." },
         { status: 502 }
       );
     }
@@ -25,6 +27,7 @@ export async function GET() {
       usdBrl,
       krwBrl: usdKrw / usdBrl,
       asOf: new Date().toISOString(),
+      source: "Frankfurter (ECB reference rates)",
     });
   } catch (error) {
     return NextResponse.json(

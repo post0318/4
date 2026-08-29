@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchSelicHistory } from "@/lib/server/bcbRate";
+import { BOUNDS, sanitizeSeries } from "@/lib/server/sanity";
 
 // 12시간마다 재검증 (Copom 회의 때만 바뀜)
 export const revalidate = 43200;
@@ -22,5 +23,11 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(series);
+  const clean = sanitizeSeries(series.dates, series.values, BOUNDS.ratePct);
+  return NextResponse.json({
+    dates: clean.dates,
+    values: clean.values,
+    dropped: clean.dropped,
+    source: "Banco Central do Brasil · SGS 432 (Meta Selic)",
+  });
 }
