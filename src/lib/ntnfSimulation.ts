@@ -104,6 +104,30 @@ function years(from: Date, to: Date): number {
   return brazilBusinessDaysBetween(from, to) / BD_YEAR;
 }
 
+/**
+ * 지금 매수해 만기까지 보유했을 때의 헤알(BRL) 수익률.
+ * 쿠폰은 (매수금리 + shiftPct)로 만기까지 재투자 가정.
+ */
+export function holdToMaturityBrl(
+  maturity: string,
+  buyYieldPct: number,
+  shiftPct: number
+): { annualPct: number; totalPct: number; years: number } | null {
+  const settle = getOrderSettlementDate(today());
+  const mat = parseLocalDate(maturity);
+  if (!mat || mat <= settle) return null;
+  const puBuy = computeNtnfPu(maturity, buyYieldPct, settle);
+  if (puBuy == null || puBuy <= 0) return null;
+  const coupons = couponsFV(settle, mat, mat, buyYieldPct + shiftPct);
+  const total = (FACE + coupons) / puBuy - 1;
+  const t = Math.max(years(settle, mat), 1 / 365);
+  return {
+    annualPct: (Math.pow(1 + total, 1 / t) - 1) * 100,
+    totalPct: total * 100,
+    years: t,
+  };
+}
+
 /** 누적 BRL 손익을 통화·기여도로 분해해 시나리오로 만든다 */
 function build(
   key: Scenario["key"],

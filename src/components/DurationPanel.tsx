@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { fmtNum } from "@/lib/format";
 import { bondRisk, shockReturn } from "@/lib/ntnfDuration";
-import type { BondItem } from "@/lib/types";
+import { holdToMaturityBrl } from "@/lib/ntnfSimulation";
+import type { BondItem, FxRates } from "@/lib/types";
 
 interface Props {
   bonds: BondItem[];
+  fx: FxRates | null;
 }
 
 function signColor(v: number) {
@@ -21,7 +23,167 @@ function pct(v: number, d = 2) {
   return `${v >= 0 ? "+" : ""}${fmtNum(v, d)}%`;
 }
 
-export function DurationPanel({ bonds }: Props) {
+// 환율 시나리오: 원화 대비 헤알화 강세(+) ~ 약세(−)
+const FX_SHIFTS = [15, 10, 5, 0, -5, -10, -15];
+
+/** 헤알 강세(+)면 붉게, 약세(−)면 푸르게 */
+function fxRowBg(shift: number): string | undefined {
+  const a = (Math.min(15, Math.abs(shift)) / 15) * 0.42;
+  if (shift > 0) return `rgba(239,68,68,${a})`;
+  if (shift < 0) return `rgba(59,130,246,${a})`;
+  return undefined;
+}
+
+interface MatrixBond {
+  label: string;
+  /** 만기까지 보유 시 헤알 연환산·누적 수익률(%), 잔존연수 */
+  hold: { annualPct: number; totalPct: number; years: number } | null;
+}
+
+/**
+ * 환율 시나리오(행) × 종목(열) 예상 원화수익률 요약표.
+ * 각 셀: 종목을 지금 매수해 만기까지 보유했을 때의 원화 연환산·누적 수익률
+ * (금리 슬라이더 Δ 반영, 행의 환율변동 결합).
+ */
+function ReturnMatrix({
+  bonds,
+  baseFx,
+  dy,
+}: {
+  bonds: MatrixBond[];
+  baseFx: number;
+  dy: number;
+}) {
+  const th =
+    "px-1.5 py-1 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800";
+  const cell =
+    "px-1.5 py-1 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
+
+  return (
+    <div>
+      <p className="mb-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+        환율 시나리오별 예상 원화수익률 — 지금 매수해 만기까지 보유 (금리 Δ{" "}
+        {dy >= 0 ? "+" : ""}
+        {fmtNum(dy, 2)}%p 반영)
+      </p>
+      <div className="overflow-x-auto">
+        <table className="border-collapse text-[11px]">
+          <thead>
+            <tr>
+              <th className={th} rowSpan={2}>
+                원화대비
+                <br />
+                헤알화
+              </th>
+              <th className={th} rowSpan={2}>
+                원/헤알
+                <br />
+                (KRW/BRL)
+              </th>
+              {bonds.map((b) => (
+                <th className={th} colSpan={2} key={b.label}>
+                  {b.label}
+                </th>
+              ))}
+            </tr>
+            <tr>
+              {bonds.map((b) => (
+                <FragmentCols key={b.label} th={th} />
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {FX_SHIFTS.map((shift) => {
+              const bg = fxRowBg(shift);
+              const fxRate = baseFx * (1 + shift / 100);
+              return (
+                <tr key={shift} style={bg ? { background: bg } : undefined}>
+                  <td
+                    className={`${cell} text-center ${
+                      shift === 0 ? "font-bold" : ""
+                    }`}
+                  >
+                    {shift > 0 ? "+" : ""}
+                    {shift}%
+                  </td>
+                  <td className={`${cell} ${shift === 0 ? "font-bold" : ""}`}>
+                    {fmtNum(fxRate, 2)}
+                  </td>
+                  {bonds.map((b) => {
+                    if (!b.hold)
+                      return (
+                        <FragmentDash key={b.label} cell={cell} />
+                      );
+                    const fxCum = shift / 100;
+                    const annual =
+                      ((1 + b.hold.annualPct / 100) *
+                        Math.pow(1 + fxCum, 1 / b.hold.years) -
+                        1) *
+                      100;
+                    const total =
+                      ((1 + b.hold.totalPct / 100) * (1 + fxCum) - 1) * 100;
+                    const bold = shift === 0 ? "font-bold" : "";
+                    return (
+                      <FragmentVals
+                        key={b.label}
+                        cell={cell}
+                        bold={bold}
+                        annual={annual}
+                        total={total}
+                      />
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-1 text-[10px] text-zinc-400">
+        연 = 연환산, 누적 = 잔존기간 총수익률. 헤알화 강세(＋)일수록 붉게.
+      </p>
+    </div>
+  );
+}
+
+function FragmentCols({ th }: { th: string }) {
+  return (
+    <>
+      <th className={th}>연</th>
+      <th className={th}>누적</th>
+    </>
+  );
+}
+function FragmentDash({ cell }: { cell: string }) {
+  return (
+    <>
+      <td className={cell}>-</td>
+      <td className={cell}>-</td>
+    </>
+  );
+}
+function FragmentVals({
+  cell,
+  bold,
+  annual,
+  total,
+}: {
+  cell: string;
+  bold: string;
+  annual: number;
+  total: number;
+}) {
+  return (
+    <>
+      <td className={`${cell} ${bold}`}>{fmtNum(annual, 2)}%</td>
+      <td className={`${cell} ${bold} text-zinc-500 dark:text-zinc-400`}>
+        {fmtNum(total, 2)}%
+      </td>
+    </>
+  );
+}
+
+export function DurationPanel({ bonds, fx }: Props) {
   const [dy, setDy] = useState(1); // 금리변동 %p
   const [dfx, setDfx] = useState(0); // 환율변동 %
 
@@ -41,6 +203,19 @@ export function DurationPanel({ bonds }: Props) {
     [sorted, dy, dfx]
   );
 
+  // 요약표: 종목별 "만기까지 보유 시 헤알 수익률" (금리 Δ 반영)
+  const matrixBonds: MatrixBond[] = useMemo(
+    () =>
+      sorted.map((b) => ({
+        label: b.maturityDate.slice(0, 4),
+        hold:
+          b.buyYieldPct != null
+            ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, dy)
+            : null,
+      })),
+    [sorted, dy]
+  );
+
   if (sorted.length === 0) {
     return (
       <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
@@ -50,13 +225,13 @@ export function DurationPanel({ bonds }: Props) {
   }
 
   const th =
-    "px-2 py-2 text-right font-semibold text-zinc-500 dark:text-zinc-400 whitespace-nowrap";
-  const td = "px-2 py-2 text-right whitespace-nowrap tabular-nums";
+    "px-1.5 py-1.5 font-semibold text-zinc-500 dark:text-zinc-400 leading-tight";
+  const td = "px-1.5 py-1 whitespace-nowrap tabular-nums";
 
   return (
-    <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        듀레이션 · 금리/환율 민감도
+        금리/환율 민감도
       </h2>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -101,17 +276,28 @@ export function DurationPanel({ bonds }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs">
+        <table className="w-full min-w-[640px] table-fixed border-collapse text-xs">
+          <colgroup>
+            <col className="w-[16%]" />
+            {/* 수익률 ~ 원화가치변동: 7칸 동일폭 */}
+            {Array.from({ length: 7 }, (_, i) => (
+              <col key={i} className="w-[12%]" />
+            ))}
+          </colgroup>
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800">
               <th className={`${th} text-left`}>종목</th>
-              <th className={th}>매수수익률</th>
-              <th className={th}>PU (R$)</th>
-              <th className={th}>수정듀레이션</th>
-              <th className={th}>DV01</th>
-              <th className={th}>가격변동</th>
-              <th className={th}>환율변동</th>
-              <th className={th}>원화가치변동</th>
+              <th className={`${th} text-right`}>수익률</th>
+              <th className={`${th} text-right`}>PU</th>
+              <th className={`${th} text-right`}>수정
+                <br />듀레이션</th>
+              <th className={`${th} text-right`}>DV01</th>
+              <th className={`${th} text-right`}>가격
+                <br />변동</th>
+              <th className={`${th} text-right`}>환율
+                <br />변동</th>
+              <th className={`${th} text-right`}>원화가치
+                <br />변동</th>
             </tr>
           </thead>
           <tbody>
@@ -124,26 +310,40 @@ export function DurationPanel({ bonds }: Props) {
                   <span className="font-medium text-zinc-800 dark:text-zinc-100">
                     {bond.nameKo}
                   </span>
-                  <span className="ml-1 text-zinc-400">{bond.maturityDate}</span>
+                  <span className="ml-1 text-zinc-400">
+                    {bond.maturityDate.slice(0, 4)}
+                  </span>
                 </td>
-                <td className={td}>
+                <td className={`${td} text-right`}>
                   {bond.buyYieldPct != null
                     ? `${fmtNum(bond.buyYieldPct, 2)}%`
                     : "-"}
                 </td>
-                <td className={td}>{risk ? fmtNum(risk.pu, 2) : "-"}</td>
-                <td className={`${td} font-semibold`}>
+                <td className={`${td} text-right`}>
+                  {risk ? fmtNum(risk.pu, 2) : "-"}
+                </td>
+                <td className={`${td} text-right font-semibold`}>
                   {risk ? `${fmtNum(risk.modDuration, 2)}년` : "-"}
                 </td>
-                <td className={td}>{risk ? fmtNum(risk.dv01, 3) : "-"}</td>
-                <td className={`${td} ${shock ? signColor(shock.pricePct) : ""}`}>
+                <td className={`${td} text-right`}>
+                  {risk ? fmtNum(risk.dv01, 3) : "-"}
+                </td>
+                <td
+                  className={`${td} text-right ${
+                    shock ? signColor(shock.pricePct) : ""
+                  }`}
+                >
                   {shock ? pct(shock.pricePct) : "-"}
                 </td>
-                <td className={`${td} ${shock ? signColor(shock.fxPct) : ""}`}>
+                <td
+                  className={`${td} text-right ${
+                    shock ? signColor(shock.fxPct) : ""
+                  }`}
+                >
                   {shock ? pct(shock.fxPct, 1) : "-"}
                 </td>
                 <td
-                  className={`${td} font-semibold ${
+                  className={`${td} text-right font-semibold ${
                     shock ? signColor(shock.krwPct) : ""
                   }`}
                 >
@@ -154,6 +354,14 @@ export function DurationPanel({ bonds }: Props) {
           </tbody>
         </table>
       </div>
+
+      {fx?.krwBrl ? (
+        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} dy={dy} />
+      ) : (
+        <p className="text-[11px] text-zinc-400">
+          환율을 불러오면 예상수익률 요약표가 표시됩니다.
+        </p>
+      )}
 
       <p className="text-[11px] text-zinc-400">
         수정듀레이션 D*는 수익률 100bp 변화 시 대략적인 PU 변화율(년)입니다. 가격변동

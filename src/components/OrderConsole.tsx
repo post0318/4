@@ -287,7 +287,6 @@ export function OrderConsole() {
             error={fxError}
             onRefresh={loadFx}
           />
-          <CurrencyExchange usdKrw={fx?.usdKrw ?? null} />
           <BrazilBriefing />
         </>
       )}
@@ -331,6 +330,8 @@ export function OrderConsole() {
             </button>
           </div>
 
+          <CurrencyExchange usdKrw={fx?.usdKrw ?? null} />
+
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             주문일 {orderDate} · 결제일 {settlementDate} (D+0 브라질 영업일)
           </p>
@@ -368,7 +369,7 @@ export function OrderConsole() {
 
       {tab === "simulation" && <SimulationPanel bonds={bonds} fx={fx} />}
 
-      {tab === "duration" && <DurationPanel bonds={bonds} />}
+      {tab === "duration" && <DurationPanel bonds={bonds} fx={fx} />}
     </div>
   );
 }
