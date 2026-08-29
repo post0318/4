@@ -133,7 +133,7 @@ export function BrazilBriefing() {
         <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           브라질 주요일정{" "}
           <span className="text-[11px] font-normal text-zinc-400">
-            (1주 전 ~ 3주 후 · 예상/발표)
+            (1주 전 ~ 30일 후 · 예상/발표)
           </span>
         </h2>
         {!agenda && (
