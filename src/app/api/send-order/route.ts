@@ -3,6 +3,7 @@ import {
   buildOrderEmail,
   DEFAULT_GREETING,
   DEFAULT_SIGNATURE,
+  DEFAULT_SUBJECT_PREFIX,
   type OrderEmailData,
   type OrderEmailLine,
 } from "@/lib/orderEmail";
@@ -31,6 +32,8 @@ const DEFAULT_TO = process.env.ORDER_EMAIL_TO ?? "";
 const GREETING =
   process.env.ORDER_EMAIL_GREETING?.replace(/\\n/g, "\n") ?? DEFAULT_GREETING;
 const SIGNATURE = process.env.ORDER_EMAIL_SIGNATURE ?? DEFAULT_SIGNATURE;
+const SUBJECT_PREFIX =
+  process.env.ORDER_EMAIL_SUBJECT_PREFIX ?? DEFAULT_SUBJECT_PREFIX;
 
 interface IncomingLine {
   isin: string;
@@ -192,6 +195,7 @@ export async function POST(request: NextRequest) {
     orderDate: toISODate(today()),
     greeting: GREETING,
     signature: SIGNATURE,
+    subjectPrefix: SUBJECT_PREFIX,
     lines: resultLines,
     note: note?.trim() || undefined,
   };

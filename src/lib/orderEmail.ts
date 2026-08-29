@@ -21,6 +21,9 @@ export const DEFAULT_GREETING = [
 /** 환경변수 미설정 시 기본 서명 */
 export const DEFAULT_SIGNATURE = "권혜진 드림";
 
+/** 환경변수 미설정 시 기본 제목 접두어 ("{접두어} {주문일}") */
+export const DEFAULT_SUBJECT_PREFIX = "한화투자증권 브라질국채 매수";
+
 /** 표 하단 안내문 */
 const FOOTER_NOTE = "- 매수 결제시 종목별 USD 송금액을 넘지 않도록 요청드립니다.";
 
@@ -42,6 +45,8 @@ export interface OrderEmailData {
   greeting: string;
   /** 서명 */
   signature: string;
+  /** 제목 접두어 ("{접두어} {주문일}") */
+  subjectPrefix: string;
   lines: OrderEmailLine[];
   /** 추가 메모 (선택) */
   note?: string;
@@ -61,7 +66,7 @@ export function buildOrderEmail(data: OrderEmailData): {
   const { lines } = data;
   const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
 
-  const subject = `[브라질국채 매수요청] ${data.orderDate}`;
+  const subject = `${data.subjectPrefix} ${data.orderDate}`;
 
   // ---- 텍스트 본문 ----
   const textRows = lines.map(
