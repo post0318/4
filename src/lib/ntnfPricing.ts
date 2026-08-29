@@ -113,5 +113,3 @@ export function computeNtnfPu(
 
   return roundUp(pv, 4);
 }
-
-export const NTNF_FACE_VALUE = FACE;

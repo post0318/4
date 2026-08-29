@@ -6,6 +6,8 @@
  * 어댑터가 담당한다(현재 stub).
  */
 
+import { fmtInt, fmtNum as fmt } from "@/lib/format";
+
 export interface BondOrderLine {
   isin: string;
   isinVerified: boolean;
@@ -44,17 +46,6 @@ export interface OrderEmailData {
   };
   lines: BondOrderLine[];
   note?: string;
-}
-
-function fmt(n: number, digits = 2): string {
-  return n.toLocaleString("ko-KR", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-}
-
-function fmtInt(n: number): string {
-  return Math.round(n).toLocaleString("ko-KR");
 }
 
 export function buildOrderEmail(data: OrderEmailData): {

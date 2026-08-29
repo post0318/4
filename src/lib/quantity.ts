@@ -23,18 +23,12 @@ export interface OrderResult {
   usdAmount: number;
   /** 헤알 환산액 (BRL) */
   brlAmount: number;
-  /** 파생 원/헤알 (1 BRL = ? KRW) */
-  krwBrl: number;
   /** 매수수량 (정수, 좌) */
   quantity: number;
   /** 실매수금액 (BRL) = quantity * pu */
   brlCost: number;
-  /** 실매수금액 (USD 환산) */
-  usdCost: number;
   /** 실매수금액 (KRW 환산) */
   krwCost: number;
-  /** 잔여현금 (BRL) */
-  brlLeftover: number;
   /** 잔여현금 (KRW 환산) */
   krwLeftover: number;
 }
@@ -63,26 +57,13 @@ export function computeOrder(input: OrderInputs): OrderResult {
 
   const usdAmount = round(krwAmount / usdKrw, 2);
   const brlAmount = round(usdAmount * usdBrl, 2);
-  const krwBrl = round(usdKrw / usdBrl, 2);
 
   const quantity = Math.floor(brlAmount / pu);
 
   const brlCost = round(quantity * pu, 2);
   const usdCost = round(brlCost / usdBrl, 2);
   const krwCost = Math.round(usdCost * usdKrw);
-
-  const brlLeftover = round(brlAmount - brlCost, 2);
   const krwLeftover = Math.round(krwAmount - krwCost);
 
-  return {
-    usdAmount,
-    brlAmount,
-    krwBrl,
-    quantity,
-    brlCost,
-    usdCost,
-    krwCost,
-    brlLeftover,
-    krwLeftover,
-  };
+  return { usdAmount, brlAmount, quantity, brlCost, krwCost, krwLeftover };
 }
