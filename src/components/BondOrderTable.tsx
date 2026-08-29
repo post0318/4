@@ -1,7 +1,7 @@
 "use client";
 
 import { digitsOnly, fmtInt, fmtNum, groupDigits } from "@/lib/format";
-import type { OrderCost, OrderResult } from "@/lib/quantity";
+import type { OrderResult } from "@/lib/quantity";
 import type { BondItem } from "@/lib/types";
 
 export interface BondRow {
@@ -9,13 +9,17 @@ export interface BondRow {
   bond: BondItem;
   checked: boolean;
   krwInput: string;
+  /** 달러($) 칸 표시/편집값 (자동 산출값 또는 사용자 수정값) */
+  usdInput: string;
+  /** 달러($)가 자동값에서 수정됨 */
+  usdEdited: boolean;
   pu: number | null;
-  /** 투자금액 기준 매수가능수량 등 */
+  /** 달러 환전액 기준 매수가능수량·1좌당 가격 등 */
   order: OrderResult | null;
   /** 실제 주문수량 입력값 (빈 값이면 매수가능수량으로 간주) */
   orderQtyInput: string;
-  /** 실제 주문수량 기준 실매수금액 */
-  settled: OrderCost | null;
+  /** 실제 주문수량 (정수 좌, 0이면 없음) */
+  effectiveQty: number;
   /** 주문수량이 매수가능수량을 초과 */
   orderQtyExceeds: boolean;
 }
@@ -29,14 +33,25 @@ interface BondOrderTableProps {
   settlementDate: string;
   onToggle: (key: string) => void;
   onAmountChange: (key: string, value: string) => void;
+  onUsdChange: (key: string, value: string) => void;
   onOrderQtyChange: (key: string, value: string) => void;
+}
+
+/** 달러 입력값 정규화: 숫자와 소수점 1개만 허용 */
+function sanitizeUsd(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  return (
+    cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "")
+  );
 }
 
 /**
  * 브라질국채(NTN-F) 전 종목을 표로 표시한다 (요구사항 2·3).
- * 각 행: [체크박스] 종목명·ISIN·만기·매수수익률 + (체크 시) 원화투자금액
- * 입력 → 달러환전액·PU·매수가능수량을 산출하고, 실제 주문수량(기본값 = 매수가능수량)을
- * 조정하면 그 수량 기준 실매수금액을 낸다.
+ * 각 행: [체크박스] 종목명·ISIN·만기·매수수익률 + (체크 시) 원화투자금액 입력 →
+ * 달러($, 자동이나 수정 가능)·PU·1좌당 매수가격·매수가능수량을 산출하고,
+ * 실제 주문수량(기본값 = 매수가능수량)을 그 이하로 조정한다.
  * 체크된 종목만 활성화되고 이메일 발송 대상이 된다.
  */
 export function BondOrderTable({
@@ -48,11 +63,14 @@ export function BondOrderTable({
   settlementDate,
   onToggle,
   onAmountChange,
+  onUsdChange,
   onOrderQtyChange,
 }: BondOrderTableProps) {
   const th =
     "px-2 py-2 text-left font-semibold text-zinc-500 dark:text-zinc-400 whitespace-nowrap";
   const td = "px-2 py-2 whitespace-nowrap tabular-nums";
+  const numInput =
+    "rounded border px-1 py-1 text-right tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-300 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900";
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -83,9 +101,9 @@ export function BondOrderTable({
                 <th className={`${th} text-right`}>원화투자금액</th>
                 <th className={`${th} text-right`}>달러($)</th>
                 <th className={`${th} text-right`}>PU (R$)</th>
+                <th className={`${th} text-right`}>1좌당 매수가격(₩)</th>
                 <th className={`${th} text-right`}>매수가능수량</th>
                 <th className={`${th} text-right`}>실제주문수량</th>
-                <th className={`${th} text-right`}>실매수금액(₩)</th>
               </tr>
             </thead>
             <tbody>
@@ -133,14 +151,31 @@ export function BondOrderTable({
                         }
                         maxLength={14}
                         placeholder={row.checked ? "예: 10,000,000" : ""}
-                        className="w-[6rem] rounded border border-zinc-300 px-1 py-1 text-right tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-300 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900"
+                        className={`w-[6rem] border-zinc-300 dark:border-zinc-700 ${numInput}`}
+                      />
+                    </td>
+                    <td className={`${td} text-right`}>
+                      <input
+                        inputMode="decimal"
+                        value={row.usdInput}
+                        disabled={!row.checked}
+                        onChange={(e) =>
+                          onUsdChange(row.key, sanitizeUsd(e.target.value))
+                        }
+                        maxLength={14}
+                        title={row.usdEdited ? "자동값에서 수정됨" : "원화투자금액 ÷ 환율 자동값 (수정 가능)"}
+                        className={`w-[6rem] ${numInput} ${
+                          row.usdEdited
+                            ? "border-blue-400 font-semibold text-blue-700 dark:text-blue-300"
+                            : "border-zinc-300 dark:border-zinc-700"
+                        }`}
                       />
                     </td>
                     <td className={`${td} ${dim} text-right`}>
-                      {order ? fmtNum(order.usdAmount, 2) : "-"}
+                      {row.pu !== null ? fmtNum(row.pu, 4) : "-"}
                     </td>
                     <td className={`${td} ${dim} text-right`}>
-                      {row.pu !== null ? fmtNum(row.pu, 4) : "-"}
+                      {order ? `₩ ${fmtInt(order.krwPerUnit)}` : "-"}
                     </td>
                     <td className={`${td} ${dim} text-right`}>
                       {order ? `${fmtInt(order.quantity)} 좌` : "-"}
@@ -155,15 +190,12 @@ export function BondOrderTable({
                         }
                         maxLength={9}
                         aria-invalid={row.orderQtyExceeds}
-                        className={`w-[4.5rem] rounded border px-1 py-1 text-right font-bold tabular-nums outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:font-normal disabled:text-zinc-300 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900 ${
+                        className={`w-[4.5rem] font-bold disabled:font-normal ${numInput} ${
                           row.orderQtyExceeds
                             ? "border-red-400 text-red-600 dark:text-red-400"
                             : "border-zinc-300 text-blue-700 dark:border-zinc-700 dark:text-blue-300"
                         }`}
                       />
-                    </td>
-                    <td className={`${td} ${dim} text-right`}>
-                      {row.settled ? `₩ ${fmtInt(row.settled.krwCost)}` : "-"}
                     </td>
                   </tr>
                 );
@@ -186,9 +218,10 @@ export function BondOrderTable({
         </p>
       )}
       <p className="mt-2 text-[11px] text-zinc-400">
-        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다.
-        매수가능수량은 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000). 실제주문수량은
-        기본값이 매수가능수량이며 그 이하로 조정할 수 있습니다.
+        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 달러($)는
+        원화투자금액 ÷ 환율 자동값이며 직접 수정할 수 있고, 매수가능수량은 달러 환전액
+        기준 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000)입니다. 실제주문수량은
+        기본값이 매수가능수량이며 그 이하로 조정합니다.
       </p>
     </section>
   );

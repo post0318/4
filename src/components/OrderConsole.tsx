@@ -10,7 +10,7 @@ import {
   toISODate,
   today,
 } from "@/lib/ntnfPricing";
-import { computeOrder, isValidOrderInputs, settleOrder } from "@/lib/quantity";
+import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 
 export function OrderConsole() {
@@ -25,6 +25,8 @@ export function OrderConsole() {
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  // 달러($) override. 값이 없으면 원화투자금액 ÷ 환율 자동값을 쓴다.
+  const [usdOverrides, setUsdOverrides] = useState<Record<string, string>>({});
   // 실제 주문수량 override. 값이 없으면 매수가능수량을 그대로 쓴다.
   const [orderQtys, setOrderQtys] = useState<Record<string, string>>({});
   const [defaultTo, setDefaultTo] = useState("");
@@ -109,6 +111,10 @@ export function OrderConsole() {
     setAmounts((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const changeUsd = useCallback((key: string, value: string) => {
+    setUsdOverrides((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   const changeOrderQty = useCallback((key: string, value: string) => {
     setOrderQtys((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -123,50 +129,62 @@ export function OrderConsole() {
           ? null
           : computeNtnfPu(bond.maturityDate, bond.buyYieldPct, settlement);
 
+      // 달러($): 원화투자금액 ÷ 환율 자동값, 있으면 사용자 수정값
+      const krwNum = Number(krwInput);
+      const autoUsd =
+        fx && krwInput !== "" && krwNum > 0
+          ? Math.round((krwNum / fx.usdKrw) * 100) / 100
+          : null;
+      const usdOverride = usdOverrides[key];
+      const usdEdited = usdOverride !== undefined && usdOverride !== "";
+      const usdInput = usdEdited
+        ? usdOverride
+        : autoUsd !== null
+          ? autoUsd.toFixed(2)
+          : "";
+      const effectiveUsd = usdEdited ? Number(usdOverride) : autoUsd;
+
       let order = null;
-      let settled = null;
-      if (checked && fx && pu !== null) {
+      if (checked && fx && pu !== null && effectiveUsd) {
         const inputs = {
-          krwAmount: Number(krwInput),
+          usdAmount: effectiveUsd,
           usdKrw: fx.usdKrw,
           usdBrl: fx.usdBrl,
           pu,
         };
-        if (isValidOrderInputs(inputs)) {
-          order = computeOrder(inputs);
-          const override = orderQtys[key];
-          const effectiveQty =
-            override !== undefined && override !== ""
-              ? Number(override)
-              : order.quantity;
-          settled = settleOrder(inputs, effectiveQty);
-        }
+        if (isValidOrderInputs(inputs)) order = computeOrder(inputs);
       }
 
-      // 입력칸에 보여줄 값: 손대기 전엔 매수가능수량을 따라간다
-      const override = orderQtys[key];
+      // 실제 주문수량: 손대기 전엔 매수가능수량을 따라간다
+      const qtyOverride = orderQtys[key];
       const orderQtyInput =
-        override !== undefined
-          ? override
+        qtyOverride !== undefined
+          ? qtyOverride
           : order
             ? String(order.quantity)
             : "";
-      const orderQtyExceeds =
-        !!order && !!settled && settled.quantity > order.quantity;
+      const effectiveQty = !order
+        ? 0
+        : qtyOverride !== undefined && qtyOverride !== ""
+          ? Math.trunc(Number(qtyOverride))
+          : order.quantity;
+      const orderQtyExceeds = !!order && effectiveQty > order.quantity;
 
       return {
         key,
         bond,
         checked,
         krwInput,
+        usdInput,
+        usdEdited,
         pu,
         order,
         orderQtyInput,
-        settled,
+        effectiveQty,
         orderQtyExceeds,
       };
     });
-  }, [bonds, checkedKeys, amounts, orderQtys, fx, settlement]);
+  }, [bonds, checkedKeys, amounts, usdOverrides, orderQtys, fx, settlement]);
 
   const pendingLines: PendingLine[] = useMemo(() => {
     return rows
@@ -174,24 +192,27 @@ export function OrderConsole() {
         (r) =>
           r.checked &&
           r.order &&
-          r.settled &&
-          r.settled.quantity >= 1 &&
+          r.effectiveQty >= 1 &&
           !r.orderQtyExceeds &&
           r.pu !== null &&
           r.bond.buyYieldPct !== null
       )
-      .map((r) => ({
-        isin: r.bond.isin ?? "",
-        isinVerified: r.bond.isinVerified,
-        nameKo: r.bond.nameKo,
-        namePt: r.bond.namePt,
-        maturityDate: r.bond.maturityDate,
-        buyYieldPct: r.bond.buyYieldPct as number,
-        krwAmount: Number(r.krwInput),
-        pu: r.pu as number,
-        quantity: (r.order as NonNullable<BondRow["order"]>).quantity,
-        orderQuantity: (r.settled as NonNullable<BondRow["settled"]>).quantity,
-      }));
+      .map((r) => {
+        const order = r.order as NonNullable<BondRow["order"]>;
+        return {
+          isin: r.bond.isin ?? "",
+          isinVerified: r.bond.isinVerified,
+          nameKo: r.bond.nameKo,
+          namePt: r.bond.namePt,
+          maturityDate: r.bond.maturityDate,
+          buyYieldPct: r.bond.buyYieldPct as number,
+          krwAmount: Number(r.krwInput),
+          usdAmount: order.usdAmount,
+          pu: r.pu as number,
+          quantity: order.quantity,
+          orderQuantity: r.effectiveQty,
+        };
+      });
   }, [rows]);
 
   const incompleteCount = useMemo(
@@ -199,10 +220,7 @@ export function OrderConsole() {
       rows.filter(
         (r) =>
           r.checked &&
-          (!r.order ||
-            !r.settled ||
-            r.settled.quantity < 1 ||
-            r.orderQtyExceeds)
+          (!r.order || r.effectiveQty < 1 || r.orderQtyExceeds)
       ).length,
     [rows]
   );
@@ -229,6 +247,7 @@ export function OrderConsole() {
         settlementDate={settlementDate}
         onToggle={toggle}
         onAmountChange={changeAmount}
+        onUsdChange={changeUsd}
         onOrderQtyChange={changeOrderQty}
       />
 

@@ -39,7 +39,8 @@ interface IncomingLine {
   namePt: string;
   maturityDate: string;
   buyYieldPct: number;
-  krwAmount: number;
+  /** 달러 환전액 (USD 송금액) — 자동값 또는 사용자 수정값 */
+  usdAmount: number;
   pu: number;
   /** 클라이언트가 계산한 매수가능수량 (대조용) */
   quantity: number;
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     const inputs = {
-      krwAmount: line.krwAmount,
+      usdAmount: line.usdAmount,
       usdKrw: fx.usdKrw,
       usdBrl: fx.usdBrl,
       pu,

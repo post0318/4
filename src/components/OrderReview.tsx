@@ -13,8 +13,10 @@ export interface PendingLine {
   maturityDate: string;
   buyYieldPct: number;
   krwAmount: number;
+  /** 달러 환전액 (USD 송금액) */
+  usdAmount: number;
   pu: number;
-  /** 매수가능수량 (투자금액 기준 최대) */
+  /** 매수가능수량 (달러 환전액 기준 최대) */
   quantity: number;
   /** 실제 주문수량 */
   orderQuantity: number;
@@ -51,7 +53,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
       JSON.stringify(
         lines.map((l) => [
           l.maturityDate,
-          l.krwAmount,
+          l.usdAmount,
           l.quantity,
           l.orderQuantity,
           l.pu,
@@ -66,7 +68,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
   const canSend =
     lines.length > 0 && confirmed && emailValid && send.status !== "sending";
 
-  const totalKrw = lines.reduce((s, l) => s + l.krwAmount, 0);
+  const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
 
   async function doSend() {
     if (lines.length === 0 || !fx) return;
@@ -119,8 +121,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
         ) : (
           <>
             <p className="font-medium text-zinc-900 dark:text-zinc-100">
-              발송 대상 {lines.length}개 종목 · 원화투자금액 총액 ₩{" "}
-              {fmtInt(totalKrw)}
+              발송 대상 {lines.length}개 종목 · USD 송금액 합계 $ {fmtNum(totalUsd, 2)}
             </p>
             <ul className="mt-1 space-y-0.5 text-xs text-zinc-600 dark:text-zinc-400">
               {lines.map((l) => (
@@ -129,7 +130,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
                   {l.orderQuantity !== l.quantity
                     ? ` / 매수가능 ${fmtInt(l.quantity)}좌`
                     : ""}{" "}
-                  (₩ {fmtInt(l.krwAmount)})
+                  ($ {fmtNum(l.usdAmount, 2)})
                 </li>
               ))}
             </ul>
@@ -240,7 +241,7 @@ export function OrderReview({ lines, incompleteCount, fx, defaultTo }: OrderRevi
                   <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
                     <span>매수수익률 연 {fmtNum(l.buyYieldPct, 2)}%</span>
                     <span>PU R$ {fmtNum(l.pu, 4)}</span>
-                    <span>투자금액 ₩ {fmtInt(l.krwAmount)}</span>
+                    <span>USD 송금액 $ {fmtNum(l.usdAmount, 2)}</span>
                     <span>매수가능수량 {fmtInt(l.quantity)}좌</span>
                     <span className="font-bold text-blue-700 dark:text-blue-300">
                       주문수량 {fmtInt(l.orderQuantity)}좌
