@@ -35,6 +35,7 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수
 - `src/lib/orderEmail.ts` — 주문 이메일 제목/본문 생성
 - `src/app/api/fx-rates` — USD/KRW·USD/BRL 조회, KRW/BRL 파생
+- `src/app/api/fx-history` — 3년치 일간 환율 추이(Frankfurter 시계열, 12h 재검증)
 - `src/app/api/br-bond-search` — 스냅샷 + 메타 머지
 - `src/app/api/send-order` — 서버 재계산 대조 후 발송. **이메일 전송은 현재
   stub** — `sendEmail()` 어댑터에 Resend 또는 Gmail SMTP 연결하면 됨.
