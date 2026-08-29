@@ -13,7 +13,7 @@ export interface AgendaItem {
   /** ISO 날짜 */
   date: string;
   titleKo: string;
-  category: "경제지표" | "휴장";
+  category: "경제지표" | "휴장" | "선거";
   /** 발표일이 지났는지 */
   released: boolean;
   /** 시장 예상치 (Focus 중앙값). 없으면 null */
@@ -258,6 +258,41 @@ async function fetchIbge(from: string, to: string): Promise<AgendaItem[]> {
   return out;
 }
 
+/** 매 10월 첫째 일요일(1차)·마지막 일요일(결선) — 대선 연도는 4년 주기(≡2 mod 4) */
+function brazilElectionItems(): AgendaItem[] {
+  const now = new Date();
+  let year = now.getUTCFullYear();
+  while (year % 4 !== 2 || new Date(Date.UTC(year, 10, 1)) < now) year++;
+
+  const oct1 = new Date(Date.UTC(year, 9, 1));
+  const firstSun = 1 + ((7 - oct1.getUTCDay()) % 7);
+  const oct31 = new Date(Date.UTC(year, 9, 31));
+  const lastSun = 31 - oct31.getUTCDay();
+  const iso = (day: number) =>
+    `${year}-10-${String(day).padStart(2, "0")}`;
+
+  return [
+    {
+      date: iso(firstSun),
+      titleKo: `브라질 대선 1차 투표 (${year})`,
+      category: "선거",
+      released: false,
+      guidance: null,
+      actual: null,
+      prior: null,
+    },
+    {
+      date: iso(lastSun),
+      titleKo: `브라질 대선 결선 투표 (${year}, 필요 시)`,
+      category: "선거",
+      released: false,
+      guidance: null,
+      actual: null,
+      prior: null,
+    },
+  ];
+}
+
 function holidaysInRange(fromIso: string, toIso: string): AgendaItem[] {
   const from = new Date(fromIso);
   const to = new Date(toIso);
@@ -296,7 +331,13 @@ export async function fetchBrazilAgenda(
   const [ibge] = await Promise.all([fetchIbge(from, to)]);
   const holidays = holidaysInRange(from, to);
 
-  return [...ibge, ...holidays].sort(
+  const windowed = [...ibge, ...holidays].sort(
     (a, b) => a.date.localeCompare(b.date) || a.category.localeCompare(b.category)
   );
+
+  // 대선 일정은 창 밖이어도 항상 맨 위에 고정 (지난 회차는 제외)
+  const today = new Date().toISOString().slice(0, 10);
+  const elections = brazilElectionItems().filter((e) => e.date >= today);
+
+  return [...elections, ...windowed];
 }

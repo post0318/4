@@ -15,7 +15,7 @@ interface NewsItem {
 interface AgendaItem {
   date: string;
   titleKo: string;
-  category: "경제지표" | "휴장";
+  category: "경제지표" | "휴장" | "선거";
   released: boolean;
   guidance: string | null;
   actual: string | null;
@@ -149,10 +149,20 @@ export function BrazilBriefing() {
         <ul className="space-y-1.5">
           {agenda?.map((a, i) => {
             const past = a.date < new Date().toISOString().slice(0, 10);
+            const badge =
+              a.category === "선거"
+                ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                : a.category === "휴장"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
             return (
               <li
                 key={`${a.date}-${i}`}
-                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs"
+                className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs ${
+                  a.category === "선거"
+                    ? "border-b border-zinc-100 pb-1 dark:border-zinc-800"
+                    : ""
+                }`}
               >
                 <span
                   className={`w-16 shrink-0 tabular-nums ${
@@ -163,13 +173,7 @@ export function BrazilBriefing() {
                 >
                   {fmtDate(a.date)}
                 </span>
-                <span
-                  className={`shrink-0 rounded px-1 text-[10px] ${
-                    a.category === "휴장"
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                      : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                  }`}
-                >
+                <span className={`shrink-0 rounded px-1 text-[10px] ${badge}`}>
                   {a.category}
                 </span>
                 <span className="text-zinc-800 dark:text-zinc-100">
