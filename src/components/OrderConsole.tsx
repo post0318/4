@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
+import { CashFlowPanel } from "@/components/CashFlowPanel";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -346,11 +347,7 @@ export function OrderConsole() {
         </>
       )}
 
-      {tab === "cashflow" && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          현금흐름 기능은 준비 중입니다.
-        </section>
-      )}
+      {tab === "cashflow" && <CashFlowPanel />}
     </div>
   );
 }
