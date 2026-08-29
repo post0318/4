@@ -575,7 +575,8 @@ export function BondLayoutForm({
               type="text"
               inputMode="decimal"
               placeholder="월지급 전용 · 예: 5"
-              value={value.reserveRate}
+              value={value.distributionType === "월" ? value.reserveRate : ""}
+              disabled={value.distributionType !== "월"}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
                 if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
