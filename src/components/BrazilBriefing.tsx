@@ -114,15 +114,6 @@ export function BrazilBriefing() {
                 </span>{" "}
                 {n.source} · {relTime(n.publishedAt)}
               </p>
-              <p
-                className={`text-[11px] italic ${
-                  n.translationOk
-                    ? "text-zinc-400"
-                    : "text-zinc-600 dark:text-zinc-300"
-                }`}
-              >
-                {n.titlePt}
-              </p>
             </li>
           ))}
         </ul>
