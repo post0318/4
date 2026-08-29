@@ -13,12 +13,12 @@ interface FxHistoryChartProps {
   unit: string;
 }
 
-const W = 640;
-const H = 120;
+const W = 900;
+const H = 130;
 const PAD = { top: 6, right: 6, bottom: 16, left: 48 };
 
 /**
- * 환율 3년치 일간 추이를 인라인 SVG 라인차트로 그린다. 외부 차트 라이브러리
+ * 환율 7년치 일간 추이를 인라인 SVG 라인차트로 그린다. 외부 차트 라이브러리
  * 없이 반응형(viewBox) + 마우스 호버 판독만 지원한다.
  */
 export function FxHistoryChart({
@@ -80,7 +80,7 @@ export function FxHistoryChart({
     <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-0.5 flex items-baseline justify-between">
         <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
-          {label} · 3년 일간 추이
+          {label} · 7년 일간 추이
         </p>
         <p className="text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
           <span
@@ -99,9 +99,9 @@ export function FxHistoryChart({
 
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full max-w-xl"
+        className="w-full"
         role="img"
-        aria-label={`${label} 3년 추이 차트`}
+        aria-label={`${label} 7년 추이 차트`}
         onMouseLeave={() => setHover(null)}
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
@@ -194,8 +194,8 @@ export function FxHistoryChart({
           </>
         ) : (
           <>
-            최근 {dates[dates.length - 1]} · {unit} {fmtNum(last, digits)} · 출처
-            Frankfurter(ECB)
+            {dates[0]} ~ {dates[dates.length - 1]} · 최근 {unit}{" "}
+            {fmtNum(last, digits)}
           </>
         )}
       </p>

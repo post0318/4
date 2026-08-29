@@ -5,13 +5,13 @@ import { fetchFxSeries } from "@/lib/server/fxRate";
 export const revalidate = 43200;
 
 /**
- * 환율 3년치 일간 추이 (원/달러·달러/헤알·원/헤알).
+ * 환율 7년치 일간 추이 (원/달러·달러/헤알·원/헤알).
  * Frankfurter 시계열(ECB 기준, 무인증). 원/헤알은 usdKrw/usdBrl 파생값이다.
  */
 export async function GET() {
   const to = new Date();
   const from = new Date(to);
-  from.setFullYear(from.getFullYear() - 3);
+  from.setFullYear(from.getFullYear() - 7);
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
   const series = await fetchFxSeries(iso(from), iso(to));
