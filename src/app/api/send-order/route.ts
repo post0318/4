@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildOrderEmail, type OrderPayload } from "@/lib/orderEmail";
-import { computeNtnfPu, getOrderSettlementDate, toISODate } from "@/lib/ntnfPricing";
+import {
+  buildOrderEmail,
+  type BondOrderLine,
+  type OrderEmailData,
+} from "@/lib/orderEmail";
+import {
+  computeNtnfPu,
+  getOrderSettlementDate,
+  toISODate,
+  today,
+} from "@/lib/ntnfPricing";
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 
 export const runtime = "nodejs";
@@ -8,20 +17,34 @@ export const runtime = "nodejs";
 /**
  * 매수 주문 이메일 발송 (요구사항 4·5).
  *
- * 클라이언트가 보낸 수량/PU를 신뢰하지 않고 서버에서 다시 계산해 대조한다
- * (신뢰 경계). 불일치가 크면 422로 거부한다.
+ * 체크된 종목(1개 이상)만 발송 대상이다. 클라이언트가 보낸 PU·수량을 신뢰하지 않고
+ * 종목마다 서버에서 다시 계산해 대조한다. 불일치가 크면 422로 거부한다.
  *
- * 실제 전송은 현재 stub이다 — sendEmail() 어댑터에 Resend API 또는 Gmail SMTP
- * (nodemailer)를 연결하면 된다. 지금은 본문을 서버 로그로 남기고
- * delivered:false 로 응답한다.
+ * 실제 전송은 현재 stub — sendEmail() 어댑터에 Resend API 또는 Gmail SMTP
+ * (nodemailer)를 연결하면 된다.
  */
 
 const DEFAULT_TO = process.env.ORDER_EMAIL_TO ?? "";
 
+interface IncomingLine {
+  isin: string;
+  isinVerified: boolean;
+  nameKo: string;
+  namePt: string;
+  maturityDate: string;
+  couponRatePct: number;
+  buyYieldPct: number;
+  krwAmount: number;
+  pu: number;
+  quantity: number;
+}
+
 interface SendOrderBody {
-  order: OrderPayload;
+  lines: IncomingLine[];
+  fx: { usdKrw: number; usdBrl: number; krwBrl: number; asOf: string | null };
   to: string;
   confirmed: boolean;
+  note?: string;
 }
 
 async function sendEmail(params: {
@@ -47,7 +70,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 본문" }, { status: 400 });
   }
 
-  const { order, to, confirmed } = body ?? {};
+  const { lines, fx, to, confirmed, note } = body ?? {};
 
   if (!confirmed) {
     return NextResponse.json(
@@ -64,65 +87,103 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!order?.bond?.maturityDate || !order?.amounts || !order?.fx) {
-    return NextResponse.json({ error: "주문 정보가 불완전합니다." }, { status: 400 });
-  }
-
-  // --- 서버 재계산으로 대조 ---
-  const settlement = getOrderSettlementDate();
-  const pu = computeNtnfPu(order.bond.maturityDate, order.bond.buyYieldPct, settlement);
-  if (pu === null) {
+  if (!Array.isArray(lines) || lines.length === 0) {
     return NextResponse.json(
-      { error: "서버에서 매수단가(PU)를 계산할 수 없습니다." },
-      { status: 422 }
+      { error: "체크된 종목이 없습니다. 발송할 종목을 선택하세요." },
+      { status: 400 }
     );
   }
 
-  const inputs = {
-    krwAmount: order.amounts.krwAmount,
-    usdKrw: order.fx.usdKrw,
-    usdBrl: order.fx.usdBrl,
-    pu,
-  };
-  if (!isValidOrderInputs(inputs)) {
-    return NextResponse.json({ error: "주문 입력값이 올바르지 않습니다." }, { status: 422 });
+  if (!fx || typeof fx.usdKrw !== "number" || typeof fx.usdBrl !== "number") {
+    return NextResponse.json({ error: "환율 정보가 없습니다." }, { status: 400 });
   }
 
-  const recomputed = computeOrder(inputs);
+  const settlement = getOrderSettlementDate();
+  const settlementDate = toISODate(settlement);
 
-  const puMismatch = Math.abs(pu - order.amounts.pu) / pu > 0.005; // 0.5%
-  const qtyMismatch = recomputed.quantity !== order.amounts.quantity;
-  if (puMismatch || qtyMismatch) {
+  const resultLines: BondOrderLine[] = [];
+  const mismatches: unknown[] = [];
+
+  for (const line of lines) {
+    if (!line?.maturityDate || typeof line.buyYieldPct !== "number") {
+      return NextResponse.json(
+        { error: `종목 정보가 불완전합니다: ${line?.nameKo ?? line?.isin ?? "?"}` },
+        { status: 400 }
+      );
+    }
+
+    const pu = computeNtnfPu(line.maturityDate, line.buyYieldPct, settlement);
+    if (pu === null) {
+      return NextResponse.json(
+        { error: `PU를 계산할 수 없습니다: ${line.nameKo}` },
+        { status: 422 }
+      );
+    }
+
+    const inputs = {
+      krwAmount: line.krwAmount,
+      usdKrw: fx.usdKrw,
+      usdBrl: fx.usdBrl,
+      pu,
+    };
+    if (!isValidOrderInputs(inputs)) {
+      return NextResponse.json(
+        { error: `주문 입력값이 올바르지 않습니다: ${line.nameKo}` },
+        { status: 422 }
+      );
+    }
+
+    const r = computeOrder(inputs);
+    const puMismatch = Math.abs(pu - line.pu) / pu > 0.005;
+    const qtyMismatch = r.quantity !== line.quantity;
+    if (puMismatch || qtyMismatch) {
+      mismatches.push({
+        nameKo: line.nameKo,
+        server: { pu, quantity: r.quantity },
+        client: { pu: line.pu, quantity: line.quantity },
+      });
+      continue;
+    }
+
+    resultLines.push({
+      isin: line.isin,
+      isinVerified: line.isinVerified,
+      nameKo: line.nameKo,
+      namePt: line.namePt,
+      maturityDate: line.maturityDate,
+      couponRatePct: line.couponRatePct,
+      buyYieldPct: line.buyYieldPct,
+      krwAmount: line.krwAmount,
+      usdAmount: r.usdAmount,
+      brlAmount: r.brlAmount,
+      pu,
+      quantity: r.quantity,
+      brlCost: r.brlCost,
+      krwCost: r.krwCost,
+      krwLeftover: r.krwLeftover,
+    });
+  }
+
+  if (mismatches.length > 0) {
     return NextResponse.json(
       {
         error: "서버 재계산 결과가 화면 값과 다릅니다. 새로고침 후 다시 시도하세요.",
-        server: { pu, quantity: recomputed.quantity, settlementDate: toISODate(settlement) },
-        client: { pu: order.amounts.pu, quantity: order.amounts.quantity },
+        mismatches,
+        settlementDate,
       },
       { status: 422 }
     );
   }
 
-  // --- 서버 계산값으로 최종 본문 구성 ---
-  const finalOrder: OrderPayload = {
-    ...order,
-    settlementDate: toISODate(settlement),
-    amounts: {
-      ...order.amounts,
-      pu,
-      quantity: recomputed.quantity,
-      usdAmount: recomputed.usdAmount,
-      brlAmount: recomputed.brlAmount,
-      brlCost: recomputed.brlCost,
-      usdCost: recomputed.usdCost,
-      krwCost: recomputed.krwCost,
-      brlLeftover: recomputed.brlLeftover,
-      krwLeftover: recomputed.krwLeftover,
-    },
+  const emailData: OrderEmailData = {
+    orderDate: toISODate(today()),
+    settlementDate,
+    fx,
+    lines: resultLines,
+    note: note?.trim() || undefined,
   };
 
-  const { subject, text, html } = buildOrderEmail(finalOrder);
-
+  const { subject, text, html } = buildOrderEmail(emailData);
   const result = await sendEmail({ to: recipient, subject, text, html });
 
   if (!result.delivered) {
@@ -137,7 +198,7 @@ export async function POST(request: NextRequest) {
     provider: result.provider,
     to: recipient,
     subject,
-    order: finalOrder,
+    lines: resultLines,
     preview: text,
   });
 }

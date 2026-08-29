@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
-import { BondSelector } from "@/components/BondSelector";
-import { OrderForm } from "@/components/OrderForm";
-import { OrderReview } from "@/components/OrderReview";
+import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
+import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
   computeNtnfPu,
   getOrderSettlementDate,
@@ -12,7 +11,6 @@ import {
   today,
 } from "@/lib/ntnfPricing";
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
-import type { OrderPayload } from "@/lib/orderEmail";
 import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 
 export function OrderConsole() {
@@ -24,9 +22,9 @@ export function OrderConsole() {
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<BondItem | null>(null);
 
-  const [krwInput, setKrwInput] = useState("");
+  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [defaultTo, setDefaultTo] = useState("");
 
   const applyFxResponse = useCallback((d: FxRates & { error?: string }) => {
@@ -99,63 +97,65 @@ export function OrderConsole() {
   const settlementDate = toISODate(settlement);
   const orderDate = toISODate(today());
 
-  const pu = useMemo(() => {
-    if (!selected || selected.buyYieldPct === null) return null;
-    return computeNtnfPu(selected.maturityDate, selected.buyYieldPct, settlement);
-  }, [selected, settlement]);
+  const toggle = useCallback((key: string) => {
+    setCheckedKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }, []);
 
-  const krwAmount = Number(krwInput);
+  const changeAmount = useCallback((key: string, value: string) => {
+    setAmounts((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
-  const result = useMemo(() => {
-    if (!fx || pu === null) return null;
-    const inputs = { krwAmount, usdKrw: fx.usdKrw, usdBrl: fx.usdBrl, pu };
-    if (!isValidOrderInputs(inputs)) return null;
-    return computeOrder(inputs);
-  }, [fx, pu, krwAmount]);
+  const rows: BondRow[] = useMemo(() => {
+    return bonds.map((bond) => {
+      const key = bond.maturityDate;
+      const checked = checkedKeys.includes(key);
+      const krwInput = amounts[key] ?? "";
+      const pu =
+        bond.buyYieldPct === null
+          ? null
+          : computeNtnfPu(bond.maturityDate, bond.buyYieldPct, settlement);
 
-  const waiting = useMemo(() => {
-    if (!fx) return "환율을 불러오는 중입니다.";
-    if (!selected) return "종목을 선택하세요.";
-    if (selected.buyYieldPct === null) return "선택한 종목의 매수수익률이 없습니다.";
-    if (pu === null) return "매수단가(PU)를 계산할 수 없습니다.";
-    if (!krwInput || krwAmount <= 0) return "원화투자금액을 입력하세요.";
-    return null;
-  }, [fx, selected, pu, krwInput, krwAmount]);
+      let order = null;
+      if (checked && fx && pu !== null) {
+        const inputs = {
+          krwAmount: Number(krwInput),
+          usdKrw: fx.usdKrw,
+          usdBrl: fx.usdBrl,
+          pu,
+        };
+        if (isValidOrderInputs(inputs)) order = computeOrder(inputs);
+      }
 
-  const order: OrderPayload | null = useMemo(() => {
-    if (!fx || !selected || selected.buyYieldPct === null || pu === null || !result) {
-      return null;
-    }
-    return {
-      orderDate,
-      settlementDate,
-      bond: {
-        isin: selected.isin ?? "",
-        isinVerified: selected.isinVerified,
-        nameKo: selected.nameKo,
-        namePt: selected.namePt,
-        maturityDate: selected.maturityDate,
-        couponRatePct: selected.couponRatePct,
-        buyYieldPct: selected.buyYieldPct,
-      },
-      fx: { usdKrw: fx.usdKrw, usdBrl: fx.usdBrl, krwBrl: fx.krwBrl, asOf: fx.asOf },
-      amounts: {
-        krwAmount,
-        usdAmount: result.usdAmount,
-        brlAmount: result.brlAmount,
-        pu,
-        quantity: result.quantity,
-        brlCost: result.brlCost,
-        usdCost: result.usdCost,
-        krwCost: result.krwCost,
-        brlLeftover: result.brlLeftover,
-        krwLeftover: result.krwLeftover,
-      },
-    };
-  }, [fx, selected, pu, result, krwAmount, orderDate, settlementDate]);
+      return { key, bond, checked, krwInput, pu, order };
+    });
+  }, [bonds, checkedKeys, amounts, fx, settlement]);
+
+  const pendingLines: PendingLine[] = useMemo(() => {
+    return rows
+      .filter((r) => r.checked && r.order && r.pu !== null && r.bond.buyYieldPct !== null)
+      .map((r) => ({
+        isin: r.bond.isin ?? "",
+        isinVerified: r.bond.isinVerified,
+        nameKo: r.bond.nameKo,
+        namePt: r.bond.namePt,
+        maturityDate: r.bond.maturityDate,
+        couponRatePct: r.bond.couponRatePct,
+        buyYieldPct: r.bond.buyYieldPct as number,
+        krwAmount: Number(r.krwInput),
+        pu: r.pu as number,
+        quantity: (r.order as NonNullable<BondRow["order"]>).quantity,
+      }));
+  }, [rows]);
+
+  const incompleteCount = useMemo(
+    () => rows.filter((r) => r.checked && !r.order).length,
+    [rows]
+  );
 
   return (
-    <div className="mx-auto grid max-w-2xl gap-4 p-4 sm:p-6">
+    <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
       <header>
         <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
           브라질 국채 매수 프로세스 자동화
@@ -167,25 +167,23 @@ export function OrderConsole() {
 
       <FxRatePanel rates={fx} loading={fxLoading} error={fxError} onRefresh={loadFx} />
 
-      <BondSelector
-        bonds={bonds}
+      <BondOrderTable
+        rows={rows}
         asOfDate={asOfDate}
         loading={bondLoading}
         error={bondError}
-        selected={selected}
-        onSelect={setSelected}
-      />
-
-      <OrderForm
-        krwInput={krwInput}
-        onKrwChange={setKrwInput}
-        pu={pu}
+        fxReady={!!fx}
         settlementDate={settlementDate}
-        result={result}
-        waiting={waiting}
+        onToggle={toggle}
+        onAmountChange={changeAmount}
       />
 
-      <OrderReview order={order} defaultTo={defaultTo} />
+      <OrderReview
+        lines={pendingLines}
+        incompleteCount={incompleteCount}
+        fx={fx}
+        defaultTo={defaultTo}
+      />
 
       <footer className="pb-8 text-[11px] text-zinc-400">
         환율은 Frankfurter(ECB) 중간환율이며 실제 체결 환율·스프레드와 다릅니다.
