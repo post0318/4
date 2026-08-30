@@ -158,22 +158,11 @@ export function ReinvestCashFlowTable({ rows }: Props) {
       )}
 
       <div className="mt-6 space-y-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 print:mt-1 print:space-y-0">
-        <p>
-          - 재매수 시 금리는 최초 매수금리로 가정합니다(재매수단가는 잔존만기가
-          줄며 액면가 R$1,000으로 수렴).
-        </p>
-        <p>
-          - 매수좌수 = (전기 잔여현금 + 당기 이자) ÷ 재매수단가, 정수 내림.
-        </p>
+        <p>- 재매수 시 금리는 최초 매수금리로 가정합니다.</p>
         <p>
           - 수령한 쿠폰(BRL)으로 같은 채권을 재매수하며, 남는 BRL은 다음 회차
           재투자에 씁니다. BRL 보유현금에는 현금성이자가 없습니다.
         </p>
-        <p>
-          - 원화 금액은 만기 회수 시에만 발생하며(원금상환 + 마지막 쿠폰 + 잔여
-          현금), 전 기간 후취보수를 차감했습니다.
-        </p>
-        <p>- 단순계산 추정치입니다.</p>
       </div>
 
       <CashFlowDisclaimer />
