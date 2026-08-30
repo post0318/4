@@ -42,6 +42,14 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
     "세후수령액",
   ];
 
+  const cols = (
+    <colgroup>
+      {columns.map((c) => (
+        <col key={c} style={{ width: `${(100 / columns.length).toFixed(3)}%` }} />
+      ))}
+    </colgroup>
+  );
+
   const total = data.reduce(
     (acc, row) => ({
       principal: acc.principal + row.principal + (row.principalReturn ?? 0),
@@ -72,35 +80,35 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
       key={row.date}
       className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
     >
-      <td className="whitespace-nowrap py-2 pr-4 text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-zinc-700 dark:text-zinc-300">
         {row.date}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {row.principalReturn
           ? formatParen(row.principalReturn, isKrw)
           : row.principal
             ? formatAmount(row.principal, isKrw)
             : ""}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatAmount(row.cashBalance, isKrw)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatAmount(row.interest, isKrw)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {row.cashInterest ? formatAmount(row.cashInterest, isKrw) : ""}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatAmount(row.taxableIncome, isKrw)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatAmount(row.taxBase, isKrw)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatAmount(row.incomeTax, isKrw)}
       </td>
-      <td className="whitespace-nowrap py-2 text-right tabular-nums font-medium text-zinc-900 dark:text-zinc-100">
+      <td className="py-2 text-right tabular-nums font-medium text-zinc-900 dark:text-zinc-100">
         {formatAmount(row.maturityPayout ?? row.netAmount, isKrw)}
       </td>
     </tr>
@@ -109,7 +117,8 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6 print:p-2">
       <h2 className="mb-5 print:mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">
-        현금흐름표
+        현금흐름표{" "}
+        <span className="text-xs font-normal text-zinc-400">(반기지급식)</span>
       </h2>
 
       {data.length === 0 ? (
@@ -121,13 +130,14 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
         <>
           {/* 화면: 전체 행 표시 */}
           <div className="overflow-x-auto print:hidden">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[860px] table-fixed text-sm">
+              {cols}
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                   {columns.map((col, i) => (
                     <th
                       key={col}
-                      className={`whitespace-nowrap py-2 pr-4 font-medium ${
+                      className={`py-2 pr-2 font-medium leading-tight ${
                         i > 0 ? "text-right" : ""
                       }`}
                     >
@@ -139,24 +149,24 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
               <tbody>{data.map(renderRow)}</tbody>
               <tfoot>
                 <tr className="border-t border-zinc-200 bg-orange-50 dark:border-zinc-800 dark:bg-orange-950/30">
-                  <td className="py-2 pr-4 font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 font-semibold text-zinc-900 dark:text-zinc-100">
                     합 계
                   </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatParen(total.principal, isKrw)}
                   </td>
                   <td className="py-2 pr-4" />
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.interest, isKrw)}
                   </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.cashInterest, isKrw)}
                   </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.taxableIncome, isKrw)}
                   </td>
                   <td className="py-2 pr-4" />
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.incomeTax, isKrw)}
                   </td>
                   <td className="py-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
@@ -169,13 +179,14 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
 
           {/* 인쇄: 앞/뒤 일부만 표시하고 중간은 생략 */}
           <div className="hidden overflow-x-auto print:block">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[860px] table-fixed text-sm">
+              {cols}
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
                   {columns.map((col, i) => (
                     <th
                       key={col}
-                      className={`whitespace-nowrap py-2 pr-4 font-medium ${
+                      className={`py-2 pr-2 font-medium leading-tight ${
                         i > 0 ? "text-right" : ""
                       }`}
                     >
@@ -200,24 +211,24 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-zinc-200 bg-orange-50 dark:border-zinc-800 dark:bg-orange-950/30">
-                  <td className="py-2 pr-4 font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 font-semibold text-zinc-900 dark:text-zinc-100">
                     합 계
                   </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatParen(total.principal, isKrw)}
                   </td>
                   <td className="py-2 pr-4" />
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.interest, isKrw)}
                   </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.cashInterest, isKrw)}
                   </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.taxableIncome, isKrw)}
                   </td>
                   <td className="py-2 pr-4" />
-                  <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                  <td className="py-2 pr-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAmount(total.incomeTax, isKrw)}
                   </td>
                   <td className="py-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">

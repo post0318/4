@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { fmtInt, fmtNum } from "@/lib/format";
+import { fmtInt, fmtNum, normalizeDecimalInput } from "@/lib/format";
 import { toISODate, today } from "@/lib/ntnfPricing";
 import {
   simulateRollVsSwitch,
@@ -22,9 +22,7 @@ const numInput = `${box} text-right tabular-nums`;
 function pct(n: number, d = 1) {
   return `${n >= 0 ? "+" : ""}${fmtNum(n, d)}%`;
 }
-function clean(v: string) {
-  return v.replace(/[^\d.]/g, "");
-}
+const clean = normalizeDecimalInput;
 
 /** 25 ─ A청산 ─ B만기 타임라인 */
 function Timeline({ leg }: { leg: RollSwitchLeg }) {

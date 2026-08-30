@@ -159,7 +159,8 @@ export function MonthlyCashFlowTable({
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6 print:p-2">
       <h2 className="mb-5 print:mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-100">
-        월지급 현금흐름표
+        현금흐름표{" "}
+        <span className="text-xs font-normal text-zinc-400">(월지급식)</span>
       </h2>
 
       {data.length === 0 ? (

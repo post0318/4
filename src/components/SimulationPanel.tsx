@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { fmtNum } from "@/lib/format";
+import { fmtNum, normalizeDecimalInput } from "@/lib/format";
 import { toISODate, today } from "@/lib/ntnfPricing";
 import {
   simulate,
@@ -309,7 +309,7 @@ export function SimulationPanel({ bonds, fx }: Props) {
           <input
             inputMode="decimal"
             value={aYield !== "" ? aYield : (bondA?.buyYieldPct?.toString() ?? "")}
-            onChange={(e) => setAYield(e.target.value.replace(/[^\d.]/g, ""))}
+            onChange={(e) => setAYield(normalizeDecimalInput(e.target.value))}
             className={`w-full text-right tabular-nums ${box}`}
           />
         </label>
@@ -355,7 +355,7 @@ export function SimulationPanel({ bonds, fx }: Props) {
           <input
             inputMode="decimal"
             value={bYield !== "" ? bYield : (bondB?.buyYieldPct?.toString() ?? "")}
-            onChange={(e) => setBYield(e.target.value.replace(/[^\d.]/g, ""))}
+            onChange={(e) => setBYield(normalizeDecimalInput(e.target.value))}
             className={`w-full text-right tabular-nums ${box}`}
           />
         </label>
@@ -369,7 +369,7 @@ export function SimulationPanel({ bonds, fx }: Props) {
               inputMode="decimal"
               placeholder={liveFx ? fmtNum(liveFx, 2) : ""}
               value={buyFx}
-              onChange={(e) => setBuyFx(e.target.value.replace(/[^\d.]/g, ""))}
+              onChange={(e) => setBuyFx(normalizeDecimalInput(e.target.value))}
               className={`w-full text-right tabular-nums ${box}`}
             />
           </label>
@@ -381,7 +381,7 @@ export function SimulationPanel({ bonds, fx }: Props) {
               inputMode="decimal"
               placeholder={liveFx ? fmtNum(liveFx, 2) : ""}
               value={exitFx}
-              onChange={(e) => setExitFx(e.target.value.replace(/[^\d.]/g, ""))}
+              onChange={(e) => setExitFx(normalizeDecimalInput(e.target.value))}
               className={`w-full text-right tabular-nums ${box}`}
             />
           </label>

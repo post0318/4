@@ -223,8 +223,9 @@ export function generateMonthlyCashFlow(
     }
 
     // 선취/후취보수 공제 (반기와 동일 로직)
+    // 후취보수 기준 원금: 경과이자 반환 등으로 줄어든 현재 원금 잔액(principalLedger)
     const backFeeThisPeriod =
-      ((trustAmount * (backFeeRate / 100)) / 365) * Math.max(0, days);
+      ((principalLedger * (backFeeRate / 100)) / 365) * Math.max(0, days);
     const totalDeduction = carryFrontFee + carryBackFeeResidual + backFeeThisPeriod;
 
     let payout = 0;

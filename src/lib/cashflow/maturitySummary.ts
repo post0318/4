@@ -70,8 +70,9 @@ export function computeMaturitySummary(
   const preOwnedInterest = rows[0].interest - bondTaxableRow0;
   const investedPrincipal = roundDown(principal - preOwnedInterest, 2);
 
+  // 만기청산(11일) 후취보수도 경과이자차감 원금 기준
   const lastBackFee = roundDown(
-    ((principal * (backFeeRate / 100)) / 365) * TRUST_MATURITY_LEAD_DAYS,
+    ((investedPrincipal * (backFeeRate / 100)) / 365) * TRUST_MATURITY_LEAD_DAYS,
     2
   );
 

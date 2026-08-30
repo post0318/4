@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { normalizeDecimalInput } from "@/lib/format";
 import {
   BondLayoutInput,
   CalcBasis,
@@ -535,9 +536,8 @@ export function BondLayoutForm({
               disabled={locked}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("couponRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("couponRate", _v);
               }}
               onBlur={(e) => update("couponRate", formatTwoDecimals(e.target.value))}
               onKeyDown={commitOnEnter}
@@ -634,9 +634,8 @@ export function BondLayoutForm({
               disabled={value.distributionType !== "월"}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("reserveRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("reserveRate", _v);
               }}
               onBlur={(e) =>
                 update("reserveRate", formatTwoDecimals(e.target.value))
@@ -742,9 +741,8 @@ export function BondLayoutForm({
               value={value.purchaseYield}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("purchaseYield", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("purchaseYield", _v);
               }}
               onBlur={(e) =>
                 update("purchaseYield", formatTwoDecimals(e.target.value))
@@ -803,9 +801,8 @@ export function BondLayoutForm({
               disabled={value.custodyCurrency === value.tradeCurrency}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("purchaseFxRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("purchaseFxRate", _v);
               }}
               onBlur={(e) => {
                 const formatted = formatTwoDecimals(e.target.value);
@@ -832,9 +829,8 @@ export function BondLayoutForm({
               disabled={value.custodyCurrency === value.tradeCurrency}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("maturityFxRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("maturityFxRate", _v);
               }}
               onBlur={(e) =>
                 update("maturityFxRate", formatTwoDecimals(e.target.value))
@@ -889,9 +885,8 @@ export function BondLayoutForm({
               value={value.frontFeeRate}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("frontFeeRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("frontFeeRate", _v);
               }}
               onBlur={(e) =>
                 update("frontFeeRate", formatTwoDecimals(e.target.value))
@@ -908,9 +903,8 @@ export function BondLayoutForm({
               value={value.backFeeRate}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("backFeeRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("backFeeRate", _v);
               }}
               onKeyDown={commitOnEnter}
               onBlur={(e) =>
@@ -927,9 +921,8 @@ export function BondLayoutForm({
               value={value.cashInterestRate}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("cashInterestRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("cashInterestRate", _v);
               }}
               onBlur={(e) =>
                 update("cashInterestRate", formatTwoDecimals(e.target.value))
@@ -991,9 +984,8 @@ export function BondLayoutForm({
               value={value.incomeTaxRate}
               onFocus={selectAllOnFocus}
               onChange={(e) => {
-                if (PERCENT_INPUT_PATTERN.test(e.target.value)) {
-                  update("incomeTaxRate", e.target.value);
-                }
+                const _v = normalizeDecimalInput(e.target.value);
+                  if (PERCENT_INPUT_PATTERN.test(_v)) update("incomeTaxRate", _v);
               }}
               onBlur={(e) =>
                 update("incomeTaxRate", formatTwoDecimals(e.target.value))

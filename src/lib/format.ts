@@ -16,6 +16,21 @@ export function digitsOnly(value: string): string {
   return value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 }
 
+/**
+ * 숫자·소수점만 남기고 맨 앞의 불필요한 0을 제거한다(011.11→11.11, 011→11).
+ * "0.5", "0", "0."처럼 0 뒤가 소수점이거나 0 하나만 있으면 그대로 둔다.
+ */
+export function normalizeDecimalInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  const oneDot =
+    firstDot === -1
+      ? cleaned
+      : cleaned.slice(0, firstDot + 1) +
+        cleaned.slice(firstDot + 1).replace(/\./g, "");
+  return oneDot.replace(/^0+(?=\d)/, "");
+}
+
 /** 숫자만 있는 문자열에 천 단위 콤마를 넣는다. 입력창 표시용. */
 export function groupDigits(digits: string): string {
   if (!digits) return "";

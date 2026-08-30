@@ -1,18 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { digitsOnly, groupDigits } from "@/lib/format";
+import { digitsOnly, groupDigits, normalizeDecimalInput } from "@/lib/format";
 
 interface Props {
   /** 원/달러 환율 (Frankfurter). 고시환율 칸 자동값으로 쓴다. */
   usdKrw: number | null;
 }
 
-function sanitizeDecimal(v: string): string {
-  const c = v.replace(/[^\d.]/g, "");
-  const i = c.indexOf(".");
-  return i === -1 ? c : c.slice(0, i + 1) + c.slice(i + 1).replace(/\./g, "");
-}
+const sanitizeDecimal = normalizeDecimalInput;
 
 /**
  * 환전금액 — 원화금액 ÷ 고시환율 = 달러금액.

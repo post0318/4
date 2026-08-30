@@ -129,6 +129,9 @@ export function generateFixCashFlow(
   let periodStart = contractDate;
   let carryFrontFee = frontFeeAmount;
   let carryBackFeeResidual = 0;
+  // 후취보수 계산 기준: 신탁투자원금. 첫 이표 회차에 매수 시 선지급한 경과이자를
+  // 돌려받으면 그만큼 원금이 줄어들어, 이후 회차는 줄어든 원금으로 후취보수를 뗀다.
+  let principalBase = trustInvestmentAmount;
   // 결제 후 신탁 내 보유현금. 반기지급에서는 쿠폰·현금이자가 매 회차 그대로
   // 투자자에게 지급돼(전기와 당기간 발생분은 당기 지급) 남는 금액이 없으므로
   // 만기까지 불변이다. 월 지급 단계에서는 부분지급 잔액이 회차마다 합산된다.
@@ -158,7 +161,7 @@ export function generateFixCashFlow(
 
     const availableFrontFee = carryFrontFee;
     const backFeeThisPeriod =
-      (trustInvestmentAmount * (backFeeRate / 100) / 365) *
+      (principalBase * (backFeeRate / 100) / 365) *
       daysBetween(periodStart, date);
     const availableBackFee = carryBackFeeResidual + backFeeThisPeriod;
     const totalDeduction = availableFrontFee + availableBackFee;
@@ -187,8 +190,7 @@ export function generateFixCashFlow(
     let maturityPayout: number | undefined;
     if (isMaturity) {
       const lastBackFee =
-        (trustInvestmentAmount * (backFeeRate / 100) / 365) *
-        TRUST_MATURITY_LEAD_DAYS;
+        (principalBase * (backFeeRate / 100) / 365) * TRUST_MATURITY_LEAD_DAYS;
       maturityPayout = truncByCurrency(
         principal + netAmount + runningCashBalance - lastBackFee
       );
@@ -221,6 +223,9 @@ export function generateFixCashFlow(
     carryFrontFee = availableFrontFee - frontUsed;
     carryBackFeeResidual = availableBackFee - (deductionUsed - frontUsed);
     periodStart = date;
+
+    // 첫 이표 회차에서 경과이자를 돌려받았으므로 다음 회차부터 후취보수 기준 원금을 줄인다
+    if (index === 0) principalBase -= preOwnedInterest;
   });
 
   return rows;
