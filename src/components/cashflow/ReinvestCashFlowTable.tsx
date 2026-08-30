@@ -158,10 +158,9 @@ export function ReinvestCashFlowTable({ rows }: Props) {
       )}
 
       <div className="mt-6 space-y-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 print:mt-1 print:space-y-0">
-        <p>- 재매수 시 금리는 최초 매수금리로 가정합니다.</p>
         <p>
           - 수령한 쿠폰(BRL)으로 같은 채권을 재매수하며, 남는 BRL은 다음 회차
-          재투자에 씁니다. BRL 보유현금에는 현금성이자가 없습니다.
+          재투자에 사용됩니다. 재매수 금리는 최초 매수금리로 가정합니다.
         </p>
       </div>
 
