@@ -60,10 +60,6 @@ function ReturnMatrix({
 
   return (
     <div>
-      <p className="mb-1 text-[12px] text-zinc-500 dark:text-zinc-400">
-        현재 매수금리로 지금 매수해 만기까지 보유 (만기 보유라 금리변동 평가손익
-        없음 — 금리 손익은 위 가격변동 표 참고)
-      </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[12px]">
           <colgroup>
@@ -217,17 +213,17 @@ export function DurationPanel({ bonds, fx }: Props) {
   );
 
   // 요약표: 종목별 "현재 매수금리로 만기까지 보유 시 헤알 수익률" (금리 Δ 무관)
-  const matrixBonds: MatrixBond[] = useMemo(
-    () =>
-      sorted.map((b) => ({
-        label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
-        hold:
-          b.buyYieldPct != null
-            ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0)
-            : null,
-      })),
-    [sorted]
-  );
+  // 일반형(쿠폰 현금수령) / 재투자형(쿠폰 매수금리로 재투자) 두 벌.
+  const makeMatrix = (reinvest: boolean): MatrixBond[] =>
+    sorted.map((b) => ({
+      label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
+      hold:
+        b.buyYieldPct != null
+          ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0, reinvest)
+          : null,
+    }));
+  const matrixPlain = useMemo(() => makeMatrix(false), [sorted]); // eslint-disable-line react-hooks/exhaustive-deps
+  const matrixReinvest = useMemo(() => makeMatrix(true), [sorted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (sorted.length === 0) {
     return (
@@ -376,12 +372,30 @@ export function DurationPanel({ bonds, fx }: Props) {
       </p>
     </section>
 
-    <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         환율 시나리오별 예상 수익률
       </h2>
+      <p className="text-[11px] text-zinc-400">
+        지금 매수해 만기까지 보유 · 세전 · 복리 연환산. 만기 보유라 금리변동
+        평가손익은 없음(금리 손익은 위 가격변동 표). 현금흐름 탭 세후수익률은
+        단리 기준이라 값이 다릅니다.
+      </p>
       {fx?.krwBrl ? (
-        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
+        <>
+          <div>
+            <h3 className="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+              일반형 <span className="font-normal text-zinc-400">쿠폰 현금수령 · 재투자 없음</span>
+            </h3>
+            <ReturnMatrix bonds={matrixPlain} baseFx={fx.krwBrl} />
+          </div>
+          <div>
+            <h3 className="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+              재투자형 <span className="font-normal text-zinc-400">쿠폰을 매수금리로 만기까지 재투자</span>
+            </h3>
+            <ReturnMatrix bonds={matrixReinvest} baseFx={fx.krwBrl} />
+          </div>
+        </>
       ) : (
         <p className="text-[11px] text-zinc-400">
           환율을 불러오면 표시됩니다.

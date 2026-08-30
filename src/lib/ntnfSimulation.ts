@@ -106,19 +106,22 @@ function years(from: Date, to: Date): number {
 
 /**
  * 지금 매수해 만기까지 보유했을 때의 헤알(BRL) 수익률.
- * 쿠폰은 (매수금리 + shiftPct)로 만기까지 재투자 가정.
+ * @param reinvest false(기본): 쿠폰을 현금으로 받아 재투자하지 않음(일반형).
+ *                 true: 쿠폰을 (매수금리 + shiftPct)로 만기까지 재투자(재투자형).
  */
 export function holdToMaturityBrl(
   maturity: string,
   buyYieldPct: number,
-  shiftPct: number
+  shiftPct: number,
+  reinvest = false
 ): { annualPct: number; totalPct: number; years: number } | null {
   const settle = getOrderSettlementDate(today());
   const mat = parseLocalDate(maturity);
   if (!mat || mat <= settle) return null;
   const puBuy = computeNtnfPu(maturity, buyYieldPct, settle);
   if (puBuy == null || puBuy <= 0) return null;
-  const coupons = couponsFV(settle, mat, mat, buyYieldPct + shiftPct);
+  const reinvRate = reinvest ? buyYieldPct + shiftPct : 0;
+  const coupons = couponsFV(settle, mat, mat, reinvRate);
   const total = (FACE + coupons) / puBuy - 1;
   const t = Math.max(years(settle, mat), 1 / 365);
   return {
