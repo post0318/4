@@ -54,20 +54,22 @@ function ReturnMatrix({
   baseFx: number;
 }) {
   const th =
-    "px-1 py-1 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800";
+    "px-1.5 py-1.5 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800";
   const cell =
-    "px-1 py-1 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
+    "px-1.5 py-1.5 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
+
+  const colW = `${(100 / (2 + bonds.length * 2)).toFixed(3)}%`;
 
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] table-fixed border-collapse text-[12px]">
+        <table className="w-full min-w-[560px] table-fixed border-collapse text-[13px]">
           <colgroup>
-            <col className="w-[7.14%]" />
-            <col className="w-[7.14%]" />
+            <col style={{ width: colW }} />
+            <col style={{ width: colW }} />
             {bonds.flatMap((b) => [
-              <col key={`${b.label}-a`} className="w-[7.14%]" />,
-              <col key={`${b.label}-t`} className="w-[7.14%]" />,
+              <col key={`${b.label}-a`} style={{ width: colW }} />,
+              <col key={`${b.label}-t`} style={{ width: colW }} />,
             ])}
           </colgroup>
           <thead>
@@ -137,7 +139,7 @@ function ReturnMatrix({
           </tbody>
         </table>
       </div>
-      <p className="mt-1 text-[11px] text-zinc-400">
+      <p className="mt-1 text-xs text-zinc-400">
         총누적수익률 = 잔존기간 전체 수익률. 헤알화 강세(＋)일수록 붉게.
       </p>
     </div>
@@ -194,9 +196,18 @@ export function DurationPanel({ bonds, fx }: Props) {
   const [dfx, setDfx] = useState(0); // 환율변동 %
   const [reinvest, setReinvest] = useState(false); // 쿠폰 재투자형
 
+  // 잔존만기 1년 미만은 듀레이션·시나리오 의미가 없어 제외
+  const cutoff = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
   const sorted = useMemo(
-    () => [...bonds].sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)),
-    [bonds]
+    () =>
+      [...bonds]
+        .filter((b) => b.maturityDate >= cutoff)
+        .sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)),
+    [bonds, cutoff]
   );
 
   const rows = useMemo(
@@ -233,8 +244,8 @@ export function DurationPanel({ bonds, fx }: Props) {
   }
 
   const th =
-    "px-1.5 py-1.5 font-semibold text-zinc-500 dark:text-zinc-400 leading-tight";
-  const td = "px-1.5 py-1 whitespace-nowrap tabular-nums";
+    "px-2 py-2 font-semibold text-zinc-500 dark:text-zinc-400 leading-tight";
+  const td = "px-2 py-1.5 whitespace-nowrap tabular-nums";
 
   return (
     <div className="space-y-4">
@@ -285,12 +296,12 @@ export function DurationPanel({ bonds, fx }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] table-fixed border-collapse text-xs">
+        <table className="w-full min-w-[560px] table-fixed border-collapse text-[13px]">
           <colgroup>
-            <col className="w-[16%]" />
+            <col className="w-[19%]" />
             {/* 수익률 ~ 원화가치변동: 7칸 동일폭 */}
             {Array.from({ length: 7 }, (_, i) => (
-              <col key={i} className="w-[12%]" />
+              <col key={i} className="w-[11.57%]" />
             ))}
           </colgroup>
           <thead>
@@ -364,7 +375,7 @@ export function DurationPanel({ bonds, fx }: Props) {
         </table>
       </div>
 
-      <p className="text-[11px] text-zinc-400">
+      <p className="text-xs text-zinc-400">
         수정듀레이션 D*는 수익률 100bp 변화 시 대략적인 PU 변화율(년)입니다. 가격변동
         ≈ −D*·Δy + ½·컨벡시티·Δy², 원화가치변동 = (1+가격변동)(1+환율변동)−1. 결제일
         D+0, NTN-F(액면 R$1,000). 근사치입니다.
@@ -386,16 +397,16 @@ export function DurationPanel({ bonds, fx }: Props) {
           재투자형
         </label>
       </div>
-      <p className="text-[11px] text-zinc-400">
+      <p className="text-xs text-zinc-400">
         현재 가격으로 매입해 만기까지 보유를 가정 → 금리변동에 따른 평가손익 없음
         (금리 손익은 위 가격변동 표 참고).
       </p>
       {fx?.krwBrl ? (
         <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
       ) : (
-        <p className="text-[11px] text-zinc-400">환율을 불러오면 표시됩니다.</p>
+        <p className="text-xs text-zinc-400">환율을 불러오면 표시됩니다.</p>
       )}
-      <p className="text-[11px] text-zinc-400">
+      <p className="text-xs text-zinc-400">
         세전 · 단리 연환산(총수익률 ÷ 잔존연수, 현금흐름 탭과 동일) · 수수료·세금
         미반영.{" "}
         {reinvest
