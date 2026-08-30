@@ -10,8 +10,8 @@ interface Props {
   summary?: ReinvestCashFlowSummary | null;
 }
 
-const HEAD_ROWS = 6;
-const TAIL_ROWS = 6;
+const HEAD_ROWS = 4;
+const TAIL_ROWS = 4;
 
 function brl(n: number): string {
   if (!n) return "";

@@ -6,8 +6,8 @@ interface CashFlowTableProps {
   custodyCurrency: string;
 }
 
-const HEAD_ROWS = 5;
-const TAIL_ROWS = 5;
+const HEAD_ROWS = 4;
+const TAIL_ROWS = 4;
 const MAX_VISIBLE_ROWS = HEAD_ROWS + TAIL_ROWS;
 
 function formatAmount(n: number, isKrw: boolean): string {

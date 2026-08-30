@@ -7,8 +7,8 @@ interface MonthlyCashFlowTableProps {
   error?: string | null;
 }
 
-const HEAD_ROWS = 6;
-const TAIL_ROWS = 6;
+const HEAD_ROWS = 4;
+const TAIL_ROWS = 4;
 
 function fmt(n: number, isKrw: boolean): string {
   if (isKrw) return Math.trunc(n).toLocaleString("ko-KR");

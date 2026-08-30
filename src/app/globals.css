@@ -50,11 +50,11 @@ body {
   }
 }
 
-/* ── 출력물(인쇄) ── 현금흐름표를 A4 가로로 깔끔하게 뽑는다 */
+/* ── 출력물(인쇄) ── 현금흐름표를 A4 세로 1페이지에 맞춰 뽑는다 */
 @media print {
   @page {
-    size: A4 landscape;
-    margin: 8mm;
+    size: A4 portrait;
+    margin: 7mm;
   }
 
   /* 배경색·음영을 그대로 인쇄(합계행 주황, 만기행 강조 등) */
@@ -78,19 +78,25 @@ body {
     animation: none;
   }
 
-  /* 인쇄 영역 밖 여백 최소화 */
+  /* 전체를 축소해 A4 세로 1페이지에 담는다. width는 1/scale 로 잡아 폭을 채운다. */
   .print-page {
     max-width: none !important;
-    padding: 0 !important;
     margin: 0 !important;
-    gap: 4mm !important;
+    padding: 0 !important;
+    gap: 2mm !important;
+    transform: scale(0.62);
+    transform-origin: top left;
+    width: 161.3%;
   }
 
-  /* 표가 페이지 경계에서 잘리지 않도록 */
-  table {
-    page-break-inside: auto;
+  /* 1페이지 강제: 넘치는 내용은 잘려도 페이지 추가 안 함 */
+  html,
+  body {
+    height: auto;
+    overflow: hidden;
   }
-  tr {
+
+  table {
     page-break-inside: avoid;
   }
   thead {
