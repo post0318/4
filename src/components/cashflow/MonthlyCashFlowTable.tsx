@@ -93,11 +93,6 @@ export function MonthlyCashFlowTable({
     >
       <td className="py-2 pr-2 text-zinc-700 dark:text-zinc-300">
         {row.date}
-        {row.type === "만기상환" && (
-          <span className="block text-xs text-amber-600 dark:text-amber-500">
-            만기상환
-          </span>
-        )}
       </td>
       <td
         className={`${cell} ${
