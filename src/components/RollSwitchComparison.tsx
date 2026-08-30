@@ -490,6 +490,9 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
               헤알 잔돈(무이자 이월). 환율은 매수·회수 단일값이며, 세금·거래비용·
               호가 스프레드·쿠폰 재투자 수익은 반영하지 않은 근사치입니다.
             </p>
+            <p className="text-zinc-500 dark:text-zinc-400">
+              본 시뮬레이션은 실제 고객별 투자현황과 상이할 수 있습니다.
+            </p>
           </div>
         </>
       ) : (
