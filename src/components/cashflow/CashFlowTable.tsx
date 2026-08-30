@@ -43,7 +43,8 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
       cashInterest: acc.cashInterest + row.cashInterest,
       taxableIncome: acc.taxableIncome + row.taxableIncome,
       incomeTax: acc.incomeTax + row.incomeTax,
-      netAmount: acc.netAmount + row.netAmount,
+      // 만기 회차는 원금상환·반환현금 포함한 실지급액으로 합산
+      netAmount: acc.netAmount + (row.maturityPayout ?? row.netAmount),
     }),
     {
       principal: 0,
@@ -90,7 +91,7 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
         {formatAmount(row.incomeTax, isKrw)}
       </td>
       <td className="whitespace-nowrap py-2 text-right tabular-nums font-medium text-zinc-900 dark:text-zinc-100">
-        {formatAmount(row.netAmount, isKrw)}
+        {formatAmount(row.maturityPayout ?? row.netAmount, isKrw)}
       </td>
     </tr>
   );

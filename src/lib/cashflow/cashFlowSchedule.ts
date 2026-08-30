@@ -26,7 +26,16 @@ export interface CashFlowRow {
   /** 채권이자분 소득세(과세여부 기준) + 현금이자분 소득세(15.4%) */
   incomeTax: number;
   netAmount: number;
+  /**
+   * 만기 회차에 한해, 투자자가 그날 실제로 지급받는 총액(원금상환 + 마지막
+   * 쿠폰·현금이자 세후 + 반환 보유현금 − 만기청산 후취보수). 월지급표의
+   * 만기상환 행처럼 "만기 때 지급되는 금액"을 그대로 보여주기 위한 표시용 값이다.
+   * 수익률·요약 계산은 계속 netAmount/principal 을 따로 쓴다(중복 반영 방지).
+   */
+  maturityPayout?: number;
 }
+
+const TRUST_MATURITY_LEAD_DAYS = 11;
 
 export interface CashFlowScheduleInputs {
   maturityDate: string;
@@ -168,6 +177,18 @@ export function generateFixCashFlow(
       interest + cashInterest - backFeeThisPeriod - incomeTax
     );
 
+    // 만기 회차: 월지급표처럼 "그날 실제 지급받는 총액"을 표시용으로 계산.
+    // 원금상환 + 세후 쿠폰·현금이자(netAmount) + 반환 보유현금 − 만기청산 후취보수.
+    let maturityPayout: number | undefined;
+    if (isMaturity) {
+      const lastBackFee =
+        (trustInvestmentAmount * (backFeeRate / 100) / 365) *
+        TRUST_MATURITY_LEAD_DAYS;
+      maturityPayout = truncByCurrency(
+        principal + netAmount + runningCashBalance - lastBackFee
+      );
+    }
+
     rows.push({
       date: date.toISOString().slice(0, 10),
       principal,
@@ -178,6 +199,7 @@ export function generateFixCashFlow(
       taxBase,
       incomeTax,
       netAmount,
+      maturityPayout,
     });
 
     // 공제는 "실제 과세되는 소득"만큼만 소진된다. 비과세 채권이자는 아무리 커도
