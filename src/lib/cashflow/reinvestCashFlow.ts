@@ -26,6 +26,8 @@ export interface ReinvestCashFlowRow {
   date: string;
   /** 이번 회차 직전 보유 좌수 */
   unitsBefore: number;
+  /** 이번 회차 직전 보유 현금 (BRL) — 전기 재투자 후 남은 잔돈 */
+  cashBrlBefore: number;
   /** 이번 회차 쿠폰 (BRL, per 전체 보유분) */
   couponBrl: number;
   /** 재매수 단가 (PU, R$) — 만기 회차는 상환가 1,000 */
@@ -147,11 +149,12 @@ export function generateReinvestCashFlow(
   dates.forEach((date) => {
     const isMaturity = toTime(date) === toTime(maturity);
     const unitsBefore = units;
+    const cashBrlBefore = cashBrl; // 이번 회차 쿠폰 반영 전 잔여현금
     const couponBrl = units * FACE * couponFactor;
     totalCouponBrl += couponBrl;
 
     if (isMaturity) {
-      // 마지막 쿠폰 + 원금상환 + 잔여현금 → 원화 회수
+      // 마지막 쿠폰 + 원금상환 + 잔여현금 → 원화 회수 (만기엔 재매수 없음)
       const redemptionBrl = units * FACE;
       const grossBrl = redemptionBrl + couponBrl + cashBrl;
       const days = getInvestmentDays(input.trustContractDate, input.maturityDate) ?? 0;
@@ -162,8 +165,9 @@ export function generateReinvestCashFlow(
       rows.push({
         date: toISODate(date),
         unitsBefore,
+        cashBrlBefore: roundDown(cashBrlBefore, 2),
         couponBrl,
-        reinvestPu: FACE,
+        reinvestPu: 0,
         unitsBought: 0,
         unitsAfter: units,
         cashBrl: 0,
@@ -179,6 +183,7 @@ export function generateReinvestCashFlow(
       rows.push({
         date: toISODate(date),
         unitsBefore,
+        cashBrlBefore: roundDown(cashBrlBefore, 2),
         couponBrl,
         reinvestPu: 0,
         unitsBought: 0,
@@ -194,6 +199,7 @@ export function generateReinvestCashFlow(
     rows.push({
       date: toISODate(date),
       unitsBefore,
+      cashBrlBefore: roundDown(cashBrlBefore, 2),
       couponBrl,
       reinvestPu: pu,
       unitsBought: bought,

@@ -16,10 +16,6 @@ function brl(n: number): string {
     maximumFractionDigits: 2,
   });
 }
-function krw(n: number): string {
-  if (!n) return "";
-  return Math.trunc(n).toLocaleString("ko-KR");
-}
 function units(n: number): string {
   if (!n) return "";
   return Math.round(n).toLocaleString("ko-KR");
@@ -35,12 +31,12 @@ export function ReinvestCashFlowTable({ rows }: Props) {
   const columns = [
     "이자계산일",
     "전기보유좌수",
+    "전기보유현금(R$)",
     "이자(R$)",
     "재매수단가",
     "매수좌수",
     "당기보유좌수",
     "잔여현금(R$)",
-    "만기회수액(₩)",
   ];
 
   const isTruncated = data.length > HEAD_ROWS + TAIL_ROWS;
@@ -88,6 +84,9 @@ export function ReinvestCashFlowTable({ rows }: Props) {
       <td className="py-2 pr-2 text-right tabular-nums">
         {units(row.unitsBefore)}
       </td>
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+        {brl(row.cashBrlBefore)}
+      </td>
       <td className="py-2 pr-2 text-right tabular-nums">
         {brl(row.couponBrl)}
       </td>
@@ -100,11 +99,8 @@ export function ReinvestCashFlowTable({ rows }: Props) {
       <td className="py-2 pr-2 text-right tabular-nums font-medium">
         {units(row.unitsAfter)}
       </td>
-      <td className="py-2 pr-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+      <td className="py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
         {brl(row.cashBrl)}
-      </td>
-      <td className="py-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
-        {row.maturityKrw ? krw(row.maturityKrw) : ""}
       </td>
     </tr>
   );
