@@ -37,7 +37,13 @@ function addDays(date: Date, days: number): Date {
 export function parseLocalDate(iso: string): Date | null {
   const m = iso.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const year = Number(m[1]);
+  // date input에 직접 타이핑하면 연도가 한 자리씩 채워지며 "0002"·"0202"
+  // 같은 미완성 값이 onChange로 흘러든다. 이 경우 결제일이 1902년(JS의 2자리
+  // 연도 규칙) 또는 서기 202년이 되어, 만기까지의 브라질 영업일수를 하루씩
+  // 걷는 루프가 수백만 회 돌며 탭이 멈춘다. 현실적 범위만 통과시킨다.
+  if (year < 2000 || year > 2200) return null;
+  const d = new Date(year, Number(m[2]) - 1, Number(m[3]));
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
