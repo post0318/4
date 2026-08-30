@@ -300,31 +300,31 @@ export function BondLayoutForm({
     ]
   );
 
-  const monthlySummary = useMemo(
-    () =>
-      value.distributionType !== "월"
-        ? null
-        : (generateMonthlyCashFlow({
-            maturityDate: value.maturityDate,
-            couponRate: value.couponRate,
-            couponFrequency: value.couponFrequency,
-            purchaseYield: value.purchaseYield,
-            calcBasis: value.calcBasis,
-            trustContractDate: value.trustContractDate,
-            recentCouponDate: value.recentCouponDate,
-            tradeCurrency: value.tradeCurrency,
-            custodyCurrency: value.custodyCurrency,
-            purchaseFxRate: value.purchaseFxRate,
-            maturityFxRate: value.maturityFxRate,
-            trustInvestmentAmount: value.trustInvestmentAmount,
-            frontFeeRate: value.frontFeeRate,
-            backFeeRate: value.backFeeRate,
-            cashInterestRate: value.cashInterestRate,
-            reserveRate: value.reserveRate,
-            taxStatus: value.taxStatus,
-            comprehensiveTaxRate: value.incomeTaxRate,
-          })?.summary ?? null),
-    [
+  const monthlySummary = useMemo(() => {
+    if (value.distributionType !== "월") return null;
+    const r = generateMonthlyCashFlow({
+      maturityDate: value.maturityDate,
+      couponRate: value.couponRate,
+      couponFrequency: value.couponFrequency,
+      purchaseYield: value.purchaseYield,
+      calcBasis: value.calcBasis,
+      trustContractDate: value.trustContractDate,
+      recentCouponDate: value.recentCouponDate,
+      tradeCurrency: value.tradeCurrency,
+      custodyCurrency: value.custodyCurrency,
+      purchaseFxRate: value.purchaseFxRate,
+      maturityFxRate: value.maturityFxRate,
+      trustInvestmentAmount: value.trustInvestmentAmount,
+      frontFeeRate: value.frontFeeRate,
+      backFeeRate: value.backFeeRate,
+      cashInterestRate: value.cashInterestRate,
+      reserveRate: value.reserveRate,
+      taxStatus: value.taxStatus,
+      comprehensiveTaxRate: value.incomeTaxRate,
+    });
+    // 보유현금 마이너스(유보율 부족)면 수익률 결과를 내지 않는다
+    return r && !r.error ? r.summary : null;
+  }, [
       value.distributionType,
       value.maturityDate,
       value.couponRate,
