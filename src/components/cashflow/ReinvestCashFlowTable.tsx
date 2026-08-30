@@ -33,11 +33,11 @@ export function ReinvestCashFlowTable({ rows }: Props) {
 
   const columns = [
     "이자계산일",
-    "보유좌수",
+    "전기보유좌수",
     "이자(R$)",
     "재매수단가",
     "매수좌수",
-    "누적좌수",
+    "당기보유좌수",
     "잔여현금(R$)",
     "만기회수액(₩)",
   ];
@@ -49,13 +49,21 @@ export function ReinvestCashFlowTable({ rows }: Props) {
   const gapAt = isTruncated ? HEAD_ROWS : -1;
   const omitted = data.length - HEAD_ROWS - TAIL_ROWS;
 
+  const cols = (
+    <colgroup>
+      {columns.map((c) => (
+        <col key={c} style={{ width: `${(100 / columns.length).toFixed(3)}%` }} />
+      ))}
+    </colgroup>
+  );
+
   const head = (
     <thead>
       <tr className="border-b border-zinc-200 bg-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         {columns.map((c, i) => (
           <th
             key={c}
-            className={`whitespace-nowrap py-2 pr-4 font-medium ${
+            className={`py-2 pr-2 font-medium leading-tight ${
               i > 0 ? "text-right" : ""
             }`}
           >
@@ -73,28 +81,28 @@ export function ReinvestCashFlowTable({ rows }: Props) {
         row.maturityKrw ? "bg-orange-50/60 font-medium dark:bg-orange-950/20" : ""
       }`}
     >
-      <td className="whitespace-nowrap py-2 pr-4 text-zinc-700 dark:text-zinc-300">
+      <td className="py-2 pr-2 text-zinc-700 dark:text-zinc-300">
         {row.date}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {units(row.unitsBefore)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {brl(row.couponBrl)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {row.reinvestPu ? brl(row.reinvestPu) : ""}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {units(row.unitsBought)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums font-medium">
+      <td className="py-2 pr-2 text-right tabular-nums font-medium">
         {units(row.unitsAfter)}
       </td>
-      <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+      <td className="py-2 pr-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
         {brl(row.cashBrl)}
       </td>
-      <td className="whitespace-nowrap py-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+      <td className="py-2 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
         {row.maturityKrw ? krw(row.maturityKrw) : ""}
       </td>
     </tr>
@@ -118,7 +126,8 @@ export function ReinvestCashFlowTable({ rows }: Props) {
         <>
           {/* 화면: 전체 행 */}
           <div className="overflow-x-auto print:hidden">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[760px] table-fixed text-sm">
+              {cols}
               {head}
               <tbody>{data.map((row) => renderRow(row))}</tbody>
             </table>
@@ -126,7 +135,8 @@ export function ReinvestCashFlowTable({ rows }: Props) {
 
           {/* 인쇄: 앞/뒤 일부만 */}
           <div className="hidden overflow-x-auto print:block">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[760px] table-fixed text-sm">
+              {cols}
               {head}
               <tbody>
                 {shown.map((row, i) => (
