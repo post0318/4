@@ -473,6 +473,24 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
               win={!rollWin && !!result.switch}
             />
           </div>
+          <div className="space-y-1 border-t border-zinc-100 pt-2 text-[11px] leading-relaxed text-zinc-400 dark:border-zinc-800">
+            <p>
+              두 전략 모두 갈아탈 종목(B) 만기에 종료하고, 같은 잣대로 비교하려고
+              수익률 분모는 「보유종목(A)을 만기까지 들고 있었다면 받을 상환금
+              (A 좌수 × 액면 R$1,000)」으로 고정합니다.
+            </p>
+            <p>
+              <b>롤오버</b>는 A를 만기상환(액면 R$1,000)받아 그 대금으로 B를
+              신규매수하고, <b>갈아타기</b>는 A를 지금 중도매도수익률로 계산한
+              시장가에 팔아 그 대금(신탁보수 선취 차감)으로 B를 신규매수합니다.
+            </p>
+            <p>
+              총 기대수익률 = <b>증분효과</b>(B 신규매수수량 ÷ A 기존수량 − 1) +{" "}
+              <b>이자효과</b>(A·B 쿠폰의 명목 단순합, 재투자 안 함) + 매수 후 남은
+              헤알 잔돈(무이자 이월). 환율은 매수·회수 단일값이며, 세금·거래비용·
+              호가 스프레드·쿠폰 재투자 수익은 반영하지 않은 근사치입니다.
+            </p>
+          </div>
         </>
       ) : (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
