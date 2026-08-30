@@ -49,3 +49,51 @@ body {
     animation: none;
   }
 }
+
+/* ── 출력물(인쇄) ── 현금흐름표를 A4 가로로 깔끔하게 뽑는다 */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  /* 배경색·음영을 그대로 인쇄(합계행 주황, 만기행 강조 등) */
+  html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #fff;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  /* 다크모드로 보고 있어도 인쇄는 항상 흰 바탕 */
+  .dark\:bg-zinc-950,
+  .dark\:bg-zinc-900 {
+    background: #fff !important;
+  }
+
+  .flag-wave {
+    animation: none;
+  }
+
+  /* 인쇄 영역 밖 여백 최소화 */
+  .print-page {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 4mm !important;
+  }
+
+  /* 표가 페이지 경계에서 잘리지 않도록 */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+}

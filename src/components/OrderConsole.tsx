@@ -246,8 +246,8 @@ export function OrderConsole() {
   ];
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
-      <header>
+    <div className="print-page mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
+      <header className="print:hidden">
         <h1 className="flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -261,7 +261,7 @@ export function OrderConsole() {
         </h1>
       </header>
 
-      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800 print:hidden">
         {TABS.map((t) => (
           <button
             key={t.key}

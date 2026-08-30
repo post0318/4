@@ -149,7 +149,19 @@ export function CashFlowPanel() {
 
   return (
     <div className="flex flex-col gap-6 print:gap-2">
-      <p className="text-xs font-bold text-red-600 dark:text-red-500">
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <p className="text-xs font-bold text-red-600 dark:text-red-500">
+          ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          🖨 출력 (A4 가로)
+        </button>
+      </div>
+      <p className="hidden text-xs font-bold text-red-600 print:block">
         ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
       </p>
       <BondLayoutForm
