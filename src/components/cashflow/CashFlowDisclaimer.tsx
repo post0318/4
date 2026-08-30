@@ -1,4 +1,4 @@
-/** 현금흐름표(반기·월·재투자형) 공통 하단 주석 */
+/** 현금흐름표(반기·월·재투자) 공통 하단 주석 */
 export function CashFlowDisclaimer() {
   return (
     <div className="mt-6 space-y-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 print:mt-1 print:space-y-0 print:leading-snug">
@@ -11,7 +11,7 @@ export function CashFlowDisclaimer() {
         있습니다.
       </p>
       <p>
-        - 이자는 지급구분에 따라 지급됩니다. 단 재투자형은 동일채권으로
+        - 이자는 지급구분에 따라 지급됩니다. 단 재투자는 동일채권으로
         재매수됩니다.
       </p>
       <p>

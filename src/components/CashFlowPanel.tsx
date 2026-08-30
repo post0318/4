@@ -68,7 +68,7 @@ export function CashFlowPanel() {
   const [isSharedLink] = useState<boolean>(createInitialLocked);
 
   const isMonthly = input.distributionType === "월";
-  const isReinvest = input.distributionType === "재투자형";
+  const isReinvest = input.distributionType === "재투자";
 
   const reinvestResult = useMemo(
     () =>

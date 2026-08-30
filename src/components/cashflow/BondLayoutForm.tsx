@@ -74,7 +74,7 @@ const INVESTOR_TYPE_OPTIONS: InvestorType[] = ["개인", "일반법인", "금융
 
 const COUPON_FREQUENCY_OPTIONS: CouponFrequency[] = ["3개월", "6개월", "12개월"];
 
-const DISTRIBUTION_TYPE_OPTIONS: DistributionType[] = ["반기", "월", "재투자형"];
+const DISTRIBUTION_TYPE_OPTIONS: DistributionType[] = ["반기", "월", "재투자"];
 
 const cellBase = "flex items-center whitespace-nowrap px-3 py-2 print:py-1 text-sm border border-zinc-200 dark:border-zinc-800";
 const labelCellClass = `${cellBase} bg-zinc-50 font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400`;
@@ -348,7 +348,7 @@ export function BondLayoutForm({
   );
 
   const reinvestSummary = useMemo(() => {
-    if (value.distributionType !== "재투자형") return null;
+    if (value.distributionType !== "재투자") return null;
     const r = generateReinvestCashFlow({
       maturityDate: value.maturityDate,
       couponRate: value.couponRate,
@@ -399,7 +399,7 @@ export function BondLayoutForm({
   const summary =
     value.distributionType === "월"
       ? monthlySummary
-      : value.distributionType === "재투자형"
+      : value.distributionType === "재투자"
         ? reinvestSummary
         : maturitySummary;
 
