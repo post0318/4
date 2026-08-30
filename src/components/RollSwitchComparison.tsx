@@ -492,6 +492,8 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
             </p>
             <p className="text-zinc-500 dark:text-zinc-400">
               본 시뮬레이션은 실제 고객별 투자현황과 상이할 수 있습니다.
+              수익률은 시장환경 등에 따라 급변할 수 있으므로 반드시 사전에
+              확인 바랍니다.
             </p>
           </div>
         </>
