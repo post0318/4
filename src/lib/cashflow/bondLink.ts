@@ -37,10 +37,12 @@ const TAX_STATUS_BY_CODE: Record<number, TaxStatus> = {
 const DISTRIBUTION_TO_CODE: Record<DistributionType, number> = {
   반기: 1,
   월: 2,
+  재투자형: 3,
 };
 const DISTRIBUTION_BY_CODE: Record<number, DistributionType> = {
   1: "반기",
   2: "월",
+  3: "재투자형",
 };
 
 const CALC_BASIS_TO_CODE: Record<CalcBasis, number> = {

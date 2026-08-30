@@ -25,6 +25,7 @@ import {
 import { computeBondPricing } from "@/lib/cashflow/bondPricing";
 import { generateFixCashFlow } from "@/lib/cashflow/cashFlowSchedule";
 import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
+import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
 import { computeMaturitySummary } from "@/lib/cashflow/maturitySummary";
 import { encodeBondLink } from "@/lib/cashflow/bondLink";
 import { BrazilBondSearchBox } from "@/components/cashflow/BrazilBondSearchBox";
@@ -72,7 +73,7 @@ const INVESTOR_TYPE_OPTIONS: InvestorType[] = ["개인", "일반법인", "금융
 
 const COUPON_FREQUENCY_OPTIONS: CouponFrequency[] = ["3개월", "6개월", "12개월"];
 
-const DISTRIBUTION_TYPE_OPTIONS: DistributionType[] = ["반기", "월"];
+const DISTRIBUTION_TYPE_OPTIONS: DistributionType[] = ["반기", "월", "재투자형"];
 
 const cellBase = "flex items-center whitespace-nowrap px-3 py-2 print:py-1 text-sm border border-zinc-200 dark:border-zinc-800";
 const labelCellClass = `${cellBase} bg-zinc-50 font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400`;
@@ -345,8 +346,61 @@ export function BondLayoutForm({
     ]
   );
 
+  const reinvestSummary = useMemo(() => {
+    if (value.distributionType !== "재투자형") return null;
+    const r = generateReinvestCashFlow({
+      maturityDate: value.maturityDate,
+      couponRate: value.couponRate,
+      couponFrequency: value.couponFrequency,
+      purchaseYield: value.purchaseYield,
+      calcBasis: value.calcBasis,
+      trustContractDate: value.trustContractDate,
+      recentCouponDate: value.recentCouponDate,
+      tradeCurrency: value.tradeCurrency,
+      custodyCurrency: value.custodyCurrency,
+      purchaseFxRate: value.purchaseFxRate,
+      maturityFxRate: value.maturityFxRate,
+      trustInvestmentAmount: value.trustInvestmentAmount,
+      frontFeeRate: value.frontFeeRate,
+      backFeeRate: value.backFeeRate,
+      taxStatus: value.taxStatus,
+      comprehensiveTaxRate: value.incomeTaxRate,
+    });
+    if (!r) return null;
+    const fx = Number(value.maturityFxRate) || 1;
+    return {
+      investedPrincipal: Number(value.trustInvestmentAmount) || 0,
+      totalInterest: r.summary.totalCouponBrl * fx,
+      postTaxMaturityAmount: r.summary.postTaxMaturityKrw,
+      postTaxYield: r.summary.postTaxYield,
+      bankEquivalentYield: r.summary.bankEquivalentYield,
+    };
+  }, [
+    value.distributionType,
+    value.maturityDate,
+    value.couponRate,
+    value.couponFrequency,
+    value.purchaseYield,
+    value.calcBasis,
+    value.trustContractDate,
+    value.recentCouponDate,
+    value.tradeCurrency,
+    value.custodyCurrency,
+    value.purchaseFxRate,
+    value.maturityFxRate,
+    value.trustInvestmentAmount,
+    value.frontFeeRate,
+    value.backFeeRate,
+    value.taxStatus,
+    value.incomeTaxRate,
+  ]);
+
   const summary =
-    value.distributionType === "월" ? monthlySummary : maturitySummary;
+    value.distributionType === "월"
+      ? monthlySummary
+      : value.distributionType === "재투자형"
+        ? reinvestSummary
+        : maturitySummary;
 
   const handleCreateLink = async () => {
     const link = encodeBondLink(value);
@@ -371,6 +425,7 @@ export function BondLayoutForm({
             하므로 검색 자체를 막는다. */}
         <BrazilBondSearchBox
           disabled={lockToggleDisabled}
+          autoDefault={!lockToggleDisabled && !value.maturityDate}
           onApply={(fields) => {
             onLockedChange(false);
             onChange((prev) => ({ ...prev, ...fields }));

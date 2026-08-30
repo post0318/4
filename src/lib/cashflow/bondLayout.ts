@@ -15,8 +15,15 @@ export type Currency = "KRW" | "BRL";
 
 export type TaxStatus = "일반과세" | "비과세";
 
-/** 지급구분: 월은 준비 중(1단계는 반기만 지원). 재투자형은 후속 검토 대상이라 선택지에서 제외 */
-export type DistributionType = "월" | "반기";
+/**
+ * 지급구분:
+ * - 반기: 반기쿠폰을 투자자에게 그대로 지급
+ * - 월: 반기쿠폰을 6개월로 분할 지급
+ * - 재투자형: 수령한 쿠폰(BRL)으로 같은 채권을 재매수(매수금리 동일 가정),
+ *   정수 좌수만 매수하고 남는 BRL은 다음 재투자에 사용(BRL 현금이자 없음).
+ *   전액을 만기에 수령.
+ */
+export type DistributionType = "월" | "반기" | "재투자형";
 
 export interface BondLayoutInput {
   calcBasis: CalcBasis;

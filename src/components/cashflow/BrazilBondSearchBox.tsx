@@ -17,6 +17,8 @@ const NTNF_COUPON_RATE = "10";
 interface BrazilBondSearchBoxProps {
   disabled: boolean;
   onApply: (fields: Partial<BondLayoutInput>) => void;
+  /** true면 마운트 시 만기 최장(2037년 만기 우선) 종목을 자동 반영한다 */
+  autoDefault?: boolean;
 }
 
 /**
@@ -39,8 +41,13 @@ interface BrazilBondSearchBoxProps {
  * 확인)을 근거로 추정해 반영한다(확인 후 사용 권장). 과세여부 기본값은
  * "비과세"로 반영한다.
  */
-export function BrazilBondSearchBox({ disabled, onApply }: BrazilBondSearchBoxProps) {
+export function BrazilBondSearchBox({
+  disabled,
+  onApply,
+  autoDefault,
+}: BrazilBondSearchBoxProps) {
   const [open, setOpen] = useState(false);
+  const didAutoRef = useRef(false);
   const [bonds, setBonds] = useState<BrazilBondItem[] | null>(null);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -135,6 +142,29 @@ export function BrazilBondSearchBox({ disabled, onApply }: BrazilBondSearchBoxPr
       })
       .catch(() => {});
   };
+
+  // 현금흐름 진입 시 기본 종목: 2037년 만기(없으면 최장만기)를 자동 반영
+  useEffect(() => {
+    if (!autoDefault || disabled || didAutoRef.current) return;
+    didAutoRef.current = true;
+    fetch("/api/cashflow/br-bond-search")
+      .then((res) => res.json())
+      .then((data: { bonds?: BrazilBondItem[] }) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const all = (Array.isArray(data.bonds) ? data.bonds : []).filter(
+          (b) => b.maturityDate >= today
+        );
+        const pick =
+          all.find((b) => b.maturityDate.startsWith("2037")) ??
+          [...all].sort((a, b) =>
+            b.maturityDate.localeCompare(a.maturityDate)
+          )[0];
+        if (pick) selectBond(pick);
+      })
+      .catch(() => {});
+    // selectBond은 재생성돼도 1회만 실행되면 되므로 deps에서 제외
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDefault, disabled]);
 
   return (
     <div className="relative inline-flex items-center gap-2" ref={containerRef}>

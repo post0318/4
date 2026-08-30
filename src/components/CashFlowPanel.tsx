@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { BondLayoutForm } from "@/components/cashflow/BondLayoutForm";
 import { CashFlowTable } from "@/components/cashflow/CashFlowTable";
 import { MonthlyCashFlowTable } from "@/components/cashflow/MonthlyCashFlowTable";
+import { ReinvestCashFlowTable } from "@/components/cashflow/ReinvestCashFlowTable";
 import { generateFixCashFlow } from "@/lib/cashflow/cashFlowSchedule";
 import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
+import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
 import { decodeBondLink } from "@/lib/cashflow/bondLink";
 import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
 
@@ -66,10 +68,36 @@ export function CashFlowPanel() {
   const [isSharedLink] = useState<boolean>(createInitialLocked);
 
   const isMonthly = input.distributionType === "월";
+  const isReinvest = input.distributionType === "재투자형";
+
+  const reinvestResult = useMemo(
+    () =>
+      !isReinvest
+        ? null
+        : generateReinvestCashFlow({
+            maturityDate: input.maturityDate,
+            couponRate: input.couponRate,
+            couponFrequency: input.couponFrequency,
+            purchaseYield: input.purchaseYield,
+            calcBasis: input.calcBasis,
+            trustContractDate: input.trustContractDate,
+            recentCouponDate: input.recentCouponDate,
+            tradeCurrency: input.tradeCurrency,
+            custodyCurrency: input.custodyCurrency,
+            purchaseFxRate: input.purchaseFxRate,
+            maturityFxRate: input.maturityFxRate,
+            trustInvestmentAmount: input.trustInvestmentAmount,
+            frontFeeRate: input.frontFeeRate,
+            backFeeRate: input.backFeeRate,
+            taxStatus: input.taxStatus,
+            comprehensiveTaxRate: input.incomeTaxRate,
+          }),
+    [isReinvest, input]
+  );
 
   const cashFlowRows = useMemo(
     () =>
-      isMonthly
+      isMonthly || isReinvest
         ? null
         : generateFixCashFlow({
             maturityDate: input.maturityDate,
@@ -89,7 +117,7 @@ export function CashFlowPanel() {
             cashInterestRate: input.cashInterestRate,
             taxStatus: input.taxStatus,
           }),
-    [isMonthly, input]
+    [isMonthly, isReinvest, input]
   );
 
   const monthlyResult = useMemo(
@@ -131,7 +159,9 @@ export function CashFlowPanel() {
         onLockedChange={setLocked}
         lockToggleDisabled={isSharedLink}
       />
-      {isMonthly ? (
+      {isReinvest ? (
+        <ReinvestCashFlowTable rows={reinvestResult?.rows ?? null} />
+      ) : isMonthly ? (
         <MonthlyCashFlowTable
           rows={monthlyResult?.rows ?? null}
           custodyCurrency={input.custodyCurrency}
