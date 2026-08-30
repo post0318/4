@@ -49,8 +49,26 @@ export function ReinvestCashFlowTable({ rows }: Props) {
   const gapAt = isTruncated ? HEAD_ROWS : -1;
   const omitted = data.length - HEAD_ROWS - TAIL_ROWS;
 
+  const head = (
+    <thead>
+      <tr className="border-b border-zinc-200 bg-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        {columns.map((c, i) => (
+          <th
+            key={c}
+            className={`whitespace-nowrap py-2 pr-4 font-medium ${
+              i > 0 ? "text-right" : ""
+            }`}
+          >
+            {c}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+
   const renderRow = (row: ReinvestCashFlowRow) => (
     <tr
+      key={row.date}
       className={`border-b border-zinc-100 last:border-0 dark:border-zinc-900 ${
         row.maturityKrw ? "bg-orange-50/60 font-medium dark:bg-orange-950/20" : ""
       }`}
@@ -97,41 +115,39 @@ export function ReinvestCashFlowTable({ rows }: Props) {
           현금흐름표가 표시됩니다.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                {columns.map((c, i) => (
-                  <th
-                    key={c}
-                    className={`whitespace-nowrap py-2 pr-4 font-medium ${
-                      i > 0 ? "text-right" : ""
-                    }`}
-                  >
-                    {c}
-                  </th>
+        <>
+          {/* 화면: 전체 행 */}
+          <div className="overflow-x-auto print:hidden">
+            <table className="w-full min-w-[760px] text-sm">
+              {head}
+              <tbody>{data.map((row) => renderRow(row))}</tbody>
+            </table>
+          </div>
+
+          {/* 인쇄: 앞/뒤 일부만 */}
+          <div className="hidden overflow-x-auto print:block">
+            <table className="w-full min-w-[760px] text-sm">
+              {head}
+              <tbody>
+                {shown.map((row, i) => (
+                  <Fragment key={`${row.date}-${i}`}>
+                    {i === gapAt && (
+                      <tr className="border-b border-zinc-100 dark:border-zinc-900">
+                        <td
+                          colSpan={columns.length}
+                          className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-600"
+                        >
+                          ⋮ 중간 {omitted.toLocaleString("ko-KR")}건 생략 ⋮
+                        </td>
+                      </tr>
+                    )}
+                    {renderRow(row)}
+                  </Fragment>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((row, i) => (
-                <Fragment key={`${row.date}-${i}`}>
-                  {i === gapAt && (
-                    <tr className="border-b border-zinc-100 dark:border-zinc-900">
-                      <td
-                        colSpan={columns.length}
-                        className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-600"
-                      >
-                        ⋮ 중간 {omitted.toLocaleString("ko-KR")}건 생략 ⋮
-                      </td>
-                    </tr>
-                  )}
-                  {renderRow(row)}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <p className="mt-6 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 print:mt-1">
