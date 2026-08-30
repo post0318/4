@@ -117,9 +117,9 @@ function ReturnMatrix({
                     const fxCum = shift / 100;
                     const total =
                       ((1 + b.hold.totalPct / 100) * (1 + fxCum) - 1) * 100;
-                    // 항상 복리 연환산 — 일반형/재투자형을 같은 기준으로 비교
-                    const annual =
-                      (Math.pow(1 + total / 100, 1 / b.hold.years) - 1) * 100;
+                    // 단리 연환산 (총수익률 ÷ 잔존연수) — 일반형·재투자형 동일,
+                    // 현금흐름 탭과 같은 방식
+                    const annual = total / b.hold.years;
                     const bold = shift === 0 ? "font-bold" : "";
                     return (
                       <FragmentVals
@@ -138,8 +138,7 @@ function ReturnMatrix({
         </table>
       </div>
       <p className="mt-1 text-[11px] text-zinc-400">
-        총누적수익률 = 잔존기간 전체 수익률.
-        헤알화 강세(＋)일수록 붉게.
+        총누적수익률 = 잔존기간 전체 수익률. 헤알화 강세(＋)일수록 붉게.
       </p>
     </div>
   );
@@ -384,23 +383,25 @@ export function DurationPanel({ bonds, fx }: Props) {
             onChange={(e) => setReinvest(e.target.checked)}
             className="h-3.5 w-3.5"
           />
-          재투자형 <span className="text-zinc-400">(쿠폰을 매수금리로 복리 재투자)</span>
+          재투자형
         </label>
       </div>
       <p className="text-[11px] text-zinc-400">
-        지금 매수해 만기까지 보유 · 세전 · 복리 연환산 (일반형·재투자형 동일 방식).{" "}
-        {reinvest
-          ? "쿠폰을 매수금리로 재투자 → 매수금리에 수렴."
-          : "쿠폰은 현금으로 받아 재투자 안 함(현금이자 0, 반기지급 상품 기준)."}{" "}
-        만기 보유라 금리변동 평가손익은 없음(금리 손익은 위 가격변동 표). 현금흐름 탭
-        세후수익률은 단리(총수익 ÷ 투자연수)라 더 높게 보입니다 — 총누적수익률 ÷
-        잔존연수로 비교하세요.
+        현재 가격으로 매입해 만기까지 보유를 가정 → 금리변동에 따른 평가손익 없음
+        (금리 손익은 위 가격변동 표 참고).
       </p>
       {fx?.krwBrl ? (
         <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
       ) : (
         <p className="text-[11px] text-zinc-400">환율을 불러오면 표시됩니다.</p>
       )}
+      <p className="text-[11px] text-zinc-400">
+        세전 · 단리 연환산(총수익률 ÷ 잔존연수, 현금흐름 탭과 동일) · 수수료·세금
+        미반영.{" "}
+        {reinvest
+          ? "재투자형: 쿠폰을 매수금리로 재투자한다고 가정."
+          : "일반형: 쿠폰을 현금으로 받아 재투자하지 않음(현금이자 0)."}
+      </p>
     </section>
     </div>
   );
