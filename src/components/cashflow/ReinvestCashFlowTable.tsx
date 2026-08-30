@@ -116,9 +116,7 @@ export function ReinvestCashFlowTable({ rows, summary }: Props) {
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6 print:p-2">
       <h2 className="mb-5 text-base font-semibold text-zinc-900 dark:text-zinc-100 print:mb-1">
         현금흐름표{" "}
-        <span className="text-xs font-normal text-zinc-400">
-          (재투자형 — 쿠폰으로 채권 재매수, 만기 일괄 회수)
-        </span>
+        <span className="text-xs font-normal text-zinc-400">(재투자형)</span>
       </h2>
 
       {data.length === 0 ? (
