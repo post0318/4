@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BondLayoutForm } from "@/components/cashflow/BondLayoutForm";
 import { CashFlowTable } from "@/components/cashflow/CashFlowTable";
 import { MonthlyCashFlowTable } from "@/components/cashflow/MonthlyCashFlowTable";
 import { ReinvestCashFlowTable } from "@/components/cashflow/ReinvestCashFlowTable";
+import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 import { generateFixCashFlow } from "@/lib/cashflow/cashFlowSchedule";
 import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
 import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
@@ -66,6 +67,32 @@ export function CashFlowPanel() {
   const [input, setInput] = useState<BondLayoutInput>(createInitialInput);
   const [locked, setLocked] = useState<boolean>(createInitialLocked);
   const [isSharedLink] = useState<boolean>(createInitialLocked);
+
+  // 출력 시: 본문(레이아웃 + 현금흐름표)이 A4 세로 1페이지에 담기도록 자동 축소.
+  // 하단 주석은 스케일 밖 컨테이너에 두어 페이지 맨 아래에 고정된다.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const DPI = 96;
+    const A4_W = DPI * (210 / 25.4) - DPI * (14 / 25.4); // A4 폭 − 좌우 여백 7mm
+    const A4_H = DPI * (297 / 25.4) - DPI * (14 / 25.4); // A4 높이 − 상하 여백 7mm
+    const FOOTER = 150; // 하단 주석용 예약 높이(px)
+    const fit = () => {
+      const el = bodyRef.current;
+      if (!el) return;
+      el.style.setProperty("--print-scale", "1");
+      const w = el.scrollWidth || 1;
+      const h = el.scrollHeight || 1;
+      const s = Math.min(A4_W / w, (A4_H - FOOTER) / h, 1);
+      el.style.setProperty("--print-scale", String(Math.max(0.35, s)));
+    };
+    const reset = () => bodyRef.current?.style.setProperty("--print-scale", "1");
+    window.addEventListener("beforeprint", fit);
+    window.addEventListener("afterprint", reset);
+    return () => {
+      window.removeEventListener("beforeprint", fit);
+      window.removeEventListener("afterprint", reset);
+    };
+  }, []);
 
   const isMonthly = input.distributionType === "월";
   const isReinvest = input.distributionType === "재투자";
@@ -148,34 +175,41 @@ export function CashFlowPanel() {
   );
 
   return (
-    <div className="flex flex-col gap-6 print:gap-2">
-      <p className="text-xs font-bold text-red-600 dark:text-red-500 print:text-red-600">
-        ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
-      </p>
-      <BondLayoutForm
-        value={input}
-        onChange={setInput}
-        locked={locked}
-        onLockedChange={setLocked}
-        lockToggleDisabled={isSharedLink}
-      />
-      {isReinvest ? (
-        <ReinvestCashFlowTable
-          rows={reinvestResult?.rows ?? null}
-          summary={reinvestResult?.summary ?? null}
+    <div className="cf-print-root">
+      <div ref={bodyRef} className="cf-print-body flex flex-col gap-6 print:gap-2">
+        <p className="text-xs font-bold text-red-600 dark:text-red-500 print:text-red-600">
+          ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
+        </p>
+        <BondLayoutForm
+          value={input}
+          onChange={setInput}
+          locked={locked}
+          onLockedChange={setLocked}
+          lockToggleDisabled={isSharedLink}
         />
-      ) : isMonthly ? (
-        <MonthlyCashFlowTable
-          rows={monthlyResult?.rows ?? null}
-          custodyCurrency={input.custodyCurrency}
-          error={monthlyResult?.error ?? null}
-        />
-      ) : (
-        <CashFlowTable
-          rows={cashFlowRows}
-          custodyCurrency={input.custodyCurrency}
-        />
-      )}
+        {isReinvest ? (
+          <ReinvestCashFlowTable
+            rows={reinvestResult?.rows ?? null}
+            summary={reinvestResult?.summary ?? null}
+          />
+        ) : isMonthly ? (
+          <MonthlyCashFlowTable
+            rows={monthlyResult?.rows ?? null}
+            custodyCurrency={input.custodyCurrency}
+            error={monthlyResult?.error ?? null}
+          />
+        ) : (
+          <CashFlowTable
+            rows={cashFlowRows}
+            custodyCurrency={input.custodyCurrency}
+          />
+        )}
+      </div>
+
+      {/* 하단 주석 — 화면에선 본문 아래, 인쇄 시엔 페이지 맨 아래 고정 */}
+      <div className="cf-print-footer mt-6 print:mt-0">
+        <CashFlowDisclaimer />
+      </div>
     </div>
   );
 }

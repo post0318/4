@@ -1,5 +1,4 @@
 import { CashFlowRow } from "@/lib/cashflow/cashFlowSchedule";
-import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 
 interface CashFlowTableProps {
   rows: CashFlowRow[] | null;
@@ -250,8 +249,6 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
       )}
 
       <p className="hidden print:block text-xs">&nbsp;</p>
-
-      <CashFlowDisclaimer />
     </section>
   );
 }

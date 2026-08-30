@@ -3,7 +3,6 @@ import {
   ReinvestCashFlowRow,
   ReinvestCashFlowSummary,
 } from "@/lib/cashflow/reinvestCashFlow";
-import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 
 interface Props {
   rows: ReinvestCashFlowRow[] | null;
@@ -179,8 +178,6 @@ export function ReinvestCashFlowTable({ rows, summary }: Props) {
           </p>
         )}
       </div>
-
-      <CashFlowDisclaimer />
     </section>
   );
 }

@@ -1,5 +1,4 @@
 import { MonthlyCashFlowRow } from "@/lib/cashflow/monthlyCashFlow";
-import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 
 interface MonthlyCashFlowTableProps {
   rows: MonthlyCashFlowRow[] | null;
@@ -217,8 +216,6 @@ export function MonthlyCashFlowTable({
           </div>
         </>
       )}
-
-      <CashFlowDisclaimer />
     </section>
   );
 }
