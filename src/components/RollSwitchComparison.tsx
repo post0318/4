@@ -275,7 +275,8 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     result.rollover.totalReturnPct >= result.switch.totalReturnPct;
 
   return (
-    <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <>
+      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         시뮬레이션{" "}
         <span className="text-[11px] font-normal text-zinc-400">
@@ -473,35 +474,41 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
               win={!rollWin && !!result.switch}
             />
           </div>
-          <div className="space-y-1 border-t border-zinc-100 pt-2 text-[11px] leading-relaxed text-zinc-400 dark:border-zinc-800">
-            <p>
-              두 전략 모두 갈아탈 종목(B) 만기에 종료하고, 같은 잣대로 비교하려고
-              수익률 분모는 「보유종목(A)을 만기까지 들고 있었다면 받을 상환금
-              (A 좌수 × 액면 R$1,000)」으로 고정합니다.
-            </p>
-            <p>
-              <b>롤오버</b>는 A를 만기상환(액면 R$1,000)받아 그 대금으로 B를
-              신규매수하고, <b>갈아타기</b>는 A를 지금 중도매도수익률로 계산한
-              시장가에 팔아 그 대금(신탁보수 선취 차감)으로 B를 신규매수합니다.
-            </p>
-            <p>
-              총 기대수익률 = <b>증분효과</b>(B 신규매수수량 ÷ A 기존수량 − 1) +{" "}
-              <b>이자효과</b>(A·B 쿠폰의 명목 단순합, 재투자 안 함) + 매수 후 남은
-              헤알 잔돈(무이자 이월). 환율은 매수·회수 단일값이며, 세금·거래비용·
-              호가 스프레드·쿠폰 재투자 수익은 반영하지 않은 근사치입니다.
-            </p>
-            <p className="text-zinc-500 dark:text-zinc-400">
-              본 시뮬레이션은 실제 고객별 투자현황과 상이할 수 있습니다.
-              수익률은 시장환경 등에 따라 급변할 수 있으므로 반드시 사전에
-              확인 바랍니다.
-            </p>
-          </div>
         </>
       ) : (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           입력값을 확인하세요. (환율 로딩 필요)
         </p>
       )}
-    </section>
+      </section>
+
+      {result && (result.rollover || result.switch) && (
+        <div className="mt-6 space-y-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          <p>
+            - 두 전략 모두 갈아탈 종목(B) 만기에 종료하며, 같은 잣대로 비교하려고
+            수익률 분모는 「보유종목(A)을 만기까지 보유 시 받을 상환금(A 좌수 ×
+            액면 R$1,000)」으로 고정합니다.
+          </p>
+          <p>
+            - 롤오버는 A를 만기상환(액면 R$1,000)받아 그 대금으로 B를 신규매수하고,
+            갈아타기는 A를 중도매도수익률로 계산한 시장가에 팔아 그 대금(신탁보수
+            선취 차감)으로 B를 신규매수합니다.
+          </p>
+          <p>
+            - 총 기대수익률 = 증분효과(B 신규매수수량 ÷ A 기존수량 − 1) + 이자효과
+            (A·B 쿠폰의 명목 단순합, 재투자 없음) + 매수 후 남은 헤알 잔돈(무이자
+            이월). 환율은 매수·회수 단일값이며, 세금·거래비용·호가 스프레드·쿠폰
+            재투자 수익은 반영하지 않은 단순계산입니다.
+          </p>
+          <p>
+            - 본 시뮬레이션은 실제 고객별 투자현황과 상이할 수 있습니다.
+          </p>
+          <p>
+            - 수익률은 시장환경 등에 따라 급변할 수 있으므로 반드시 사전에 확인
+            바랍니다.
+          </p>
+        </div>
+      )}
+    </>
   );
 }
