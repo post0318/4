@@ -321,10 +321,12 @@ export function DurationPanel({ bonds, fx }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ bond, risk, shock }) => (
+            {rows.map(({ bond, risk, shock }, i) => (
               <tr
                 key={bond.maturityDate}
-                className="border-b border-zinc-100 dark:border-zinc-900"
+                className={`border-b border-zinc-100 dark:border-zinc-900 ${
+                  i % 2 === 1 ? "bg-zinc-50/70 dark:bg-zinc-900/40" : ""
+                }`}
               >
                 <td className={`${td} text-left`}>
                   <span className="font-medium text-zinc-800 dark:text-zinc-100">
