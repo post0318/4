@@ -34,8 +34,10 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/lib/ntnfMeta.ts` — 만기연도 → ISIN·종목명 정적 맵 (2037 ISIN 미확인)
 - `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수
 - `src/lib/orderEmail.ts` — 주문 이메일 제목/본문 생성
-- `src/lib/ntnfSimulation.ts` — 중도해지/갈아타기/롤오버 시나리오 수익률(헤알·원화)과
-  자본·이자·환율 기여도 분해. 쿠폰은 해당 종목 금리로 재투자 가정. `SimulationPanel`
+- `src/lib/ntnfSimulation.ts` — 신탁투자원금 기준 롤오버 vs 갈아타기 비교
+  (`simulateRollVsSwitch`). 좌수는 현금흐름 탭 로직대로 (원금−선취)÷환율÷PU 절사,
+  총기대수익률 = 증분효과 + 이자효과 + 잔돈. 쿠폰 재투자 없음, 단일환율.
+  `SimulationPanel`(→`RollSwitchComparison`). `holdToMaturityBrl`은 `DurationPanel`용
 - `src/lib/ntnfDuration.ts` — PU 공식 수치미분으로 수정듀레이션·컨벡시티·DV01,
   금리·환율 쇼크 시 가격/원화가치 변동. `DurationPanel`
 - 탭: 시장정보 · 트레이딩 · 현금흐름 · 시뮬레이션 · 듀레이션 (`OrderConsole`)

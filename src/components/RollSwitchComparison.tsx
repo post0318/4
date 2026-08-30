@@ -1,7 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { fmtInt, fmtNum, normalizeDecimalInput } from "@/lib/format";
+import { type FocusEvent, useMemo, useState } from "react";
+import {
+  digitsOnly,
+  fmtInt,
+  fmtNum,
+  groupDigits,
+  normalizeDecimalInput,
+} from "@/lib/format";
 import { toISODate, today } from "@/lib/ntnfPricing";
 import {
   simulateRollVsSwitch,
@@ -18,6 +24,9 @@ interface Props {
 const box =
   "w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100";
 const numInput = `${box} text-right tabular-nums`;
+
+/** 포커스 시 기존 값을 전체 선택 — 첫 타이핑이 값을 덮어쓴다 */
+const focusSelect = (e: FocusEvent<HTMLInputElement>) => e.currentTarget.select();
 
 function pct(n: number, d = 1) {
   return `${n >= 0 ? "+" : ""}${fmtNum(n, d)}%`;
@@ -60,31 +69,43 @@ function Timeline({ leg }: { leg: RollSwitchLeg }) {
   );
 }
 
-function Bars({ leg }: { leg: RollSwitchLeg }) {
-  const items = [
-    { label: "A 만기효과", v: leg.maturityEffectAPct, c: "bg-zinc-400" },
-    { label: "B 만기효과", v: leg.maturityEffectBPct, c: "bg-zinc-500" },
-    { label: "증분효과", v: leg.incrementPct, c: "bg-orange-400" },
-  ];
-  const max = Math.max(1, ...items.map((i) => Math.abs(i.v)));
+/**
+ * 하단 손익 분해 — 왼쪽은 A(보유종목) 몫, 오른쪽은 B(갈아탈 종목) 몫
+ * (만기효과 + 증분효과). 왼쪽 A 항목이 오른쪽 B 만기효과와 같은 선상에 오도록
+ * 위 정렬한다. 롤오버는 A를 만기까지 보유하므로 "만기효과", 갈아타기는 중도에
+ * 시장가로 팔므로 만기효과가 아니라 "중도매도효과"다.
+ */
+function Breakdown({ leg }: { leg: RollSwitchLeg }) {
+  const isRoll = leg.key === "rollover";
+  const aLabel = isRoll ? "만기효과" : "중도매도효과";
+  const priceRef = isRoll ? "롤오버가격 대비" : "갈아타기가격 대비";
+  const qtyRef = isRoll ? "만기상환수량 대비" : "중도매도수량 대비";
+  const row = (c: string, label: string, note: string, v: number) => (
+    <div className="flex items-baseline gap-1.5">
+      <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-sm ${c}`} />
+      <span className="text-zinc-500 dark:text-zinc-400">
+        {label}
+        {note && <span className="text-zinc-400"> ({note})</span>}{" "}
+        <span className="font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+          {pct(v)}
+        </span>
+      </span>
+    </div>
+  );
   return (
-    <div className="space-y-1">
-      {items.map((i) => (
-        <div key={i.label} className="flex items-center gap-2 text-[11px]">
-          <span className="w-14 shrink-0 text-zinc-500 dark:text-zinc-400">
-            {i.label}
-          </span>
-          <div className="h-2.5 flex-1 rounded bg-zinc-100 dark:bg-zinc-800">
-            <div
-              className={`h-2.5 rounded ${i.c}`}
-              style={{ width: `${(Math.abs(i.v) / max) * 100}%` }}
-            />
-          </div>
-          <span className="w-14 shrink-0 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
-            {pct(i.v)}
-          </span>
+    <div className="mt-1 space-y-1 text-[11px]">
+      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        <div className="flex items-start">
+          {row("bg-zinc-400", aLabel, "", leg.maturityEffectAPct)}
         </div>
-      ))}
+        <div className="space-y-1">
+          {row("bg-zinc-500", "만기효과", priceRef, leg.maturityEffectBPct)}
+          {row("bg-orange-400", "증분효과", qtyRef, leg.incrementPct)}
+        </div>
+      </div>
+      <div className="border-t border-zinc-100 pt-1 dark:border-zinc-800">
+        {row("bg-emerald-500", "이자효과", "A·B 쿠폰 명목합", leg.couponEffectPct)}
+      </div>
     </div>
   );
 }
@@ -113,10 +134,13 @@ function ScenarioCard({
       }`}
     >
       <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
-        ■ {leg.label}{" "}
-        <span className="font-normal text-zinc-400">
-          (선취 {fmtNum(frontFeePct, frontFeePct % 1 ? 1 : 0)}%)
-        </span>
+        ■ {leg.label}
+        {frontFeePct > 0 && (
+          <span className="font-normal text-zinc-400">
+            {" "}
+            (선취 {fmtNum(frontFeePct, frontFeePct % 1 ? 1 : 0)}%)
+          </span>
+        )}
       </h4>
 
       <div className="mt-2 flex items-baseline gap-2">
@@ -152,7 +176,7 @@ function ScenarioCard({
         </span>
       </div>
 
-      <Bars leg={leg} />
+      <Breakdown leg={leg} />
 
       <p className="mt-1.5 text-[10px] text-zinc-400">
         A 청산단가 R${fmtNum(leg.exitPriceA, 2)} · B 매수가격 R$
@@ -169,11 +193,12 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     [bonds]
   );
 
-  const [units, setUnits] = useState("119000");
+  const [principalKrw, setPrincipalKrw] = useState("100000000");
   const [aKey, setAKey] = useState("");
   const [bKey, setBKey] = useState("");
   const [aYield, setAYield] = useState("");
   const [bYield, setBYield] = useState("");
+  const [buyDate, setBuyDate] = useState(toISODate(now));
   const [sellYield, setSellYield] = useState("");
   const [sellDate, setSellDate] = useState(() => {
     const d = new Date(now);
@@ -181,10 +206,9 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     return toISODate(d);
   });
   const [fxRate, setFxRate] = useState("");
-  const [feeRoll, setFeeRoll] = useState("0");
-  const [feeSwitch, setFeeSwitch] = useState("1.5");
+  const [trustFee, setTrustFee] = useState("1.5");
+  const [buyPriceA, setBuyPriceA] = useState("");
   const [sellPriceA, setSellPriceA] = useState("");
-  const [buyPriceB, setBuyPriceB] = useState("");
 
   const bondA = sorted.find((x) => x.maturityDate === aKey) ?? sorted[0];
   const bondB =
@@ -197,31 +221,35 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
   const fxN = fxRate !== "" ? parseFloat(fxRate) : (liveFx ?? NaN);
 
   const input: RollSwitchInput | null = useMemo(() => {
-    const u = parseInt(units || "0", 10);
+    const p = parseFloat(principalKrw || "0");
     if (
       !bondA ||
       !bondB ||
-      !u ||
+      !p ||
       !Number.isFinite(aY) ||
       !Number.isFinite(bY) ||
       !Number.isFinite(fxN)
     )
       return null;
+    const fee = parseFloat(trustFee) || 0;
     return {
-      units: u,
+      principalKrw: p,
+      buyDate,
       bondA: { maturity: bondA.maturityDate, buyYieldPct: aY },
       bondB: { maturity: bondB.maturityDate },
       buyYieldB: bY,
       sellYieldA: Number.isFinite(sY) ? sY : aY,
       sellDate,
       fxKrwPerBrl: fxN,
-      frontFeeRollPct: parseFloat(feeRoll) || 0,
-      frontFeeSwitchPct: parseFloat(feeSwitch) || 0,
+      frontFeeInitialPct: fee,
+      frontFeeRollPct: 0,
+      frontFeeSwitchPct: fee,
+      overrideBuyPriceA: buyPriceA !== "" ? parseFloat(buyPriceA) : null,
       overrideSellPriceA: sellPriceA !== "" ? parseFloat(sellPriceA) : null,
-      overrideBuyPriceB: buyPriceB !== "" ? parseFloat(buyPriceB) : null,
     };
   }, [
-    units,
+    principalKrw,
+    buyDate,
     bondA,
     bondB,
     aY,
@@ -229,10 +257,9 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     sY,
     sellDate,
     fxN,
-    feeRoll,
-    feeSwitch,
+    trustFee,
+    buyPriceA,
     sellPriceA,
-    buyPriceB,
   ]);
 
   const result = useMemo(
@@ -250,24 +277,13 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
   return (
     <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        브라질 국채 시뮬레이션{" "}
+        시뮬레이션{" "}
         <span className="text-[11px] font-normal text-zinc-400">
-          (롤오버 vs 갈아타기 · 수량 증분효과)
+          (롤오버 vs 갈아타기)
         </span>
       </h2>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            채권 보유수량 (좌)
-          </span>
-          <input
-            inputMode="numeric"
-            value={units}
-            onChange={(e) => setUnits(clean(e.target.value))}
-            className={numInput}
-          />
-        </label>
         <label className="block">
           <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
             보유종목 (A)
@@ -289,6 +305,97 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            최초투자시점
+          </span>
+          <input
+            type="date"
+            value={buyDate}
+            max={bondA?.maturityDate}
+            onChange={(e) => setBuyDate(e.target.value)}
+            className={box}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            A 매수수익률 (%)
+          </span>
+          <input
+            onFocus={focusSelect}
+            inputMode="decimal"
+            value={aYield !== "" ? aYield : (bondA?.buyYieldPct?.toString() ?? "")}
+            onChange={(e) => setAYield(clean(e.target.value))}
+            className={numInput}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            A 매수가격 (R$, 선택)
+          </span>
+          <input
+            onFocus={focusSelect}
+            inputMode="decimal"
+            placeholder={result ? fmtNum(result.buyPriceA, 2) : "자동"}
+            value={buyPriceA}
+            onChange={(e) => setBuyPriceA(clean(e.target.value))}
+            className={numInput}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            신탁투자원금 (원)
+          </span>
+          <input
+            onFocus={focusSelect}
+            inputMode="numeric"
+            value={groupDigits(principalKrw)}
+            onChange={(e) => setPrincipalKrw(digitsOnly(e.target.value))}
+            className={numInput}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            중도매도 시점
+          </span>
+          <input
+            type="date"
+            value={sellDate}
+            min={buyDate || toISODate(now)}
+            max={bondA?.maturityDate}
+            onChange={(e) => setSellDate(e.target.value)}
+            className={box}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            A 중도매도수익률 (%)
+          </span>
+          <input
+            onFocus={focusSelect}
+            inputMode="decimal"
+            placeholder={Number.isFinite(aY) ? String(aY) : ""}
+            value={sellYield}
+            onChange={(e) => setSellYield(clean(e.target.value))}
+            className={numInput}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
+            A 매도가격 (R$, 선택)
+          </span>
+          <input
+            onFocus={focusSelect}
+            inputMode="decimal"
+            placeholder={
+              result?.switch ? fmtNum(result.switch.exitPriceA, 2) : "자동"
+            }
+            value={sellPriceA}
+            onChange={(e) => setSellPriceA(clean(e.target.value))}
+            className={numInput}
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
             갈아탈 종목 (B)
           </span>
           <select
@@ -308,45 +415,10 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            헤알화환율 (원/헤알)
-          </span>
-          <input
-            inputMode="decimal"
-            placeholder={liveFx ? fmtNum(liveFx, 2) : ""}
-            value={fxRate}
-            onChange={(e) => setFxRate(clean(e.target.value))}
-            className={numInput}
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            A 매수수익률 (%)
-          </span>
-          <input
-            inputMode="decimal"
-            value={aYield !== "" ? aYield : (bondA?.buyYieldPct?.toString() ?? "")}
-            onChange={(e) => setAYield(clean(e.target.value))}
-            className={numInput}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            A 중도매도수익률 (%)
-          </span>
-          <input
-            inputMode="decimal"
-            placeholder={Number.isFinite(aY) ? String(aY) : ""}
-            value={sellYield}
-            onChange={(e) => setSellYield(clean(e.target.value))}
-            className={numInput}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
             B 매수수익률 (%)
           </span>
           <input
+            onFocus={focusSelect}
             inputMode="decimal"
             value={bYield !== "" ? bYield : (bondB?.buyYieldPct?.toString() ?? "")}
             onChange={(e) => setBYield(clean(e.target.value))}
@@ -355,65 +427,26 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            중도매도 시점
+            신탁보수 선취 (%)
           </span>
           <input
-            type="date"
-            value={sellDate}
-            min={toISODate(now)}
-            max={bondA?.maturityDate}
-            onChange={(e) => setSellDate(e.target.value)}
-            className={box}
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            롤오버 선취 (%)
-          </span>
-          <input
+            onFocus={focusSelect}
             inputMode="decimal"
-            value={feeRoll}
-            onChange={(e) => setFeeRoll(clean(e.target.value))}
+            value={trustFee}
+            onChange={(e) => setTrustFee(clean(e.target.value))}
             className={numInput}
           />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            갈아타기 선취 (%)
+            헤알화환율 (원/헤알)
           </span>
           <input
+            onFocus={focusSelect}
             inputMode="decimal"
-            value={feeSwitch}
-            onChange={(e) => setFeeSwitch(clean(e.target.value))}
-            className={numInput}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            A 매도가격 (R$, 선택)
-          </span>
-          <input
-            inputMode="decimal"
-            placeholder={
-              result?.switch ? fmtNum(result.switch.exitPriceA, 2) : "자동"
-            }
-            value={sellPriceA}
-            onChange={(e) => setSellPriceA(clean(e.target.value))}
-            className={numInput}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
-            B 매수가격 (R$, 선택)
-          </span>
-          <input
-            inputMode="decimal"
-            placeholder={
-              result?.rollover ? fmtNum(result.rollover.buyPriceB, 2) : "자동"
-            }
-            value={buyPriceB}
-            onChange={(e) => setBuyPriceB(clean(e.target.value))}
+            placeholder={liveFx ? fmtNum(liveFx, 2) : ""}
+            value={fxRate}
+            onChange={(e) => setFxRate(clean(e.target.value))}
             className={numInput}
           />
         </label>
@@ -422,19 +455,21 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
       {result && (result.rollover || result.switch) ? (
         <>
           <p className="text-[11px] text-zinc-400">
-            보유수량 {fmtInt(parseInt(units || "0", 10))}좌 · A 최초 매수단가 R$
-            {fmtNum(result.buyPriceA, 2)}. 두 전략 모두 B({bondB?.nameKo}) 만기에
-            종료 · 쿠폰 명목 포함 · 단일환율.
+            {buyDate} 투자 · 신탁원금 {fmtInt(parseFloat(principalKrw) || 0)}원
+            (선취 {fmtNum(parseFloat(trustFee) || 0, 1)}%,{" "}
+            {fmtInt(result.frontFeeKrw)}원) → A {fmtInt(result.units)}좌 매수 ·
+            최초 매수단가 R${fmtNum(result.buyPriceA, 2)}. 두 전략 모두 B(
+            {bondB?.nameKo}) 만기에 종료 · 쿠폰 명목 포함 · 단일환율.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <ScenarioCard
               leg={result.rollover}
-              frontFeePct={parseFloat(feeRoll) || 0}
+              frontFeePct={0}
               win={rollWin}
             />
             <ScenarioCard
               leg={result.switch}
-              frontFeePct={parseFloat(feeSwitch) || 0}
+              frontFeePct={parseFloat(trustFee) || 0}
               win={!rollWin && !!result.switch}
             />
           </div>

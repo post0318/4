@@ -1,15 +1,7 @@
 /**
- * NTN-F 시나리오 시뮬레이션 — 특정 종목을 매수한 뒤
- *  ① 중도해지            : 만기 전 매도
- *  ② 중도해지 후 갈아타기 : 만기 전 매도 → 다른 종목 매수 → 그 종목 만기까지 보유
- *  ③ 만기해지 후 롤오버   : 만기까지 보유 → 다른 종목 매수 → 그 종목 만기까지 보유
- * ②·③은 항상 같은 종료시점(갈아탈 종목 B의 만기)에서 비교한다.
- *
- * 수익률은 헤알(BRL)·원화(KRW) 두 기준으로 내고, 원화 수익률을
- *  자본소득 / 이자소득 / 환율소득 기여도로 분해한다(누적 %p, 합 = 원화 누적수익률).
- *
- * 단순화 가정: 쿠폰은 받은 시점의 해당 종목 금리(매수금리 + 평행이동 Δ)로 종료
- * 시점까지 재투자한다. 매도·재투자 단가도 "매수금리 + Δ"로 계산한다.
+ * NTN-F 롤오버 vs 갈아타기 시뮬레이션.
+ *  - `holdToMaturityBrl` : 지금 매수해 만기까지 보유 시 헤알 수익률 (DurationPanel용)
+ *  - `simulateRollVsSwitch` : 신탁투자원금 기준 롤오버·갈아타기 비교 (SimulationPanel용)
  */
 
 import { brazilBusinessDaysBetween } from "@/lib/brazilCalendar";
@@ -24,50 +16,6 @@ import {
 const FACE = 1000;
 const COUPON = FACE * (Math.pow(1.1, 0.5) - 1); // 반기 실효쿠폰 ≈ 48.8088
 const BD_YEAR = 252;
-
-export interface Leg {
-  /** 만기 "YYYY-MM-DD" */
-  maturity: string;
-  /** 매수수익률 (연 %) */
-  yieldPct: number;
-}
-
-export interface SimInput {
-  /** 종목 A (지금 매수) */
-  bond: Leg;
-  /** 종목 B (갈아타기·롤오버 대상) */
-  target: Leg;
-  /** 중도해지 시점 "YYYY-MM-DD" */
-  exitDate: string;
-  /** 매수 시 BRL→KRW 환율 */
-  buyFx: number;
-  /** 회수 시 BRL→KRW 환율 (기본 = 매수 환율) */
-  exitFx: number;
-  /** 평행 금리 이동 Δ (%p) — 매도·재투자 금리에 가산 */
-  shiftPct: number;
-}
-
-export interface Scenario {
-  key: "exit" | "switch" | "rollover";
-  label: string;
-  /** 종료 시점 "YYYY-MM-DD" */
-  endDate: string;
-  years: number;
-  annualBrlPct: number;
-  annualKrwPct: number;
-  totalKrwPct: number;
-  /** 누적 기여도 (%p, 합 ≈ totalKrwPct) */
-  capitalPct: number;
-  couponPct: number;
-  fxPct: number;
-}
-
-export interface SimResult {
-  exit: Scenario | null;
-  switch: Scenario | null;
-  rollover: Scenario | null;
-  settlement: string;
-}
 
 /** start 초과 ~ end 이하의 이표일(1/1·7/1) 목록 */
 function couponDatesBetween(start: Date, end: Date): Date[] {
@@ -131,159 +79,21 @@ export function holdToMaturityBrl(
   };
 }
 
-/** 누적 BRL 손익을 통화·기여도로 분해해 시나리오로 만든다 */
-function build(
-  key: Scenario["key"],
-  label: string,
-  puBuy: number,
-  principalEnd: number,
-  couponsBrl: number,
-  settle: Date,
-  end: Date,
-  input: SimInput
-): Scenario {
-  const capital = (principalEnd - puBuy) / puBuy;
-  const coupon = couponsBrl / puBuy;
-  const rBrl = capital + coupon;
-  const rFx = input.exitFx / input.buyFx - 1;
-  const fx = rFx * (1 + rBrl);
-  const rKrw = (1 + rBrl) * (1 + rFx) - 1;
-  const t = Math.max(years(settle, end), 1 / 365);
-  return {
-    key,
-    label,
-    endDate: toISODate(end),
-    years: t,
-    annualBrlPct: (Math.pow(1 + rBrl, 1 / t) - 1) * 100,
-    annualKrwPct: (Math.pow(1 + rKrw, 1 / t) - 1) * 100,
-    totalKrwPct: rKrw * 100,
-    capitalPct: capital * 100,
-    couponPct: coupon * 100,
-    fxPct: fx * 100,
-  };
-}
-
-export function simulate(input: SimInput): SimResult {
-  const settle = getOrderSettlementDate(today());
-  const settleIso = toISODate(settle);
-  const matA = parseLocalDate(input.bond.maturity);
-  const matB = parseLocalDate(input.target.maturity);
-  const exit = parseLocalDate(input.exitDate);
-  const empty: SimResult = {
-    exit: null,
-    switch: null,
-    rollover: null,
-    settlement: settleIso,
-  };
-  if (!matA || !matB || !exit) return empty;
-
-  const puBuyA = computeNtnfPu(input.bond.maturity, input.bond.yieldPct, settle);
-  if (puBuyA == null) return empty;
-
-  const yA = input.bond.yieldPct + input.shiftPct;
-  const yB = input.target.yieldPct + input.shiftPct;
-
-  // A를 시점 S에 처분했을 때의 원금부분(매도단가 또는 액면). 불가 시 null.
-  const principalA = (s: Date): number | null => {
-    if (s >= matA) return FACE;
-    const pu = computeNtnfPu(input.bond.maturity, yA, getOrderSettlementDate(s));
-    return pu == null || pu <= 0 ? null : pu;
-  };
-
-  // ── ① 중도해지 ──────────────────────────────────────────────
-  let exitScenario: Scenario | null = null;
-  if (exit > settle && exit < matA) {
-    const p = principalA(exit);
-    if (p != null) {
-      exitScenario = build(
-        "exit",
-        "중도해지",
-        puBuyA,
-        p,
-        couponsFV(settle, exit, exit, yA),
-        settle,
-        exit,
-        input
-      );
-    }
-  }
-
-  // ② 갈아타기 / ③ 롤오버 — S에서 A 청산 → B 매수 → B 만기까지
-  const twoLeg = (
-    key: "switch" | "rollover",
-    label: string,
-    s: Date
-  ): Scenario | null => {
-    if (!(matB > s)) return null;
-    const pA = principalA(s);
-    if (pA == null) return null;
-    const settleS = getOrderSettlementDate(s);
-    const puBbuy = computeNtnfPu(input.target.maturity, yB, settleS);
-    if (puBbuy == null || puBbuy <= 0) return null;
-    const unitsB = pA / puBbuy; // A 1 título 기준 B 좌수
-    // A 쿠폰: S까지 받아 matB까지 yA로 재투자 / B 쿠폰: S~matB, yB로 재투자
-    const couponsBrl =
-      couponsFV(settle, s, matB, yA) + unitsB * couponsFV(settleS, matB, matB, yB);
-    return build(
-      key,
-      label,
-      puBuyA,
-      unitsB * FACE,
-      couponsBrl,
-      settle,
-      matB,
-      input
-    );
-  };
-
-  const switchScenario =
-    exit > settle && exit < matA
-      ? twoLeg("switch", "중도해지 후 갈아타기", exit)
-      : null;
-  const rolloverScenario = twoLeg("rollover", "만기해지 후 롤오버", matA);
-
-  return {
-    exit: exitScenario,
-    switch: switchScenario,
-    rollover: rolloverScenario,
-    settlement: settleIso,
-  };
-}
-
-/** 금리 이동 Δ를 훑어 갈아타기·롤오버 연환산 원화수익률 곡선을 만든다 (차트용) */
-export function sweepShift(
-  input: SimInput,
-  from = -3,
-  to = 3,
-  step = 0.25
-): { shift: number; switchKrw: number | null; rolloverKrw: number | null }[] {
-  const out: {
-    shift: number;
-    switchKrw: number | null;
-    rolloverKrw: number | null;
-  }[] = [];
-  for (let d = from; d <= to + 1e-9; d += step) {
-    const r = simulate({ ...input, shiftPct: Math.round(d * 100) / 100 });
-    out.push({
-      shift: Math.round(d * 100) / 100,
-      switchKrw: r.switch?.annualKrwPct ?? null,
-      rolloverKrw: r.rollover?.annualKrwPct ?? null,
-    });
-  }
-  return out;
-}
-
 // ───────────────────────────────────────────────────────────────────
-// 롤오버 vs 갈아타기 — "채권 보유수량" 관점 비교
+// 롤오버 vs 갈아타기 — "신탁투자원금" 관점 비교
 //  ① 롤오버   : 보유종목 A 만기상환 → 대금으로 B 신규매수 → B 만기까지 보유
 //  ② 갈아타기 : A 중도매도 → 대금으로 B 신규매수 → B 만기까지 보유
 // 두 전략 모두 B 만기에 종료. 핵심 지표는 "신규매수수량 / 기존수량" 증분효과.
-// 쿠폰은 재투자하지 않고 명목 합산. 환율은 단일값(매수=회수).
+// 보유 좌수는 현금흐름 탭 로직대로 (원금 − 선취신탁보수) → 헤알 환산 → PU로
+// 나눠 정수 좌수만 매수한다(잔돈은 무이자 이월). 쿠폰은 재투자하지 않고 명목
+// 합산. 환율은 단일값(매수=회수).
 // ───────────────────────────────────────────────────────────────────
 
 export interface RollSwitchInput {
-  /** 채권 보유수량 (좌, 액면 R$1,000) */
-  units: number;
+  /** 신탁투자원금 (원) */
+  principalKrw: number;
+  /** A 최초투자시점 "YYYY-MM-DD" (없으면 오늘) */
+  buyDate?: string;
   /** 보유종목 A */
   bondA: { maturity: string; buyYieldPct: number };
   /** 신규매수 종목 B */
@@ -296,14 +106,16 @@ export interface RollSwitchInput {
   sellDate: string;
   /** 헤알화환율 (원/헤알) */
   fxKrwPerBrl: number;
+  /** 신탁보수 선취 (%) — 최초 A 매수 시 원금에서 차감 */
+  frontFeeInitialPct: number;
   /** 롤오버 선취수수료 (%) */
   frontFeeRollPct: number;
   /** 갈아타기 선취수수료 (%) */
   frontFeeSwitchPct: number;
+  /** A 매수가격 직접 지정 (R$, per 좌). 없으면 buyYieldPct로 계산 */
+  overrideBuyPriceA?: number | null;
   /** A 매도가격 직접 지정 (R$, per 좌). 없으면 sellYieldA로 계산 */
   overrideSellPriceA?: number | null;
-  /** B 매수가격 직접 지정 (R$, per 좌). 없으면 buyYieldB로 계산 */
-  overrideBuyPriceB?: number | null;
 }
 
 export interface RollSwitchLeg {
@@ -326,13 +138,10 @@ export interface RollSwitchLeg {
   maturityEffectAPct: number;
   /** B 만기효과 (%) = 액면/B매수가 − 1 */
   maturityEffectBPct: number;
-  /** 총 기대수익률 (BRL, 쿠폰 포함, %) */
+  /** 이자효과 (%) = (A쿠폰 + B쿠폰 명목합) ÷ 분모. 총기대수익률 = 증분효과 + 이자효과 + 잔돈 */
+  couponEffectPct: number;
+  /** 총 기대수익률 (BRL = KRW, 단일환율, 쿠폰 명목 포함, %) */
   totalReturnPct: number;
-  /** 총 기대수익률 (KRW, %) — 단일환율이라 BRL과 동일 */
-  totalReturnKrwPct: number;
-  /** 최초 투자금액(원), 최종 회수금액(원) */
-  investKrw: number;
-  finalKrw: number;
 }
 
 export interface RollSwitchResult {
@@ -340,6 +149,10 @@ export interface RollSwitchResult {
   switch: RollSwitchLeg | null;
   /** A 최초 매수단가 (R$) */
   buyPriceA: number;
+  /** 최초 매수 좌수 (원금 − 선취 → 헤알 환산 → PU로 나눠 절사) */
+  units: number;
+  /** 선취 신탁보수 (원) */
+  frontFeeKrw: number;
 }
 
 function nominalCoupons(from: Date, to: Date, units: number): number {
@@ -349,16 +162,35 @@ function nominalCoupons(from: Date, to: Date, units: number): number {
 export function simulateRollVsSwitch(
   input: RollSwitchInput
 ): RollSwitchResult | null {
-  const settle = getOrderSettlementDate(today());
+  const buy = input.buyDate ? parseLocalDate(input.buyDate) : today();
+  if (!buy) return null;
+  const settle = getOrderSettlementDate(buy);
   const matA = parseLocalDate(input.bondA.maturity);
   const matB = parseLocalDate(input.bondB.maturity);
   const sell = parseLocalDate(input.sellDate);
   if (!matA || !matB || !sell) return null;
 
-  const puA = computeNtnfPu(input.bondA.maturity, input.bondA.buyYieldPct, settle);
+  const puA =
+    input.overrideBuyPriceA != null && input.overrideBuyPriceA > 0
+      ? input.overrideBuyPriceA
+      : computeNtnfPu(input.bondA.maturity, input.bondA.buyYieldPct, settle);
   if (puA == null || puA <= 0) return null;
-  const investBrl = input.units * puA;
   const fx = input.fxKrwPerBrl;
+
+  // 현금흐름 탭과 동일: (원금 − 선취신탁보수) → 헤알 환산 → PU로 나눠 정수 좌수만
+  // 매수하고, 사고 남은 헤알 잔돈은 무이자로 만기까지 이월한다.
+  const frontFeeKrw = Math.trunc(
+    input.principalKrw * (input.frontFeeInitialPct / 100)
+  );
+  const availableBrl = (input.principalKrw - frontFeeKrw) / fx;
+  const units = Math.floor(availableBrl / puA);
+  if (units <= 0) return null;
+  const carryBrl0 = availableBrl - units * puA;
+
+  // 수익률 분모 = A 만기상환금액(좌수 × 액면). 신탁투자원금이 아니라 "A를 만기까지
+  // 보유해 par로 상환받는 금액"을 기준으로 잡아야, 롤오버·갈아타기 두 전략이
+  // 동일 잣대에서 "B 만기까지 보유해 불어난 효과"로 비교된다.
+  const investBrl = units * FACE;
 
   const leg = (
     key: "rollover" | "switch",
@@ -369,17 +201,15 @@ export function simulateRollVsSwitch(
   ): RollSwitchLeg | null => {
     if (!(matB > exitDate)) return null;
     const settleExit = getOrderSettlementDate(exitDate);
-    const puB =
-      input.overrideBuyPriceB != null && input.overrideBuyPriceB > 0
-        ? input.overrideBuyPriceB
-        : computeNtnfPu(input.bondB.maturity, input.buyYieldB, settleExit);
+    const puB = computeNtnfPu(input.bondB.maturity, input.buyYieldB, settleExit);
     if (puB == null || puB <= 0) return null;
 
-    const proceeds = input.units * exitPriceA * (1 - frontFeePct / 100);
+    const proceeds = units * exitPriceA * (1 - frontFeePct / 100);
     const unitsEnd = Math.floor(proceeds / puB);
-    const couponsA = nominalCoupons(settle, exitDate, input.units);
+    const carryBrl = carryBrl0 + (proceeds - unitsEnd * puB);
+    const couponsA = nominalCoupons(settle, exitDate, units);
     const couponsB = nominalCoupons(settleExit, matB, unitsEnd);
-    const finalBrl = unitsEnd * FACE + couponsA + couponsB;
+    const finalBrl = unitsEnd * FACE + couponsA + couponsB + carryBrl;
 
     const totalReturn = finalBrl / investBrl - 1;
     return {
@@ -390,15 +220,13 @@ export function simulateRollVsSwitch(
       years: Math.max(years(settle, matB), 1 / 365),
       exitPriceA,
       buyPriceB: puB,
-      unitsStart: input.units,
+      unitsStart: units,
       unitsEnd,
-      incrementPct: (unitsEnd / input.units - 1) * 100,
+      incrementPct: (unitsEnd / units - 1) * 100,
       maturityEffectAPct: (exitPriceA / puA - 1) * 100,
       maturityEffectBPct: (FACE / puB - 1) * 100,
+      couponEffectPct: ((couponsA + couponsB) / investBrl) * 100,
       totalReturnPct: totalReturn * 100,
-      totalReturnKrwPct: totalReturn * 100,
-      investKrw: investBrl * fx,
-      finalKrw: finalBrl * fx,
     };
   };
 
@@ -425,5 +253,5 @@ export function simulateRollVsSwitch(
       ? leg("switch", "중도매도 후 갈아타기", sell, sellPriceA, input.frontFeeSwitchPct)
       : null;
 
-  return { rollover, switch: switchLeg, buyPriceA: puA };
+  return { rollover, switch: switchLeg, buyPriceA: puA, units, frontFeeKrw };
 }
