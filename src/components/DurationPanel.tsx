@@ -332,9 +332,6 @@ export function DurationPanel({ bonds, fx }: Props) {
                   <span className="font-medium text-zinc-800 dark:text-zinc-100">
                     {bond.nameKo}
                   </span>
-                  <span className="ml-1 text-zinc-400">
-                    {bond.maturityDate.slice(0, 4)}
-                  </span>
                 </td>
                 <td className={`${td} text-right`}>
                   {bond.buyYieldPct != null
