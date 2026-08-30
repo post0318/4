@@ -311,7 +311,8 @@ export function DurationPanel({ bonds, fx }: Props) {
               <th className={`${th} text-right`}>PU</th>
               <th className={`${th} text-right`}>수정
                 <br />듀레이션</th>
-              <th className={`${th} text-right`}>DV01</th>
+              <th className={`${th} text-right`}>수익률 0.01%p
+                <br />가격변화(R$)</th>
               <th className={`${th} text-right`}>가격
                 <br />변동</th>
               <th className={`${th} text-right`}>환율
@@ -375,9 +376,10 @@ export function DurationPanel({ bonds, fx }: Props) {
       </div>
 
       <p className="text-xs text-zinc-400">
-        수정듀레이션 D*는 수익률 100bp 변화 시 대략적인 PU 변화율(년)입니다. 가격변동
-        ≈ −D*·Δy + ½·컨벡시티·Δy², 원화가치변동 = (1+가격변동)(1+환율변동)−1. 결제일
-        D+0, NTN-F(액면 R$1,000). 근사치입니다.
+        수정듀레이션 D*는 수익률 100bp 변화 시 대략적인 PU 변화율(년)입니다.
+        「수익률 0.01%p 가격변화」는 수익률이 0.01%p 오를 때 PU(액면 R$1,000)가
+        떨어지는 금액입니다. 가격변동 ≈ −D*·Δy + ½·컨벡시티·Δy², 원화가치변동 =
+        (1+가격변동)(1+환율변동)−1. 결제일 D+0, NTN-F(액면 R$1,000). 근사치입니다.
       </p>
     </section>
 

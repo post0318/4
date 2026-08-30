@@ -14,7 +14,7 @@ export interface BondRisk {
   modDuration: number;
   /** 컨벡시티 */
   convexity: number;
-  /** DV01 — 수익률 1bp 변화 시 PU(액면 R$1,000) 변화액 */
+  /** 수익률 0.01%p(1bp) 변화 시 PU(액면 R$1,000) 변화액 (구 DV01) */
   dv01: number;
 }
 
