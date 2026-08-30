@@ -53,7 +53,8 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
 
   const total = data.reduce(
     (acc, row) => ({
-      principal: acc.principal + row.principal + (row.principalReturn ?? 0),
+      // 원금 합계는 경과이자 차감분만 (만기 원금상환액은 제외) — 월지급식과 동일
+      principal: acc.principal + (row.principalReturn ?? 0),
       interest: acc.interest + row.interest,
       cashInterest: acc.cashInterest + row.cashInterest,
       taxableIncome: acc.taxableIncome + row.taxableIncome,
