@@ -250,7 +250,7 @@ export function DurationPanel({ bonds, fx }: Props) {
   return (
     <div className="space-y-4">
     <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <h2 className="-mx-3 -mt-3 mb-1 rounded-t-xl bg-zinc-100 px-3 py-2 text-sm font-semibold text-zinc-900 dark:bg-zinc-800/60 dark:text-zinc-100">
         금리/환율 민감도
       </h2>
 
@@ -383,7 +383,7 @@ export function DurationPanel({ bonds, fx }: Props) {
     </section>
 
     <section className="space-y-3 rounded-xl border border-zinc-300 bg-zinc-50/60 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="-mx-3 -mt-3 mb-1 flex flex-wrap items-center justify-between gap-2 rounded-t-xl bg-zinc-100 px-3 py-2 dark:bg-zinc-800/60">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           환율 시나리오별 예상 수익률
         </h2>
