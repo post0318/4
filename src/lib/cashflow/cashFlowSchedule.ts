@@ -33,6 +33,12 @@ export interface CashFlowRow {
    * 수익률·요약 계산은 계속 netAmount/principal 을 따로 쓴다(중복 반영 방지).
    */
   maturityPayout?: number;
+  /**
+   * 첫 이표 회차에 되돌려받는, 매수 시 선지급한 경과이자(음수). "원금" 열에
+   * 괄호로 표시하는 용도의 표시값이다(월지급표의 원금 차감분과 동일 취급).
+   * 이미 interest/netAmount 에 반영돼 있으므로 요약·수익률 계산에는 쓰지 않는다.
+   */
+  principalReturn?: number;
 }
 
 const TRUST_MATURITY_LEAD_DAYS = 11;
@@ -139,16 +145,15 @@ export function generateFixCashFlow(
         daysBetween(periodStart, date)
     );
 
-    let bondTaxableIncome: number;
-    if (index === 0) {
-      // couponAmount(이번 회차 이자, 브라질은 복리환산 쿠폰)와 같은 기준으로
-      // 경과분을 계산해야 "이자-경과이자"가 일치한다. 별도로 단순금리(rate)를
-      // 다시 곱해 계산하면 브라질처럼 쿠폰이 복리환산인 경우 어긋난다.
-      const preOwnedInterest = couponAmount * pricing.accrualFraction * freqPerYear;
-      bondTaxableIncome = truncByCurrency(couponAmount - preOwnedInterest);
-    } else {
-      bondTaxableIncome = interest;
-    }
+    // couponAmount(이번 회차 이자, 브라질은 복리환산 쿠폰)와 같은 기준으로
+    // 경과분을 계산해야 "이자-경과이자"가 일치한다. 별도로 단순금리(rate)를
+    // 다시 곱해 계산하면 브라질처럼 쿠폰이 복리환산인 경우 어긋난다.
+    const preOwnedInterest =
+      index === 0 ? couponAmount * pricing.accrualFraction * freqPerYear : 0;
+    const bondTaxableIncome =
+      index === 0
+        ? truncByCurrency(couponAmount - preOwnedInterest)
+        : interest;
     const taxableIncome = bondTaxableIncome + cashInterest;
 
     const availableFrontFee = carryFrontFee;
@@ -200,6 +205,10 @@ export function generateFixCashFlow(
       incomeTax,
       netAmount,
       maturityPayout,
+      principalReturn:
+        index === 0 && preOwnedInterest > 0
+          ? -truncByCurrency(preOwnedInterest)
+          : undefined,
     });
 
     // 공제는 "실제 과세되는 소득"만큼만 소진된다. 비과세 채권이자는 아무리 커도

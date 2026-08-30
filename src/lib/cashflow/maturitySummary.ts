@@ -75,13 +75,20 @@ export function computeMaturitySummary(
     2
   );
 
-  const postTaxMaturityAmount = roundDown(
+  // 투자자가 신탁 전 기간에 실제 수령하는 세후 총액 (수익률 분자)
+  const totalReceived = roundDown(
     totalNetAmount + totalPrincipal + pricing.cashBalance - lastBackFee,
     2
   );
 
+  // "만기시 세후금액" = 만기 당일에 받는 금액(원금상환 + 마지막 쿠폰 세후 +
+  // 반환 보유현금 − 만기청산 후취보수). 월지급표의 만기상환 행과 동일한 취급.
+  const maturityRow = rows[rows.length - 1];
+  const postTaxMaturityAmount =
+    maturityRow?.maturityPayout ?? maturityRow?.netAmount ?? totalReceived;
+
   const postTaxYield =
-    ((postTaxMaturityAmount - principal) / principal) * (365 / investmentDays);
+    ((totalReceived - principal) / principal) * (365 / investmentDays);
   const parsedComprehensiveTaxRate = Number(input.comprehensiveTaxRate);
   const comprehensiveTaxRate =
     input.comprehensiveTaxRate && !Number.isNaN(parsedComprehensiveTaxRate)

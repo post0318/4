@@ -49,9 +49,12 @@ interface MatrixBond {
 function ReturnMatrix({
   bonds,
   baseFx,
+  compound,
 }: {
   bonds: MatrixBond[];
   baseFx: number;
+  /** true면 복리 연환산((1+총)^(1/년)−1), false면 단리(총÷년) */
+  compound: boolean;
 }) {
   const th =
     "px-1 py-1 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800";
@@ -115,13 +118,11 @@ function ReturnMatrix({
                         <FragmentDash key={b.label} cell={cell} />
                       );
                     const fxCum = shift / 100;
-                    const annual =
-                      ((1 + b.hold.annualPct / 100) *
-                        Math.pow(1 + fxCum, 1 / b.hold.years) -
-                        1) *
-                      100;
                     const total =
                       ((1 + b.hold.totalPct / 100) * (1 + fxCum) - 1) * 100;
+                    const annual = compound
+                      ? (Math.pow(1 + total / 100, 1 / b.hold.years) - 1) * 100
+                      : total / b.hold.years; // 단리: 총 ÷ 잔존연수 (현금흐름 탭 방식)
                     const bold = shift === 0 ? "font-bold" : "";
                     return (
                       <FragmentVals
@@ -140,7 +141,7 @@ function ReturnMatrix({
         </table>
       </div>
       <p className="mt-1 text-[11px] text-zinc-400">
-        총누적수익률 = 잔존기간 전체 수익률, 연환산수익률 = 이를 연 단위로 환산.
+        총누적수익률 = 잔존기간 전체 수익률.
         헤알화 강세(＋)일수록 붉게.
       </p>
     </div>
@@ -390,15 +391,16 @@ export function DurationPanel({ bonds, fx }: Props) {
         </label>
       </div>
       <p className="text-[11px] text-zinc-400">
-        지금 매수해 만기까지 보유 · 세전 · 복리 연환산.{" "}
+        지금 매수해 만기까지 보유 · 세전 · 단리 연환산(총수익률 ÷ 잔존연수, 현금흐름
+        탭과 동일 방식).{" "}
         {reinvest
-          ? "쿠폰을 매수금리로 재투자 → 연환산이 매수금리에 수렴."
-          : "쿠폰은 현금으로 받아 재투자 안 함(반기지급 상품 기준)."}{" "}
-        만기 보유라 금리변동 평가손익은 없음(금리 손익은 위 가격변동 표). 현금흐름
-        탭 세후수익률은 단리 기준이라 값이 다릅니다.
+          ? "쿠폰을 매수금리로 재투자."
+          : "쿠폰은 현금으로 받아 재투자 안 함(현금이자 0, 반기지급 상품 기준)."}{" "}
+        만기 보유라 금리변동 평가손익은 없음(금리 손익은 위 가격변동 표). 수수료·세금
+        미반영이라 현금흐름 탭 세후수익률보다 소폭 높습니다.
       </p>
       {fx?.krwBrl ? (
-        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
+        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} compound={reinvest} />
       ) : (
         <p className="text-[11px] text-zinc-400">환율을 불러오면 표시됩니다.</p>
       )}

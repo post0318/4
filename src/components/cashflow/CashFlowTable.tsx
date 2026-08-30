@@ -20,6 +20,12 @@ function formatAmount(n: number, isKrw: boolean): string {
   });
 }
 
+/** 차감(음수)은 회계 관행대로 괄호로 표시: -815,983 → (815,983) */
+function formatParen(n: number, isKrw: boolean): string {
+  if (!n) return "";
+  return n < 0 ? `(${formatAmount(-n, isKrw)})` : formatAmount(n, isKrw);
+}
+
 export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
   const data = rows ?? [];
   const isKrw = custodyCurrency === "KRW";
@@ -38,7 +44,7 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
 
   const total = data.reduce(
     (acc, row) => ({
-      principal: acc.principal + row.principal,
+      principal: acc.principal + row.principal + (row.principalReturn ?? 0),
       interest: acc.interest + row.interest,
       cashInterest: acc.cashInterest + row.cashInterest,
       taxableIncome: acc.taxableIncome + row.taxableIncome,
@@ -70,7 +76,11 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
         {row.date}
       </td>
       <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
-        {row.principal ? formatAmount(row.principal, isKrw) : ""}
+        {row.principalReturn
+          ? formatParen(row.principalReturn, isKrw)
+          : row.principal
+            ? formatAmount(row.principal, isKrw)
+            : ""}
       </td>
       <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatAmount(row.cashBalance, isKrw)}
@@ -133,7 +143,7 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
                     합 계
                   </td>
                   <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
-                    {formatAmount(total.principal, isKrw)}
+                    {formatParen(total.principal, isKrw)}
                   </td>
                   <td className="py-2 pr-4" />
                   <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
@@ -194,7 +204,7 @@ export function CashFlowTable({ rows, custodyCurrency }: CashFlowTableProps) {
                     합 계
                   </td>
                   <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
-                    {formatAmount(total.principal, isKrw)}
+                    {formatParen(total.principal, isKrw)}
                   </td>
                   <td className="py-2 pr-4" />
                   <td className="py-2 pr-4 text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
