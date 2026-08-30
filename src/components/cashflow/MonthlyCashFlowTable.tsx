@@ -122,7 +122,7 @@ export function MonthlyCashFlowTable({
         {row.incomeTax ? fmt(row.incomeTax, isKrw) : ""}
       </td>
       <td className="py-2 text-right tabular-nums font-medium text-zinc-900 dark:text-zinc-100">
-        {error ? "-" : fmt(row.netAmount, isKrw)}
+        {row.cashBalance < 0 ? "-" : fmt(row.netAmount, isKrw)}
       </td>
     </tr>
   );
