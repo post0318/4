@@ -1,9 +1,13 @@
 import { Fragment } from "react";
-import { ReinvestCashFlowRow } from "@/lib/cashflow/reinvestCashFlow";
+import {
+  ReinvestCashFlowRow,
+  ReinvestCashFlowSummary,
+} from "@/lib/cashflow/reinvestCashFlow";
 import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 
 interface Props {
   rows: ReinvestCashFlowRow[] | null;
+  summary?: ReinvestCashFlowSummary | null;
 }
 
 const HEAD_ROWS = 6;
@@ -16,6 +20,9 @@ function brl(n: number): string {
     maximumFractionDigits: 2,
   });
 }
+function krw(n: number): string {
+  return `${Math.trunc(n).toLocaleString("ko-KR")}원`;
+}
 function units(n: number): string {
   if (!n) return "";
   return Math.round(n).toLocaleString("ko-KR");
@@ -25,7 +32,7 @@ function units(n: number): string {
  * 재투자형 현금흐름 — 회차별 [보유좌수 · 이자(R$) · 재매수단가 · 매수좌수 ·
  * 누적좌수 · 잔여현금(R$)], 만기 회차는 원화 회수액.
  */
-export function ReinvestCashFlowTable({ rows }: Props) {
+export function ReinvestCashFlowTable({ rows, summary }: Props) {
   const data = rows ?? [];
 
   const columns = [
@@ -162,6 +169,17 @@ export function ReinvestCashFlowTable({ rows }: Props) {
           - 수령한 쿠폰(BRL)으로 같은 채권을 재매수하며, 남는 BRL은 다음 회차
           재투자에 사용됩니다. 재매수 금리는 최초 매수금리로 가정합니다.
         </p>
+        {summary && summary.backFee.amount > 0 && (
+          <p>
+            - 후취보수 = 신탁투자금액 {krw(summary.backFee.base)} ×{" "}
+            {summary.backFee.ratePct.toFixed(2)}% ÷ 365 ×{" "}
+            {summary.backFee.days.toLocaleString("ko-KR")}일 ={" "}
+            <span className="text-zinc-700 dark:text-zinc-200">
+              {krw(summary.backFee.amount)}
+            </span>{" "}
+            (만기 회수 시 차감)
+          </p>
+        )}
       </div>
 
       <CashFlowDisclaimer />

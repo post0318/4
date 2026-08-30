@@ -76,6 +76,13 @@ export interface ReinvestCashFlowSummary {
   /** 세후수익률 (단리, 365/투자일수) */
   postTaxYield: number;
   bankEquivalentYield: number;
+  /** 후취보수 산출: 신탁투자금액 × 요율 ÷ 365 × 투자일수 (만기 회수 시 차감) */
+  backFee: {
+    base: number; // 신탁투자금액 (KRW)
+    ratePct: number; // 후취보수율 (%)
+    days: number; // 투자일수
+    amount: number; // 후취보수 금액 (KRW)
+  };
 }
 
 export interface ReinvestCashFlowResult {
@@ -219,6 +226,10 @@ export function generateReinvestCashFlow(
 
   const investmentDays =
     getInvestmentDays(input.trustContractDate, input.maturityDate) ?? 0;
+  const backFeeAmount = roundDown(
+    (trustAmount * (backFeeRate / 100) / 365) * investmentDays,
+    2
+  );
   const postTaxYield =
     investmentDays > 0
       ? ((postTaxMaturityKrw - trustAmount) / trustAmount) * (365 / investmentDays)
@@ -242,6 +253,12 @@ export function generateReinvestCashFlow(
       postTaxMaturityKrw,
       postTaxYield,
       bankEquivalentYield: postTaxYield / (1 - comprehensiveTaxRate),
+      backFee: {
+        base: trustAmount,
+        ratePct: backFeeRate,
+        days: investmentDays,
+        amount: backFeeAmount,
+      },
     },
   };
 }

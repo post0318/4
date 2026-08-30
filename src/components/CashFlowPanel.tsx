@@ -160,7 +160,10 @@ export function CashFlowPanel() {
         lockToggleDisabled={isSharedLink}
       />
       {isReinvest ? (
-        <ReinvestCashFlowTable rows={reinvestResult?.rows ?? null} />
+        <ReinvestCashFlowTable
+          rows={reinvestResult?.rows ?? null}
+          summary={reinvestResult?.summary ?? null}
+        />
       ) : isMonthly ? (
         <MonthlyCashFlowTable
           rows={monthlyResult?.rows ?? null}
