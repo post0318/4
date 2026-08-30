@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { ReinvestCashFlowRow } from "@/lib/cashflow/reinvestCashFlow";
+import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 
 interface Props {
   rows: ReinvestCashFlowRow[] | null;
@@ -178,6 +179,8 @@ export function ReinvestCashFlowTable({ rows }: Props) {
         </p>
         <p>- 단순계산 추정치입니다.</p>
       </div>
+
+      <CashFlowDisclaimer />
     </section>
   );
 }

@@ -165,6 +165,7 @@ export function CashFlowPanel() {
         <MonthlyCashFlowTable
           rows={monthlyResult?.rows ?? null}
           custodyCurrency={input.custodyCurrency}
+          error={monthlyResult?.error ?? null}
         />
       ) : (
         <CashFlowTable

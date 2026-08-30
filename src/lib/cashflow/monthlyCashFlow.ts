@@ -78,6 +78,8 @@ export interface MonthlyCashFlowSummary {
 export interface MonthlyCashFlowResult {
   rows: MonthlyCashFlowRow[];
   summary: MonthlyCashFlowSummary;
+  /** 보유현금이 마이너스가 된 경우의 안내 메시지 (유보율 부족). 정상이면 없음. */
+  error?: string;
 }
 
 const TRUST_MATURITY_LEAD_DAYS = 11;
@@ -198,6 +200,7 @@ export function generateMonthlyCashFlow(
   let firstCouponReceived = false;
   let remainingRealInterest = 0; // 첫 쿠폰 실이자분 잔여
   let remainingPreOwned = 0; // 첫 쿠폰 경과이자분 잔여
+  let cashWentNegative = false; // 보유현금이 마이너스로 떨어진 회차가 있는지
   const rows: MonthlyCashFlowRow[] = [];
 
   const roundTax = (n: number) => (isKrw ? roundDown(n, -1) : roundDown(n, 2));
@@ -263,6 +266,7 @@ export function generateMonthlyCashFlow(
         principalLedger += principalDelta;
       }
       held -= payout;
+      if (held < -1) cashWentNegative = true; // 반올림 오차(±1) 제외
 
       const taxBase = trunc(
         cashIncomePart > totalDeduction ? cashIncomePart - totalDeduction : 0
@@ -362,5 +366,11 @@ export function generateMonthlyCashFlow(
     bankEquivalentYield: postTaxYield / (1 - comprehensiveTaxRate),
   };
 
-  return { rows, summary };
+  return {
+    rows,
+    summary,
+    error: cashWentNegative
+      ? "월지급 재원(유보현금)이 첫 쿠폰 전에 소진돼 보유현금이 마이너스가 됩니다. 유보율을 높이세요."
+      : undefined,
+  };
 }
