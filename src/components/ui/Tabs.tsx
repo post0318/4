@@ -18,7 +18,7 @@ export function Tabs<K extends string>({
     <div
       role="tablist"
       className={cn(
-        "flex gap-0.5 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800",
+        "flex flex-wrap gap-0.5 border-b border-zinc-200 dark:border-zinc-800",
         className
       )}
     >
