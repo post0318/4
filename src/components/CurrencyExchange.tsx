@@ -1,45 +1,88 @@
 "use client";
 
-import { useState } from "react";
-import { digitsOnly, groupDigits, normalizeDecimalInput } from "@/lib/format";
+import {
+  digitsOnly,
+  groupDecimal,
+  groupDigits,
+  normalizeDecimalInput,
+} from "@/lib/format";
+
+export interface ExchangeState {
+  /** 원화금액 (숫자 문자열) */
+  krw: string;
+  /** 달러금액 (숫자·소수점 문자열) */
+  usd: string;
+  /** 고시환율 (사용자 수정값) */
+  rate: string;
+  /** 고시환율을 자동값에서 수정함 */
+  rateEdited: boolean;
+  /** 마지막으로 직접 입력한 칸 — 다른 칸을 계산한다 */
+  driver: "krw" | "usd";
+}
+
+export const EMPTY_EXCHANGE: ExchangeState = {
+  krw: "",
+  usd: "",
+  rate: "",
+  rateEdited: false,
+  driver: "krw",
+};
 
 interface Props {
   /** 원/달러 환율 (Frankfurter). 고시환율 칸 자동값으로 쓴다. */
   usdKrw: number | null;
+  value: ExchangeState;
+  onChange: (next: ExchangeState) => void;
 }
 
 const sanitizeDecimal = normalizeDecimalInput;
+
+/** value에서 고시환율 유효값(자동/수정)과 원화·달러 표시·계산값을 도출한다 */
+export function deriveExchange(
+  value: ExchangeState,
+  usdKrw: number | null
+): { rate: number; krwTotal: number; usdTotal: number } {
+  const autoRate = usdKrw != null ? usdKrw.toFixed(2) : "";
+  const effRate = value.rateEdited ? value.rate : autoRate;
+  const rate = parseFloat(effRate) || 0;
+  const krwTyped = parseInt(value.krw || "0", 10) || 0;
+  const usdTyped = parseFloat(value.usd || "0") || 0;
+
+  if (value.driver === "usd") {
+    const krwTotal = rate > 0 && usdTyped > 0 ? Math.round(usdTyped * rate) : 0;
+    return { rate, krwTotal, usdTotal: usdTyped };
+  }
+  const usdTotal = rate > 0 && krwTyped > 0 ? krwTyped / rate : 0;
+  return { rate, krwTotal: krwTyped, usdTotal };
+}
 
 /**
  * 환전금액 — 원화금액 ÷ 고시환율 = 달러금액.
  * 세 칸 모두 직접 수정 가능. 고시환율은 건드리기 전까지 원/달러 환율을 자동 반영하고,
  * 마지막으로 입력한 칸(원화 또는 달러)이 다른 칸을 계산한다. 통화기호는 쓰지 않는다.
+ * 원화금액은 아래 종목 표의 원화투자금액 합계와 일치해야 하고, 종목별 달러($)
+ * 자동값은 이 달러금액을 원화투자금액 비중대로 나눠 채운다.
  */
-export function CurrencyExchange({ usdKrw }: Props) {
-  const [krw, setKrw] = useState("");
-  const [usd, setUsd] = useState("");
-  const [rate, setRate] = useState("");
-  const [rateEdited, setRateEdited] = useState(false);
-  const [driver, setDriver] = useState<"krw" | "usd">("krw");
-
+export function CurrencyExchange({ usdKrw, value, onChange }: Props) {
   const autoRate = usdKrw != null ? usdKrw.toFixed(2) : "";
-  const effRate = rateEdited ? rate : autoRate;
+  const effRate = value.rateEdited ? value.rate : autoRate;
   const rateNum = parseFloat(effRate) || 0;
-  const krwNum = parseInt(krw || "0", 10) || 0;
-  const usdNum = parseFloat(usd || "0") || 0;
+  const krwNum = parseInt(value.krw || "0", 10) || 0;
+  const usdNum = parseFloat(value.usd || "0") || 0;
 
   const krwView =
-    driver === "krw"
-      ? groupDigits(krw)
+    value.driver === "krw"
+      ? groupDigits(value.krw)
       : rateNum > 0 && usdNum > 0
         ? groupDigits(String(Math.round(usdNum * rateNum)))
         : "";
-  const usdView =
-    driver === "usd"
-      ? usd
+  const usdView = groupDecimal(
+    value.driver === "usd"
+      ? value.usd
       : rateNum > 0 && krwNum > 0
         ? (krwNum / rateNum).toFixed(2)
-        : "";
+        : ""
+  );
 
   const field =
     "w-full rounded border border-zinc-300 px-2 py-1.5 text-right text-sm tabular-nums outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100";
@@ -60,10 +103,13 @@ export function CurrencyExchange({ usdKrw }: Props) {
             value={krwView}
             placeholder="예: 10,000,000"
             maxLength={17}
-            onChange={(e) => {
-              setDriver("krw");
-              setKrw(digitsOnly(e.target.value));
-            }}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                driver: "krw",
+                krw: digitsOnly(e.target.value),
+              })
+            }
             className={field}
           />
         </label>
@@ -71,13 +117,12 @@ export function CurrencyExchange({ usdKrw }: Props) {
         <label className="block">
           <span className="mb-1 flex items-baseline justify-between text-xs text-zinc-500 dark:text-zinc-400">
             고시환율
-            {rateEdited && (
+            {value.rateEdited && (
               <button
                 type="button"
-                onClick={() => {
-                  setRateEdited(false);
-                  setRate("");
-                }}
+                onClick={() =>
+                  onChange({ ...value, rateEdited: false, rate: "" })
+                }
                 className="text-[11px] text-blue-600 hover:underline dark:text-blue-400"
               >
                 자동값
@@ -89,12 +134,15 @@ export function CurrencyExchange({ usdKrw }: Props) {
             value={effRate}
             placeholder={autoRate || "원/달러"}
             maxLength={12}
-            onChange={(e) => {
-              setRateEdited(true);
-              setRate(sanitizeDecimal(e.target.value));
-            }}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                rateEdited: true,
+                rate: sanitizeDecimal(e.target.value),
+              })
+            }
             className={`${field} ${
-              rateEdited
+              value.rateEdited
                 ? "border-blue-400 font-semibold text-blue-700 dark:text-blue-300"
                 : ""
             }`}
@@ -109,11 +157,14 @@ export function CurrencyExchange({ usdKrw }: Props) {
             inputMode="decimal"
             value={usdView}
             placeholder="원화금액 ÷ 고시환율"
-            maxLength={17}
-            onChange={(e) => {
-              setDriver("usd");
-              setUsd(sanitizeDecimal(e.target.value));
-            }}
+            maxLength={20}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                driver: "usd",
+                usd: sanitizeDecimal(e.target.value),
+              })
+            }
             className={field}
           />
         </label>
@@ -121,7 +172,7 @@ export function CurrencyExchange({ usdKrw }: Props) {
 
       <p className="mt-2 text-[11px] text-zinc-400">
         원화금액 ÷ 고시환율 = 달러금액. 고시환율은 수정 전까지 원/달러 환율을 자동
-        반영합니다.
+        반영합니다. 원화금액은 아래 표의 원화투자금액 합계와 같아야 합니다.
       </p>
     </section>
   );

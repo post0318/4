@@ -37,6 +37,20 @@ export function groupDigits(digits: string): string {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+/**
+ * 소수 문자열의 정수부에만 천 단위 콤마를 넣는다("1234567.8" → "1,234,567.8").
+ * 소수점 이하와 입력 중 상태("123.")는 그대로 둔다. 입력창 표시용.
+ */
+export function groupDecimal(value: string): string {
+  if (!value) return "";
+  const neg = value.startsWith("-") ? "-" : "";
+  const body = neg ? value.slice(1) : value;
+  const dot = body.indexOf(".");
+  const intPart = dot === -1 ? body : body.slice(0, dot);
+  const fracPart = dot === -1 ? "" : body.slice(dot);
+  return neg + groupDigits(intPart) + fracPart;
+}
+
 /** ISO 문자열 → "YYYY-MM-DD HH:mm" (브라우저 로컬 시간대) */
 export function fmtTimestamp(iso: string | null): string {
   if (!iso) return "-";

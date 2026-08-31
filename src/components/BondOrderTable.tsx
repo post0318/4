@@ -1,6 +1,6 @@
 "use client";
 
-import { digitsOnly, fmtInt, fmtNum, groupDigits } from "@/lib/format";
+import { digitsOnly, fmtInt, fmtNum, groupDecimal, groupDigits } from "@/lib/format";
 import type { OrderResult } from "@/lib/quantity";
 import type { BondItem } from "@/lib/types";
 
@@ -31,6 +31,8 @@ interface BondOrderTableProps {
   error: string | null;
   fxReady: boolean;
   settlementDate: string;
+  /** 환전금액의 원화금액 (0이면 미입력) — 원화투자금액 합계와의 차이 표시용 */
+  exchangeKrwTotal: number;
   onToggle: (key: string) => void;
   onAmountChange: (key: string, value: string) => void;
   onUsdChange: (key: string, value: string) => void;
@@ -61,6 +63,7 @@ export function BondOrderTable({
   error,
   fxReady,
   settlementDate,
+  exchangeKrwTotal,
   onToggle,
   onAmountChange,
   onUsdChange,
@@ -81,6 +84,7 @@ export function BondOrderTable({
     (s, r) => s + (parseFloat(r.usdInput || "0") || 0),
     0
   );
+  const krwDiff = totalKrw - exchangeKrwTotal;
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -218,11 +222,11 @@ export function BondOrderTable({
                 </tr>
               )}
             </tbody>
-            {checkedRows.length > 0 && (
+            {(checkedRows.length > 0 || exchangeKrwTotal > 0) && (
               <tfoot>
                 <tr className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700">
                   <td className={`${td} text-right`} colSpan={5}>
-                    합계
+                    원화투자금액 합계
                   </td>
                   <td className={`${td} text-right`}>
                     {totalKrw > 0 ? groupDigits(String(totalKrw)) : "-"}
@@ -232,6 +236,26 @@ export function BondOrderTable({
                   </td>
                   <td className={td} colSpan={4} />
                 </tr>
+                {exchangeKrwTotal > 0 && (
+                  <tr
+                    className={
+                      krwDiff === 0
+                        ? "text-zinc-500 dark:text-zinc-400"
+                        : "font-semibold text-red-600 dark:text-red-400"
+                    }
+                  >
+                    <td className={`${td} text-right`} colSpan={5}>
+                      환전금액 원화금액({groupDigits(String(exchangeKrwTotal))})과의 차이
+                    </td>
+                    <td className={`${td} text-right`}>
+                      {krwDiff === 0
+                        ? "0"
+                        : (krwDiff > 0 ? "+" : "") +
+                          groupDecimal(String(krwDiff))}
+                    </td>
+                    <td className={td} colSpan={5} />
+                  </tr>
+                )}
               </tfoot>
             )}
           </table>
@@ -244,8 +268,11 @@ export function BondOrderTable({
         </p>
       )}
       <p className="mt-2 text-[11px] text-zinc-400">
-        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다. 달러($)는
-        원화투자금액 ÷ 환율 자동값이며 직접 수정할 수 있고, 매수가능수량은 달러 환전액
+        체크한 종목만 원화투자금액 입력·수량 산출·이메일 발송 대상이 됩니다.
+        원화투자금액 합계는 위 환전금액의 원화금액과 같아야 발송할 수 있습니다.
+        달러($)는 환전금액의 달러금액을 원화투자금액 비중대로 나눠(2자리 절사,
+        잔동은 최대 종목 가산) 채운 자동값이며 직접 수정할 수 있고, 환전금액이
+        비어 있으면 원화투자금액 ÷ 환율로 채웁니다. 매수가능수량은 달러 환전액
         기준 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000)입니다. 실제주문수량은
         기본값이 매수가능수량이며 그 이하로 조정합니다.
       </p>

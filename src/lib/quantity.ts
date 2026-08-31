@@ -50,6 +50,47 @@ export function isValidOrderInputs(input: Partial<OrderInputs>): input is OrderI
   );
 }
 
+/** 소수 2자리에서 절사 */
+function trunc2(n: number): number {
+  return Math.trunc(n * 100) / 100;
+}
+
+/**
+ * 환전금액의 달러금액(totalUsd)을 각 종목의 원화투자금액 비중대로 나눈다.
+ * 각 몫은 소수 2자리에서 절사하고, 절사로 생긴 잔동(= trunc2(totalUsd) − Σ몫)은
+ * 원화투자금액이 가장 큰 종목에 가산해 Σ가 정확히 trunc2(totalUsd)가 되게 한다.
+ * totalUsd나 원화 합계가 0 이하면 전부 0을 돌려준다.
+ */
+export function distributeUsdByKrwWeight(
+  totalUsd: number,
+  items: { key: string; krw: number }[]
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  const target = trunc2(totalUsd);
+  const totalKrw = items.reduce((s, i) => s + (i.krw > 0 ? i.krw : 0), 0);
+  if (!(target > 0) || !(totalKrw > 0)) {
+    for (const i of items) out[i.key] = 0;
+    return out;
+  }
+  let assigned = 0;
+  let biggestKey = items[0]?.key ?? "";
+  let biggestKrw = -1;
+  for (const i of items) {
+    const share = i.krw > 0 ? trunc2((target * i.krw) / totalKrw) : 0;
+    out[i.key] = share;
+    assigned += share;
+    if (i.krw > biggestKrw) {
+      biggestKrw = i.krw;
+      biggestKey = i.key;
+    }
+  }
+  if (biggestKey) {
+    const remainder = Math.round((target - assigned) * 100) / 100;
+    out[biggestKey] = Math.round((out[biggestKey] + remainder) * 100) / 100;
+  }
+  return out;
+}
+
 export function computeOrder(input: OrderInputs): OrderResult {
   const { usdAmount, usdKrw, usdBrl, pu } = input;
 

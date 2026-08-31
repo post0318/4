@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
-import { CurrencyExchange } from "@/components/CurrencyExchange";
+import {
+  CurrencyExchange,
+  deriveExchange,
+  EMPTY_EXCHANGE,
+  type ExchangeState,
+} from "@/components/CurrencyExchange";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { DurationPanel } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
@@ -16,7 +21,11 @@ import {
   toISODate,
   today,
 } from "@/lib/ntnfPricing";
-import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
+import {
+  computeOrder,
+  distributeUsdByKrwWeight,
+  isValidOrderInputs,
+} from "@/lib/quantity";
 import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 
 export function OrderConsole() {
@@ -35,6 +44,9 @@ export function OrderConsole() {
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  // 환전금액(원화금액·달러금액·고시환율). 원화금액이 종목별 원화투자금액 합계의
+  // 기준이 되고, 달러금액은 종목별 달러($) 자동값 배분의 기준이 된다.
+  const [exchange, setExchange] = useState<ExchangeState>(EMPTY_EXCHANGE);
   // 달러($) override. 값이 없으면 원화투자금액 ÷ 환율 자동값을 쓴다.
   const [usdOverrides, setUsdOverrides] = useState<Record<string, string>>({});
   // 실제 주문수량 override. 값이 없으면 매수가능수량을 그대로 쓴다.
@@ -131,7 +143,28 @@ export function OrderConsole() {
     setOrderQtys((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const derivedExchange = useMemo(
+    () => deriveExchange(exchange, fx?.usdKrw ?? null),
+    [exchange, fx]
+  );
+
   const rows: BondRow[] = useMemo(() => {
+    // 환전금액의 달러금액이 있으면 종목별 달러($) 자동값을 원화투자금액 비중대로
+    // 나눠 채운다(2자리 절사·잔동은 최대 종목 가산). 없으면 종전대로 종목별
+    // 원화투자금액 ÷ 원/달러 환율.
+    const useDistribution = derivedExchange.usdTotal > 0;
+    const distMap = useDistribution
+      ? distributeUsdByKrwWeight(
+          derivedExchange.usdTotal,
+          bonds
+            .filter((b) => checkedKeys.includes(b.maturityDate))
+            .map((b) => ({
+              key: b.maturityDate,
+              krw: Number(amounts[b.maturityDate] ?? "") || 0,
+            }))
+        )
+      : null;
+
     return bonds.map((bond) => {
       const key = bond.maturityDate;
       const checked = checkedKeys.includes(key);
@@ -141,12 +174,17 @@ export function OrderConsole() {
           ? null
           : computeNtnfPu(bond.maturityDate, bond.buyYieldPct, settlement);
 
-      // 달러($): 원화투자금액 ÷ 환율 자동값, 있으면 사용자 수정값
+      // 달러($): 자동값(비중 배분 또는 원화 ÷ 환율), 있으면 사용자 수정값
       const krwNum = Number(krwInput);
-      const autoUsd =
-        fx && krwInput !== "" && krwNum > 0
-          ? Math.round((krwNum / fx.usdKrw) * 100) / 100
-          : null;
+      let autoUsd: number | null;
+      if (distMap) {
+        autoUsd = checked && krwNum > 0 ? (distMap[key] ?? 0) : null;
+      } else {
+        autoUsd =
+          fx && krwInput !== "" && krwNum > 0
+            ? Math.round((krwNum / fx.usdKrw) * 100) / 100
+            : null;
+      }
       const usdOverride = usdOverrides[key];
       const usdEdited = usdOverride !== undefined && usdOverride !== "";
       const usdInput = usdEdited
@@ -196,7 +234,30 @@ export function OrderConsole() {
         orderQtyExceeds,
       };
     });
-  }, [bonds, checkedKeys, amounts, usdOverrides, orderQtys, fx, settlement]);
+  }, [
+    bonds,
+    checkedKeys,
+    amounts,
+    usdOverrides,
+    orderQtys,
+    fx,
+    settlement,
+    derivedExchange,
+  ]);
+
+  // 종목별 원화투자금액 합계 vs 환전금액 원화금액 — 일치해야 발송 가능
+  const checkedKrwTotal = useMemo(
+    () =>
+      rows.reduce(
+        (s, r) => s + (r.checked ? Number(r.krwInput) || 0 : 0),
+        0
+      ),
+    [rows]
+  );
+  const exchangeKrwTotal = derivedExchange.krwTotal;
+  const anyChecked = useMemo(() => rows.some((r) => r.checked), [rows]);
+  const krwMismatch =
+    exchangeKrwTotal > 0 && anyChecked && checkedKrwTotal !== exchangeKrwTotal;
 
   const pendingLines: PendingLine[] = useMemo(() => {
     return rows
@@ -330,7 +391,11 @@ export function OrderConsole() {
             </button>
           </div>
 
-          <CurrencyExchange usdKrw={fx?.usdKrw ?? null} />
+          <CurrencyExchange
+            usdKrw={fx?.usdKrw ?? null}
+            value={exchange}
+            onChange={setExchange}
+          />
 
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             주문일 {orderDate} · 결제일 {settlementDate} (D+0 브라질 영업일)
@@ -343,6 +408,7 @@ export function OrderConsole() {
             error={bondError}
             fxReady={!!fx}
             settlementDate={settlementDate}
+            exchangeKrwTotal={exchangeKrwTotal}
             onToggle={toggle}
             onAmountChange={changeAmount}
             onUsdChange={changeUsd}
@@ -355,6 +421,12 @@ export function OrderConsole() {
             fx={fx}
             defaultTo={defaultTo}
             defaultCc={defaultCc}
+            krwMismatch={krwMismatch}
+            krwMismatchDetail={
+              krwMismatch
+                ? { rows: checkedKrwTotal, exchange: exchangeKrwTotal }
+                : null
+            }
           />
 
           <footer className="pb-8 text-[11px] text-zinc-400">

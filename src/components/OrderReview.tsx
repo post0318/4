@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { fmtInt, fmtNum } from "@/lib/format";
+import { fmtInt, fmtNum, groupDigits } from "@/lib/format";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import type { FxRates } from "@/lib/types";
 
@@ -30,6 +30,9 @@ interface OrderReviewProps {
   fx: FxRates | null;
   defaultTo: string;
   defaultCc: string;
+  /** 종목별 원화투자금액 합계 ≠ 환전금액 원화금액 — 발송 차단 */
+  krwMismatch?: boolean;
+  krwMismatchDetail?: { rows: number; exchange: number } | null;
 }
 
 type SendState =
@@ -54,6 +57,8 @@ export function OrderReview({
   fx,
   defaultTo,
   defaultCc,
+  krwMismatch = false,
+  krwMismatchDetail = null,
 }: OrderReviewProps) {
   // 사용자가 수정하기 전까지는 기본 수신자/참조(뒤늦게 로드될 수 있음)를 따른다
   const [toOverride, setToOverride] = useState<string | null>(null);
@@ -91,6 +96,7 @@ export function OrderReview({
     confirmed &&
     emailValid &&
     ccValid &&
+    !krwMismatch &&
     send.status !== "sending";
 
   const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
@@ -219,11 +225,25 @@ export function OrderReview({
         className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
       />
 
+      {krwMismatch && (
+        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
+          종목별 원화투자금액 합계
+          {krwMismatchDetail
+            ? ` ₩${groupDigits(String(krwMismatchDetail.rows))}`
+            : ""}
+          가 환전금액의 원화금액
+          {krwMismatchDetail
+            ? ` ₩${groupDigits(String(krwMismatchDetail.exchange))}`
+            : ""}
+          과 다릅니다. 두 값을 일치시켜야 발송할 수 있습니다.
+        </p>
+      )}
+
       <label className="mt-3 flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
         <input
           type="checkbox"
           checked={confirmed}
-          disabled={lines.length === 0}
+          disabled={lines.length === 0 || krwMismatch}
           onChange={(e) => setConfirmedSig(e.target.checked ? signature : null)}
           className="mt-0.5 h-4 w-4"
         />
