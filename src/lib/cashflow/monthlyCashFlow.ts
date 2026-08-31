@@ -10,6 +10,7 @@ import {
   getInvestmentDays,
 } from "@/lib/cashflow/couponSchedule";
 import { computeBondPricing, roundDown } from "@/lib/cashflow/bondPricing";
+import { isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
 import { CASH_INTEREST_TAX_RATE } from "@/lib/cashflow/taxRules";
 import { koreaPaymentDate } from "@/lib/cashflow/koreaCalendar";
 
@@ -116,7 +117,7 @@ export function generateMonthlyCashFlow(
   const maturity = new Date(input.maturityDate);
   const contract = new Date(input.trustContractDate);
   const settlement = new Date(pricing.settlementDate);
-  if (Number.isNaN(maturity.getTime()) || Number.isNaN(contract.getTime())) {
+  if (!isPlausibleYear(maturity) || !isPlausibleYear(contract)) {
     return null;
   }
 

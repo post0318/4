@@ -1,5 +1,5 @@
 import { CouponFrequency } from "@/lib/cashflow/bondLayout";
-import { isBrazilBusinessDay } from "@/lib/cashflow/brazilCalendar";
+import { isBrazilBusinessDay, isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
 
 const TRUST_MATURITY_LEAD_DAYS = 11;
 
@@ -38,7 +38,7 @@ export function toDateString(date: Date): string {
  */
 export function getSettlementDate(trustContractDate: string): Date | null {
   const start = new Date(trustContractDate);
-  if (Number.isNaN(start.getTime())) return null;
+  if (!isPlausibleYear(start)) return null;
 
   let date = start;
   while (!isBrazilBusinessDay(date)) date = addDays(date, 1);
@@ -117,11 +117,7 @@ export function generateCouponSchedule(
 ): string[] {
   const issue = new Date(issueDate);
   const maturity = new Date(maturityDate);
-  if (
-    Number.isNaN(issue.getTime()) ||
-    Number.isNaN(maturity.getTime()) ||
-    maturity <= issue
-  ) {
+  if (!isPlausibleYear(issue) || !isPlausibleYear(maturity) || maturity <= issue) {
     return [];
   }
 

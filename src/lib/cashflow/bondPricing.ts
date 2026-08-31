@@ -6,7 +6,10 @@ import {
   getCouponPeriod,
   getSettlementDate,
 } from "@/lib/cashflow/couponSchedule";
-import { brazilBusinessDaysBetween } from "@/lib/cashflow/brazilCalendar";
+import {
+  brazilBusinessDaysBetween,
+  isPlausibleYear,
+} from "@/lib/cashflow/brazilCalendar";
 
 export const BASIS_INDEX: Record<CalcBasis, number> = {
   "미국 30/360": 0,
@@ -295,7 +298,7 @@ export function computeBondPricing(
   const frontFeeRate = Number(input.frontFeeRate);
 
   if (
-    Number.isNaN(maturity.getTime()) ||
+    !isPlausibleYear(maturity) ||
     Number.isNaN(rate) ||
     Number.isNaN(yld) ||
     !input.trustInvestmentAmount ||
@@ -314,10 +317,14 @@ export function computeBondPricing(
   const isBrazil = input.calcBasis === "Business/252";
   const redemptionBasis = isBrazil ? 1000 : input.tradeCurrency === "KRW" ? 10000 : 100;
 
-  const recentCoupon = input.recentCouponDate
+  const recentCouponInput = input.recentCouponDate
     ? new Date(input.recentCouponDate)
-    : getCouponPeriod(maturity, input.couponFrequency, settlement)
-        .previousCouponDate;
+    : null;
+  if (recentCouponInput && !isPlausibleYear(recentCouponInput)) return null;
+  const recentCoupon =
+    recentCouponInput ??
+    getCouponPeriod(maturity, input.couponFrequency, settlement)
+      .previousCouponDate;
 
   const basis = BASIS_INDEX[input.calcBasis];
   const accrualFrac = yearFrac(recentCoupon, settlement, basis);

@@ -75,6 +75,18 @@ export function isBrazilBusinessDay(date: Date): boolean {
 }
 
 /**
+ * 날짜 입력란에 직접 타이핑하면 연도가 한 자리씩 채워지며 "0002"·"0202" 같은
+ * 미완성 값이 흘러든다. 이 경우 결제일이 서기 2년 등이 되어, 만기까지의 브라질
+ * 영업일수를 하루씩 걷는 루프가 수백만 회 돌며 탭이 멈춘다. 현실적 범위
+ * (1990~2200년) 밖이면 유효하지 않은 것으로 본다.
+ */
+export function isPlausibleYear(date: Date): boolean {
+  if (Number.isNaN(date.getTime())) return false;
+  const y = date.getFullYear();
+  return y >= 1990 && y <= 2200;
+}
+
+/**
  * start(제외)부터 end(포함)까지의 브라질 영업일수를 센다. start > end면 음수를
  * 반환한다(다른 yearFrac 구현들과의 부호 규칙 일치).
  */
@@ -86,6 +98,12 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
     [s, e] = [e, s];
     sign = -1;
   }
+
+  // 백스톱: NTN-F 최장 만기도 ~15년이다. 100년을 넘는 구간은 잘못된 입력
+  // (직접 타이핑 중인 미완성 날짜 등)이므로, 하루씩 걷는 아래 루프가 수백만 회
+  // 돌며 탭을 멈추기 전에 NaN을 반환한다.
+  const MAX_SPAN_MS = 100 * 366 * 24 * 60 * 60 * 1000;
+  if (e.getTime() - s.getTime() > MAX_SPAN_MS) return NaN;
 
   let count = 0;
   const cursor = addDays(s, 1);

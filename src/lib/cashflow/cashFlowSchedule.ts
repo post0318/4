@@ -6,6 +6,7 @@ import {
 } from "@/lib/cashflow/bondLayout";
 import { FREQUENCY_MONTHS, addMonths } from "@/lib/cashflow/couponSchedule";
 import { computeBondPricing, roundDown } from "@/lib/cashflow/bondPricing";
+import { isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
 import {
   CASH_INTEREST_TAX_RATE,
   getEffectiveIncomeTaxRate,
@@ -76,8 +77,7 @@ export function generateFixCashFlow(
 
   const maturity = new Date(input.maturityDate);
   const contractDate = new Date(input.trustContractDate);
-  if (Number.isNaN(maturity.getTime()) || Number.isNaN(contractDate.getTime()))
-    return null;
+  if (!isPlausibleYear(maturity) || !isPlausibleYear(contractDate)) return null;
 
   const rate = Number(input.couponRate) / 100;
   const backFeeRate = Number(input.backFeeRate);
