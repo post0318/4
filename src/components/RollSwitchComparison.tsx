@@ -34,6 +34,16 @@ function pct(n: number, d = 1) {
 }
 const clean = normalizeDecimalInput;
 
+const DEFAULT_PRINCIPAL_KRW = "100000000";
+const DEFAULT_TRUST_FEE = "1.5";
+
+/** 중도매도 시점 기본값 = 최초투자시점 + 1년 */
+function defaultSellDate(from: Date): string {
+  const d = new Date(from);
+  d.setFullYear(d.getFullYear() + 1);
+  return toISODate(d);
+}
+
 /** 25 ─ A청산 ─ B만기 타임라인 */
 function Timeline({ leg }: { leg: RollSwitchLeg }) {
   const start = today().getFullYear();
@@ -194,22 +204,35 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     [bonds]
   );
 
-  const [principalKrw, setPrincipalKrw] = useState("100000000");
+  const [principalKrw, setPrincipalKrw] = useState(DEFAULT_PRINCIPAL_KRW);
   const [aKey, setAKey] = useState("");
   const [bKey, setBKey] = useState("");
   const [aYield, setAYield] = useState("");
   const [bYield, setBYield] = useState("");
   const [buyDate, setBuyDate] = useState(toISODate(now));
   const [sellYield, setSellYield] = useState("");
-  const [sellDate, setSellDate] = useState(() => {
-    const d = new Date(now);
-    d.setFullYear(d.getFullYear() + 1);
-    return toISODate(d);
-  });
+  const [sellDate, setSellDate] = useState(() => defaultSellDate(now));
   const [fxRate, setFxRate] = useState("");
-  const [trustFee, setTrustFee] = useState("1.5");
+  const [trustFee, setTrustFee] = useState(DEFAULT_TRUST_FEE);
   const [buyPriceA, setBuyPriceA] = useState("");
   const [sellPriceA, setSellPriceA] = useState("");
+
+  /** 모든 입력을 기본 세팅으로 되돌린다 */
+  const reset = () => {
+    const n = today();
+    setPrincipalKrw(DEFAULT_PRINCIPAL_KRW);
+    setAKey("");
+    setBKey("");
+    setAYield("");
+    setBYield("");
+    setBuyDate(toISODate(n));
+    setSellYield("");
+    setSellDate(defaultSellDate(n));
+    setFxRate("");
+    setTrustFee(DEFAULT_TRUST_FEE);
+    setBuyPriceA("");
+    setSellPriceA("");
+  };
 
   const bondA = sorted.find((x) => x.maturityDate === aKey) ?? sorted[0];
   const bondB =
@@ -278,12 +301,21 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
   return (
     <>
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        시뮬레이션{" "}
-        <span className="text-[11px] font-normal text-zinc-400">
-          (롤오버 vs 갈아타기)
-        </span>
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          시뮬레이션{" "}
+          <span className="text-[11px] font-normal text-zinc-400">
+            (롤오버 vs 갈아타기)
+          </span>
+        </h2>
+        <button
+          type="button"
+          onClick={reset}
+          className="shrink-0 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          초기화
+        </button>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <label className="block">
