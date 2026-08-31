@@ -1,20 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 페이지 바닥은 카드(흰색)가 떠 보이도록 살짝 낮춘 회색 */
+  --background: #f7f7f8;
+  --surface: #ffffff;
+  --foreground: #18181b;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: ui-monospace, "Courier New", monospace;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Courier New", monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #09090b;
+    --surface: #0c0c0e;
     --foreground: #ededed;
   }
 }
@@ -22,7 +29,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* 제목 옆 브라질 국기: 깃대(왼쪽) 기준으로 은은하게 펄럭이는 느낌 */

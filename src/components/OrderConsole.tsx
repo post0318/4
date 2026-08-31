@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
+import { Tabs } from "@/components/ui/Tabs";
+import { Button } from "@/components/ui/Button";
 import {
   CurrencyExchange,
   deriveExchange,
@@ -307,9 +309,9 @@ export function OrderConsole() {
   ];
 
   return (
-    <div className="print-page mx-auto grid max-w-6xl gap-4 p-4 sm:p-6">
+    <div className="print-page mx-auto grid max-w-6xl gap-5 p-4 sm:p-6">
       <header className="print:hidden">
-        <h1 className="flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">
+        <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={BRAZIL_FLAG_DATA_URI}
@@ -322,23 +324,12 @@ export function OrderConsole() {
         </h1>
       </header>
 
-      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800 print:hidden">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            aria-current={tab === t.key}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-              tab === t.key
-                ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        className="print:hidden"
+      />
 
       {tab === "market" && (
         <>
@@ -354,41 +345,49 @@ export function OrderConsole() {
 
       {tab === "trading" && (
         <>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950">
-            <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-zinc-200/80 bg-white px-3.5 py-2.5 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none">
+            <span className="font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
               환율
             </span>
             {fx ? (
               <>
                 <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
-                  원/달러 ₩{fx.usdKrw.toLocaleString("ko-KR", {
-                    maximumFractionDigits: 2,
-                  })}
+                  원/달러{" "}
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    ₩{fx.usdKrw.toLocaleString("ko-KR", {
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
                 </span>
                 <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
-                  원/헤알 ₩{fx.krwBrl.toLocaleString("ko-KR", {
-                    maximumFractionDigits: 2,
-                  })}
+                  원/헤알{" "}
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    ₩{fx.krwBrl.toLocaleString("ko-KR", {
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
                 </span>
                 <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
-                  달러/헤알 R${fx.usdBrl.toLocaleString("ko-KR", {
-                    maximumFractionDigits: 4,
-                  })}
+                  달러/헤알{" "}
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    R${fx.usdBrl.toLocaleString("ko-KR", {
+                      maximumFractionDigits: 4,
+                    })}
+                  </span>
                 </span>
               </>
             ) : (
-              <span className="text-zinc-400">
-                {fxError ?? "불러오는 중…"}
-              </span>
+              <span className="text-zinc-400">{fxError ?? "불러오는 중…"}</span>
             )}
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={loadFx}
               disabled={fxLoading}
-              className="ml-auto rounded border border-zinc-300 px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              className="ml-auto"
             >
               {fxLoading ? "조회 중…" : "새로고침"}
-            </button>
+            </Button>
           </div>
 
           <CurrencyExchange

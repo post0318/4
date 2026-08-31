@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { FxHistoryChart, type ChartSeries } from "@/components/FxHistoryChart";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { cn, hint } from "@/lib/ui";
 import { fmtNum, fmtTimestamp } from "@/lib/format";
 import type { FxRates } from "@/lib/types";
 
@@ -171,20 +174,15 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   }
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          브라질 시장정보
-        </h2>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-        >
-          {loading ? "조회 중…" : "새로고침"}
-        </button>
-      </div>
+    <Card>
+      <CardHeader
+        title="브라질 시장정보"
+        action={
+          <Button size="sm" onClick={onRefresh} disabled={loading}>
+            {loading ? "조회 중…" : "새로고침"}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cards.map((c) => {
@@ -195,26 +193,27 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
               type="button"
               onClick={() => setSelected(c.key)}
               aria-pressed={active}
-              className={`rounded-lg p-3 text-left transition-colors ${
+              className={cn(
+                "rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/25",
                 active
-                  ? "bg-blue-50 ring-1 ring-blue-400 dark:bg-blue-950/40"
-                  : "bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-              }`}
+                  ? "border-blue-300 bg-blue-50/70 dark:border-blue-800 dark:bg-blue-950/40"
+                  : "border-transparent bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+              )}
             >
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{c.label}</p>
-              <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {c.label}
+              </p>
+              <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-100">
                 {c.value}
               </p>
-              <p className="text-[11px] text-zinc-400">{c.hint}</p>
+              <p className="mt-0.5 text-[11px] text-zinc-400">{c.hint}</p>
             </button>
           );
         })}
       </div>
 
       {chartLoading && (
-        <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-          추이 불러오는 중…
-        </p>
+        <p className={cn(hint, "mt-2")}>추이 불러오는 중…</p>
       )}
       {chartError && !hist && (
         <p className="mt-2 text-[11px] text-red-500">{chartError}</p>
@@ -227,7 +226,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         </p>
       )}
 
-      <p className="mt-2 text-[11px] text-zinc-400">
+      <p className={cn(hint, "mt-3")}>
         {error
           ? error
           : rates
@@ -236,6 +235,6 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
               )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 국채금리 재무부(주간)`
             : "환율을 불러오는 중입니다."}
       </p>
-    </section>
+    </Card>
   );
 }
