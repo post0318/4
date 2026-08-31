@@ -31,6 +31,17 @@ export function normalizeDecimalInput(value: string): string {
   return oneDot.replace(/^0+(?=\d)/, "");
 }
 
+/**
+ * value를 소수 digits 자리에서 절사한다. 순진한 `Math.trunc(v*100)/100`은
+ * 8.70*100 = 869.9999… 같은 부동소수 표현오차 때문에 8.69로 깎이므로,
+ * 절사 전에 여유 자릿수(4자리)에서 반올림해 표현오차만 제거한다.
+ */
+export function truncDecimals(value: number, digits = 2): number {
+  if (!Number.isFinite(value)) return value;
+  const f = Math.pow(10, digits);
+  return Math.trunc(Math.round(value * f * 1e4) / 1e4) / f;
+}
+
 /** 숫자만 있는 문자열에 천 단위 콤마를 넣는다. 입력창 표시용. */
 export function groupDigits(digits: string): string {
   if (!digits) return "";

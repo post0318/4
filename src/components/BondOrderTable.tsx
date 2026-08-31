@@ -39,14 +39,16 @@ interface BondOrderTableProps {
   onOrderQtyChange: (key: string, value: string) => void;
 }
 
-/** 달러 입력값 정규화: 숫자와 소수점 1개만 허용 */
+/** 달러 입력값 정규화: 숫자·소수점 1개, 소수 2자리까지만 */
 function sanitizeUsd(value: string): string {
   const cleaned = value.replace(/[^\d.]/g, "");
   const firstDot = cleaned.indexOf(".");
   if (firstDot === -1) return cleaned;
-  return (
-    cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "")
-  );
+  const frac = cleaned
+    .slice(firstDot + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+  return `${cleaned.slice(0, firstDot + 1)}${frac}`;
 }
 
 /**

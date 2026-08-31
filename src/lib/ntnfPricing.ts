@@ -42,7 +42,8 @@ export function parseLocalDate(iso: string): Date | null {
   // 같은 미완성 값이 onChange로 흘러든다. 이 경우 결제일이 1902년(JS의 2자리
   // 연도 규칙) 또는 서기 202년이 되어, 만기까지의 브라질 영업일수를 하루씩
   // 걷는 루프가 수백만 회 돌며 탭이 멈춘다. 현실적 범위만 통과시킨다.
-  if (year < 2000 || year > 2200) return null;
+  // (하한은 cashflow의 isPlausibleYear와 동일하게 1990.)
+  if (year < 1990 || year > 2200) return null;
   const d = new Date(year, Number(m[2]) - 1, Number(m[3]));
   return Number.isNaN(d.getTime()) ? null : d;
 }

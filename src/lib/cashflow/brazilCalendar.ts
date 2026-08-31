@@ -99,11 +99,13 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
     sign = -1;
   }
 
-  // 백스톱: NTN-F 최장 만기도 ~15년이다. 100년을 넘는 구간은 잘못된 입력
-  // (직접 타이핑 중인 미완성 날짜 등)이므로, 하루씩 걷는 아래 루프가 수백만 회
-  // 돌며 탭을 멈추기 전에 NaN을 반환한다.
+  // 잘못된 입력 방어: Invalid Date거나, NTN-F 최장 만기(~15년)를 훨씬 넘는
+  // 100년+ 구간(직접 타이핑 중인 미완성 날짜 등). 하루씩 걷는 아래 루프가
+  // 수백만 회 돌며 탭을 멈추는 것을 막는다. NaN은 상위 계산으로 전파돼
+  // 현금흐름표가 "-"로 비어 표시된다(멈춤만 확실히 해소).
+  const spanMs = e.getTime() - s.getTime();
   const MAX_SPAN_MS = 100 * 366 * 24 * 60 * 60 * 1000;
-  if (e.getTime() - s.getTime() > MAX_SPAN_MS) return NaN;
+  if (!Number.isFinite(spanMs) || spanMs > MAX_SPAN_MS) return NaN;
 
   let count = 0;
   const cursor = addDays(s, 1);

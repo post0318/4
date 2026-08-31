@@ -5,7 +5,14 @@ import {
   groupDecimal,
   groupDigits,
   normalizeDecimalInput,
+  truncDecimals,
 } from "@/lib/format";
+
+/** 소수 max자리 이하 잘라내기 (달러 입력은 2자리까지만) */
+function clampInputDecimals(s: string, max = 2): string {
+  const dot = s.indexOf(".");
+  return dot === -1 ? s : s.slice(0, dot + 1 + max);
+}
 
 export interface ExchangeState {
   /** 원화금액 (숫자 문자열) */
@@ -76,11 +83,12 @@ export function CurrencyExchange({ usdKrw, value, onChange }: Props) {
       : rateNum > 0 && usdNum > 0
         ? groupDigits(String(Math.round(usdNum * rateNum)))
         : "";
+  // 표시 달러금액은 배분(2자리 절사)과 같은 값이 되도록 반올림이 아니라 절사한다.
   const usdView = groupDecimal(
     value.driver === "usd"
       ? value.usd
       : rateNum > 0 && krwNum > 0
-        ? (krwNum / rateNum).toFixed(2)
+        ? truncDecimals(krwNum / rateNum, 2).toFixed(2)
         : ""
   );
 
@@ -162,7 +170,7 @@ export function CurrencyExchange({ usdKrw, value, onChange }: Props) {
               onChange({
                 ...value,
                 driver: "usd",
-                usd: sanitizeDecimal(e.target.value),
+                usd: clampInputDecimals(sanitizeDecimal(e.target.value), 2),
               })
             }
             className={field}

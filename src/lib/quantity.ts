@@ -9,6 +9,8 @@
  * 1좌당 매수가격(원 환산)을 낸다. 실제 주문수량은 사용자가 그 이하로 지정한다.
  */
 
+import { truncDecimals } from "@/lib/format";
+
 export interface OrderInputs {
   /** 달러 환전액 (USD) — 자동 산출값 또는 사용자 수정값 */
   usdAmount: number;
@@ -50,9 +52,9 @@ export function isValidOrderInputs(input: Partial<OrderInputs>): input is OrderI
   );
 }
 
-/** 소수 2자리에서 절사 */
+/** 소수 2자리에서 절사 (부동소수 표현오차 보정) */
 function trunc2(n: number): number {
-  return Math.trunc(n * 100) / 100;
+  return truncDecimals(n, 2);
 }
 
 /**
