@@ -28,6 +28,7 @@ import {
   distributeUsdByKrwWeight,
   isValidOrderInputs,
 } from "@/lib/quantity";
+import { truncDecimals } from "@/lib/format";
 import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 
 export function OrderConsole() {
@@ -247,19 +248,36 @@ export function OrderConsole() {
     derivedExchange,
   ]);
 
-  // 종목별 원화투자금액 합계 vs 환전금액 원화금액 — 일치해야 발송 가능
+  // 종목별 합계 vs 환전금액 — 원화·달러 모두 일치해야 발송 가능
   const checkedKrwTotal = useMemo(
     () =>
+      rows.reduce((s, r) => s + (r.checked ? Number(r.krwInput) || 0 : 0), 0),
+    [rows]
+  );
+  const checkedUsdTotal = useMemo(
+    () =>
       rows.reduce(
-        (s, r) => s + (r.checked ? Number(r.krwInput) || 0 : 0),
+        (s, r) => s + (r.checked ? parseFloat(r.usdInput || "0") || 0 : 0),
         0
       ),
     [rows]
   );
   const exchangeKrwTotal = derivedExchange.krwTotal;
+  const exchangeUsdTotal = derivedExchange.usdTotal;
   const anyChecked = useMemo(() => rows.some((r) => r.checked), [rows]);
+
   const krwMismatch =
     exchangeKrwTotal > 0 && anyChecked && checkedKrwTotal !== exchangeKrwTotal;
+  // 종목별 달러($)를 직접 수정하면 합계가 환전 달러금액과 어긋날 수 있다
+  const usdMismatch =
+    exchangeUsdTotal > 0 &&
+    anyChecked &&
+    Math.abs(
+      truncDecimals(checkedUsdTotal, 2) - truncDecimals(exchangeUsdTotal, 2)
+    ) >= 0.005;
+  // 환전금액을 아예 입력하지 않으면 원화·달러 대사를 건너뛴다 (경고만)
+  const exchangeUnused =
+    exchangeKrwTotal === 0 && anyChecked && checkedKrwTotal > 0;
 
   const pendingLines: PendingLine[] = useMemo(() => {
     return rows
@@ -408,6 +426,7 @@ export function OrderConsole() {
             fxReady={!!fx}
             settlementDate={settlementDate}
             exchangeKrwTotal={exchangeKrwTotal}
+            exchangeUsdTotal={exchangeUsdTotal}
             onToggle={toggle}
             onAmountChange={changeAmount}
             onUsdChange={changeUsd}
@@ -426,6 +445,16 @@ export function OrderConsole() {
                 ? { rows: checkedKrwTotal, exchange: exchangeKrwTotal }
                 : null
             }
+            usdMismatch={usdMismatch}
+            usdMismatchDetail={
+              usdMismatch
+                ? {
+                    rows: truncDecimals(checkedUsdTotal, 2),
+                    exchange: truncDecimals(exchangeUsdTotal, 2),
+                  }
+                : null
+            }
+            exchangeUnused={exchangeUnused}
           />
 
           <footer className="pb-8 text-[11px] text-zinc-400">

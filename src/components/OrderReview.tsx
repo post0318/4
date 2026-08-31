@@ -33,6 +33,11 @@ interface OrderReviewProps {
   /** 종목별 원화투자금액 합계 ≠ 환전금액 원화금액 — 발송 차단 */
   krwMismatch?: boolean;
   krwMismatchDetail?: { rows: number; exchange: number } | null;
+  /** 종목별 달러($) 합계 ≠ 환전금액 달러금액 (수동 수정 등) — 발송 차단 */
+  usdMismatch?: boolean;
+  usdMismatchDetail?: { rows: number; exchange: number } | null;
+  /** 환전금액 미입력 → 대사 미수행 (경고만, 차단 안 함) */
+  exchangeUnused?: boolean;
 }
 
 type SendState =
@@ -59,6 +64,9 @@ export function OrderReview({
   defaultCc,
   krwMismatch = false,
   krwMismatchDetail = null,
+  usdMismatch = false,
+  usdMismatchDetail = null,
+  exchangeUnused = false,
 }: OrderReviewProps) {
   // 사용자가 수정하기 전까지는 기본 수신자/참조(뒤늦게 로드될 수 있음)를 따른다
   const [toOverride, setToOverride] = useState<string | null>(null);
@@ -91,12 +99,13 @@ export function OrderReview({
   const ccList = parseRecipients(cc);
   const emailValid = allValidEmails(recipients);
   const ccValid = ccList.length === 0 || allValidEmails(ccList);
+  const blockedByMatch = krwMismatch || usdMismatch;
   const canSend =
     lines.length > 0 &&
     confirmed &&
     emailValid &&
     ccValid &&
-    !krwMismatch &&
+    !blockedByMatch &&
     send.status !== "sending";
 
   const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
@@ -239,11 +248,33 @@ export function OrderReview({
         </p>
       )}
 
+      {usdMismatch && (
+        <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
+          종목별 달러($) 합계
+          {usdMismatchDetail
+            ? ` $${fmtNum(usdMismatchDetail.rows, 2)}`
+            : ""}
+          가 환전금액의 달러금액
+          {usdMismatchDetail
+            ? ` $${fmtNum(usdMismatchDetail.exchange, 2)}`
+            : ""}
+          과 다릅니다. 종목별 달러($)를 직접 수정한 경우 자동값으로 되돌리거나
+          합계를 맞춰야 발송할 수 있습니다.
+        </p>
+      )}
+
+      {exchangeUnused && !krwMismatch && !usdMismatch && (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          환전금액을 입력하지 않아 원화·달러 합계 대사를 건너뛰었습니다. 종목별
+          원화투자금액이 의도한 총 환전액과 맞는지 직접 확인하세요.
+        </p>
+      )}
+
       <label className="mt-3 flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
         <input
           type="checkbox"
           checked={confirmed}
-          disabled={lines.length === 0 || krwMismatch}
+          disabled={lines.length === 0 || blockedByMatch}
           onChange={(e) => setConfirmedSig(e.target.checked ? signature : null)}
           className="mt-0.5 h-4 w-4"
         />

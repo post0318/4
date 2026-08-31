@@ -1,6 +1,13 @@
 "use client";
 
-import { digitsOnly, fmtInt, fmtNum, groupDecimal, groupDigits } from "@/lib/format";
+import {
+  digitsOnly,
+  fmtInt,
+  fmtNum,
+  groupDecimal,
+  groupDigits,
+  truncDecimals,
+} from "@/lib/format";
 import type { OrderResult } from "@/lib/quantity";
 import type { BondItem } from "@/lib/types";
 
@@ -33,6 +40,8 @@ interface BondOrderTableProps {
   settlementDate: string;
   /** 환전금액의 원화금액 (0이면 미입력) — 원화투자금액 합계와의 차이 표시용 */
   exchangeKrwTotal: number;
+  /** 환전금액의 달러금액 (0이면 미입력) — 달러($) 합계와의 차이 표시용 */
+  exchangeUsdTotal: number;
   onToggle: (key: string) => void;
   onAmountChange: (key: string, value: string) => void;
   onUsdChange: (key: string, value: string) => void;
@@ -66,6 +75,7 @@ export function BondOrderTable({
   fxReady,
   settlementDate,
   exchangeKrwTotal,
+  exchangeUsdTotal,
   onToggle,
   onAmountChange,
   onUsdChange,
@@ -87,6 +97,7 @@ export function BondOrderTable({
     0
   );
   const krwDiff = totalKrw - exchangeKrwTotal;
+  const usdDiff = truncDecimals(totalUsd - exchangeUsdTotal, 2);
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -256,6 +267,26 @@ export function BondOrderTable({
                           groupDecimal(String(krwDiff))}
                     </td>
                     <td className={td} colSpan={5} />
+                  </tr>
+                )}
+                {exchangeUsdTotal > 0 && (
+                  <tr
+                    className={
+                      usdDiff === 0
+                        ? "text-zinc-500 dark:text-zinc-400"
+                        : "font-semibold text-red-600 dark:text-red-400"
+                    }
+                  >
+                    <td className={`${td} text-right`} colSpan={6}>
+                      환전금액 달러금액(${fmtNum(exchangeUsdTotal, 2)})과의 차이
+                    </td>
+                    <td className={`${td} text-right`}>
+                      {usdDiff === 0
+                        ? "0"
+                        : (usdDiff > 0 ? "+" : "−") +
+                          fmtNum(Math.abs(usdDiff), 2)}
+                    </td>
+                    <td className={td} colSpan={4} />
                   </tr>
                 )}
               </tfoot>
