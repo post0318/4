@@ -148,11 +148,15 @@ export function generateFixCashFlow(
         daysBetween(periodStart, date)
     );
 
-    // couponAmount(이번 회차 이자, 브라질은 복리환산 쿠폰)와 같은 기준으로
-    // 경과분을 계산해야 "이자-경과이자"가 일치한다. 별도로 단순금리(rate)를
-    // 다시 곱해 계산하면 브라질처럼 쿠폰이 복리환산인 경우 어긋난다.
+    // 경과이자(juros decorridos): 브라질은 ANBIMA 복리식(pricing.accruedInterest,
+    // BRL 액면통화 기준)을 수탁통화로 환산해 쓴다. 그 외는 종전대로 쿠폰의
+    // 경과연수 프로레이트.
     const preOwnedInterest =
-      index === 0 ? couponAmount * pricing.accrualFraction * freqPerYear : 0;
+      index === 0
+        ? input.calcBasis === "Business/252"
+          ? roundDown(pricing.accruedInterest, 2) * maturityFxRate
+          : couponAmount * pricing.accrualFraction * freqPerYear
+        : 0;
     const bondTaxableIncome =
       index === 0
         ? truncByCurrency(couponAmount - preOwnedInterest)

@@ -225,10 +225,10 @@ function brazilCouponDates(
  * 미국식 PRICE() 공식(days360Us 기반)과는 근본적으로 다른 ANBIMA 표준 공식을
  * 쓴다: 표면금리를 복리로 환산한 반기 실효쿠폰(예: 연 10% -> 반기 4.880885%,
  * "6개월마다 복리 환산 이자 지급")을 지급하고, 결제일부터 각 현금흐름까지의
- * 영업일수(Business/252)를 지수로 한 복리로 할인한다: PU = Σ CF/(1+수익률)^(영업일수/252).
- * 블룸버그 실제 값(NTN-F 2037, 수익률 14%, 2026-08-27 결제)과 대조해 0.04%
- * 이내로 일치함을 확인했다. computeCleanPrice(엑셀 PRICE 방식)를 그대로 쓰면
- * 이 특성을 반영하지 못해 3~5% 오차가 난다.
+ * 영업일수(Business/252, DU = 결제일 포함 ~ 현금흐름일 제외)를 지수로 한 복리로
+ * 할인한다: PU = Σ CF/(1+수익률)^(DU/252). DU 컨벤션을 [S,C)로 맞춰 Tesouro
+ * 공시 PU와 0.001% 이내로 일치함을 확인했다(2026-09 감사). computeCleanPrice
+ * (엑셀 PRICE 방식)를 그대로 쓰면 이 특성을 반영하지 못해 3~5% 오차가 난다.
  */
 export function computeBrazilDirtyPrice(
   settlement: Date,
@@ -287,6 +287,21 @@ export interface BondPricingResult {
   reserveAmount: number;
 }
 
+/**
+ * 경과이자(juros decorridos). 브라질(Business/252)은 ANBIMA 관행대로 복리
+ * VN×((1+표면금리)^(경과영업일/252)−1), 그 외 관행은 표면금리×경과연수(단리).
+ */
+function accruedInterestFor(
+  notional: number,
+  couponRateDec: number,
+  accrualFrac: number,
+  isBrazil: boolean
+): number {
+  return isBrazil
+    ? notional * (Math.pow(1 + couponRateDec, accrualFrac) - 1)
+    : notional * couponRateDec * accrualFrac;
+}
+
 /** 채권권면액/매수단가(clean·dirty)/경과이자/결제금액/현금잔액을 fix.xlsx 수식과 동일한 순서로 계산한다 */
 export function computeBondPricing(
   input: BondPricingInputs
@@ -343,7 +358,10 @@ export function computeBondPricing(
     );
     if (dirtyRaw === null) return null;
     dirtyPrice = roundUp(dirtyRaw, 4);
-    cleanPrice = roundUp(dirtyPrice - redemptionBasis * (rate / 100) * accrualFrac, 4);
+    cleanPrice = roundUp(
+      dirtyPrice - accruedInterestFor(redemptionBasis, rate / 100, accrualFrac, true),
+      4
+    );
   } else {
     const cleanRaw = computeCleanPrice(
       settlement,
@@ -356,7 +374,7 @@ export function computeBondPricing(
     if (cleanRaw === null) return null;
     cleanPrice = roundUp(cleanRaw, 4);
     dirtyPrice = roundUp(
-      cleanPrice + redemptionBasis * (rate / 100) * accrualFrac,
+      cleanPrice + accruedInterestFor(redemptionBasis, rate / 100, accrualFrac, false),
       4
     );
   }
@@ -375,7 +393,12 @@ export function computeBondPricing(
     -3
   );
 
-  const accruedInterest = faceValue * (rate / 100) * accrualFrac;
+  const accruedInterest = accruedInterestFor(
+    faceValue,
+    rate / 100,
+    accrualFrac,
+    isBrazil
+  );
   const settlementAmountRaw = (faceValue * dirtyPrice) / redemptionBasis * fxRate;
   // 화면에 보이는 결제금액(수탁통화 KRW는 정수 절사, 그 외는 소수점 2자리
   // 절사)과 실제로 현금잔액 계산에 쓰는 값이 달라서

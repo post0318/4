@@ -37,7 +37,7 @@ export interface MonthlyCashFlowRow {
   taxBase: number;
   /** 소득세 = 과세표준 × 15.4% */
   incomeTax: number;
-  /** 세후수령액 = 월지급액 − 소득세 */
+  /** 세후수령액 = 월지급액 − 후취보수 − 소득세 */
   netAmount: number;
 }
 
@@ -105,7 +105,8 @@ type Event =
  * - 첫 쿠폰 전(Phase 1): 유보현금에서 매월 10일 지급. 원금분은 비과세, 원금 잔액 차감.
  * - 쿠폰 수령 후(Phase 2): 쿠폰을 6개월 분할 지급. 지급액은 현금이자분 → 채권이자분
  *   → (첫 쿠폰만) 경과이자분 순으로 충당. 경과이자분만 원금 잔액 차감.
- * - 매 회차 과세: 그 구간 현금성이자 × 15.4% (선취/후취보수 공제 반영).
+ * - 매 회차: 그 구간 후취보수를 지급액에서 차감(반기형과 동일). 채권이자는 비과세,
+ *   과세는 그 구간 현금성이자 × 15.4% (선취/후취보수 공제 반영).
  * - 만기: 마지막 쿠폰은 분할하지 않고 신탁만기일에 원금상환·잔여현금과 함께 청산 지급.
  */
 export function generateMonthlyCashFlow(
@@ -147,8 +148,11 @@ export function generateMonthlyCashFlow(
       : (rate * pricing.faceValue) / freqPerYear;
   const semiCoupon = trunc(roundDown(semiCouponFace, 2) * maturityFx);
   const principalRedemption = trunc(pricing.faceValue * maturityFx);
+  // 경과이자: 브라질은 ANBIMA 복리식(pricing.accruedInterest, BRL 기준)을 환산.
   const preOwnedInterest = trunc(
-    semiCoupon * pricing.accrualFraction * freqPerYear
+    input.calcBasis === "Business/252"
+      ? roundDown(pricing.accruedInterest, 2) * maturityFx
+      : semiCoupon * pricing.accrualFraction * freqPerYear
   );
   const monthlyPayout = trunc(semiCoupon / paymentsPerCycle);
   const lastPayout = trunc(semiCoupon - monthlyPayout * (paymentsPerCycle - 1));
@@ -196,6 +200,11 @@ export function generateMonthlyCashFlow(
   let held = pricing.reserveAmount + pricing.cashBalance; // 보유현금
   let principalLedger = trustAmount; // 경과이자차감 원금
   let prev = settlement;
+  // 후취보수: 반기형과 동일하게 신탁 전 기간(계약일~신탁만기일) 연속 누적한다.
+  // 기산일(backFeePrev)은 쿠폰수령 이벤트로 끊기지 않는다. 기준원금은 신탁
+  // 투자금액에서 첫 회차 경과이자 반환분만 차감한 값으로 고정.
+  let backFeePrev = contract;
+  let backFeeBase = trustAmount;
   let carryFrontFee = frontFeeAmount;
   let carryBackFeeResidual = 0;
   let firstCouponReceived = false;
@@ -219,6 +228,7 @@ export function generateMonthlyCashFlow(
         firstCouponReceived = true;
         remainingPreOwned = preOwnedInterest;
         remainingRealInterest = semiCoupon - preOwnedInterest;
+        backFeeBase -= preOwnedInterest;
       } else {
         remainingRealInterest += semiCoupon;
       }
@@ -226,10 +236,12 @@ export function generateMonthlyCashFlow(
       continue;
     }
 
-    // 선취/후취보수 공제 (반기와 동일 로직)
-    // 후취보수 기준 원금: 경과이자 반환 등으로 줄어든 현재 원금 잔액(principalLedger)
+    // 후취보수: 지급액에서 차감(C1) + 과세 공제. 기산일은 쿠폰수령으로 끊기지
+    // 않고 연속 누적하므로 daysBetween(backFeePrev, ev.date)를 쓴다.
+    const backFeeDays = Math.max(0, daysBetween(backFeePrev, ev.date));
+    backFeePrev = ev.date;
     const backFeeThisPeriod =
-      ((principalLedger * (backFeeRate / 100)) / 365) * Math.max(0, days);
+      ((backFeeBase * (backFeeRate / 100)) / 365) * backFeeDays;
     const totalDeduction = carryFrontFee + carryBackFeeResidual + backFeeThisPeriod;
 
     let payout = 0;
@@ -273,7 +285,7 @@ export function generateMonthlyCashFlow(
         cashIncomePart > totalDeduction ? cashIncomePart - totalDeduction : 0
       );
       const incomeTax = roundTax(taxBase * CASH_INTEREST_TAX_RATE);
-      const netAmount = trunc(payout - incomeTax);
+      const netAmount = trunc(payout - backFeeThisPeriod - incomeTax);
 
       rows.push({
         date: ev.date.toISOString().slice(0, 10),
@@ -315,7 +327,7 @@ export function generateMonthlyCashFlow(
         cashInterest > totalDeduction ? cashInterest - totalDeduction : 0
       );
       const incomeTax = roundTax(taxBase * CASH_INTEREST_TAX_RATE);
-      const netAmount = trunc(payout - incomeTax);
+      const netAmount = trunc(payout - backFeeThisPeriod - incomeTax);
 
       rows.push({
         date: ev.date.toISOString().slice(0, 10),

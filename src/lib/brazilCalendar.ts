@@ -83,8 +83,9 @@ export function isBrazilBusinessDay(date: Date): boolean {
 }
 
 /**
- * start(제외)부터 end(포함)까지의 브라질 영업일수를 센다. start > end면 음수를
- * 반환한다(다른 yearFrac 구현들과의 부호 규칙 일치).
+ * start(포함)부터 end(제외)까지의 브라질 영업일수(DU)를 센다 — ANBIMA/Tesouro
+ * 관행(결제일 포함 ~ 현금흐름일 제외)과 일치한다. start > end면 음수를 반환한다
+ * (다른 yearFrac 구현들과의 부호 규칙 일치).
  */
 export function brazilBusinessDaysBetween(start: Date, end: Date): number {
   let s = start;
@@ -104,8 +105,9 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
   if (!Number.isFinite(spanMs) || spanMs > MAX_SPAN_MS) return NaN;
 
   let count = 0;
-  const cursor = addDays(s, 1);
-  while (cursor <= e) {
+  const cursor = new Date(s); // 시작일 포함
+  while (cursor < e) {
+    // 종료일 제외
     if (isBrazilBusinessDay(cursor)) count++;
     cursor.setDate(cursor.getDate() + 1);
   }
