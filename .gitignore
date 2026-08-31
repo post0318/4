@@ -24,8 +24,9 @@
 .DS_Store
 *.pem
 
-# claude code local state
-.claude/
+# claude code local state (단, 공유하는 에이전트 정의는 추적)
+.claude/*
+!.claude/agents/
 
 # debug
 npm-debug.log*
