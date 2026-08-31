@@ -7,8 +7,8 @@
  * 실제 거래되는 완본) 기준 ISIN을 만기연도로 매핑한다.
  *
  * 출처: maisretorno.com / investira.biz 티툴루스 퍼블리쿠스 DB. 2027~2035는
- * 복수 출처로 교차 확인됨(verified). 2037은 형제 종목 패턴 기반 추정이라
- * 화면에 "확인 필요" 뱃지를 띄운다. 공식 확인처는 브라질 재무부(STN) 등록부.
+ * 복수 출처로 교차 확인됨(verified). 2037은 블룸버그에서 공식 확인함
+ * (2026-08, ISIN BRSTNCNTF2K7).
  */
 
 export interface NtnfMeta {
@@ -56,7 +56,7 @@ const NTNF_META: Record<string, NtnfMeta> = {
   },
   "2037": {
     isin: "BRSTNCNTF2K7",
-    isinVerified: false,
+    isinVerified: true,
     nameKo: "브라질국채 NTN-F 2037",
     namePt: "Tesouro Prefixado com Juros Semestrais 2037",
   },

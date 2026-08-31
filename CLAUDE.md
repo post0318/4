@@ -31,7 +31,7 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 ## 구조
 
 - `src/lib/ntnfPricing.ts` — 매수단가(PU) ANBIMA 공식, 결제일(D+0 브라질 영업일)
-- `src/lib/ntnfMeta.ts` — 만기연도 → ISIN·종목명 정적 맵 (2037 ISIN 미확인)
+- `src/lib/ntnfMeta.ts` — 만기연도 → ISIN·종목명 정적 맵 (2027~2037 ISIN 확인 완료)
 - `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수
 - `src/lib/orderEmail.ts` — 주문 이메일 제목/본문 생성
 - `src/lib/ntnfSimulation.ts` — 신탁투자원금 기준 롤오버 vs 갈아타기 비교
