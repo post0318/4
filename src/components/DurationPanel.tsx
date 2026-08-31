@@ -26,12 +26,16 @@ function pct(v: number, d = 2) {
 // 환율 시나리오: 원화 대비 헤알화 강세(+) ~ 약세(−)
 const FX_SHIFTS = [15, 10, 5, 0, -5, -10, -15];
 
-/** 헤알 강세(+)면 붉게, 약세(−)면 푸르게 */
+/**
+ * 헤알 강세(+)는 따뜻한 모래빛, 약세(−)는 차분한 청회색으로 은은하게 구분한다.
+ * (원색 빨강/파랑 대신 채도를 낮춰 눈이 편하도록)
+ */
 function fxRowBg(shift: number): string | undefined {
-  const a = (Math.min(15, Math.abs(shift)) / 15) * 0.42;
-  if (shift > 0) return `rgba(239,68,68,${a})`;
-  if (shift < 0) return `rgba(59,130,246,${a})`;
-  return undefined;
+  if (shift === 0) return undefined;
+  const a = (Math.min(15, Math.abs(shift)) / 15) * 0.17 + 0.05; // 0.05~0.22
+  return shift > 0
+    ? `rgba(193, 126, 86, ${a.toFixed(3)})` // 소프트 테라코타 (강세)
+    : `rgba(96, 122, 150, ${a.toFixed(3)})`; // 차분한 슬레이트블루 (약세)
 }
 
 interface MatrixBond {
@@ -140,7 +144,8 @@ function ReturnMatrix({
         </table>
       </div>
       <p className="mt-1 text-xs text-zinc-400">
-        총누적수익률 = 잔존기간 전체 수익률. 헤알화 강세(＋)일수록 붉게.
+        총누적수익률 = 잔존기간 전체 수익률. 헤알화 강세(＋)는 따뜻한 색,
+        약세(−)는 차분한 색으로 표시.
       </p>
     </div>
   );
