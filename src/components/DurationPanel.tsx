@@ -306,18 +306,18 @@ export function DurationPanel({ bonds, fx }: Props) {
           </colgroup>
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/60">
-              <th className={`${th} text-left`}>종목</th>
-              <th className={`${th} text-right`}>수익률</th>
-              <th className={`${th} text-right`}>PU</th>
-              <th className={`${th} text-right`}>수정
+              <th className={`${th} text-center`}>종목</th>
+              <th className={`${th} text-center`}>수익률</th>
+              <th className={`${th} text-center`}>PU</th>
+              <th className={`${th} text-center`}>수정
                 <br />듀레이션</th>
-              <th className={`${th} text-right`}>수익률 0.01%p
+              <th className={`${th} text-center`}>수익률 0.01%p
                 <br />가격변화(R$)</th>
-              <th className={`${th} text-right`}>가격
+              <th className={`${th} text-center`}>가격
                 <br />변동</th>
-              <th className={`${th} text-right`}>환율
+              <th className={`${th} text-center`}>환율
                 <br />변동</th>
-              <th className={`${th} text-right`}>원화가치
+              <th className={`${th} text-center`}>원화가치
                 <br />변동</th>
             </tr>
           </thead>
