@@ -28,8 +28,9 @@ function units(n: number): string {
 }
 
 /**
- * 재투자형 현금흐름 — 회차별 [보유좌수 · 이자(R$) · 재매수단가 · 매수좌수 ·
- * 누적좌수 · 잔여현금(R$)], 만기 회차는 원화 회수액.
+ * 재투자형 현금흐름 — 회차별 [전기보유좌수 · 전기보유현금(R$) · 이자(R$) ·
+ * 재매수단가 · 매수좌수 · 당기보유좌수]. 당기 잔여현금은 다음 회차의
+ * 전기보유현금으로 이어지므로 별도 열을 두지 않는다.
  */
 export function ReinvestCashFlowTable({ rows, summary }: Props) {
   const data = rows ?? [];
@@ -42,7 +43,6 @@ export function ReinvestCashFlowTable({ rows, summary }: Props) {
     "재매수단가",
     "매수좌수",
     "당기보유좌수",
-    "잔여현금(R$)",
   ];
 
   const isTruncated = data.length > HEAD_ROWS + TAIL_ROWS;
@@ -102,11 +102,8 @@ export function ReinvestCashFlowTable({ rows, summary }: Props) {
       <td className="py-2 pr-2 text-right tabular-nums">
         {units(row.unitsBought)}
       </td>
-      <td className="py-2 pr-2 text-right tabular-nums font-medium">
+      <td className="py-2 text-right tabular-nums font-medium">
         {units(row.unitsAfter)}
-      </td>
-      <td className="py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-        {brl(row.cashBrl)}
       </td>
     </tr>
   );
