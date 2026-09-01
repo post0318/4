@@ -208,7 +208,11 @@ export function simulateRollVsSwitch(
     const proceeds = units * exitPriceA * (1 - frontFeePct / 100);
     const unitsEnd = Math.floor(proceeds / puB);
     const carryBrl = carryBrl0 + (proceeds - unitsEnd * puB);
-    const couponsA = nominalCoupons(settle, exitDate, units);
+    // A 보유자는 결제일(settleExit)까지 경제적 노출을 갖는다. A 쿠폰 구간을
+    // A 청산일(exitDate)이 아니라 결제일까지로 잡아야, 청산일이 비영업일일 때
+    // (exitDate, settleExit] 사이 이표일이 A에도 B에도 안 잡혀 증발하지 않는다.
+    // exitPriceA(갈아타기는 settleExit 기준 ex-coupon dirty PU)와도 정합.
+    const couponsA = nominalCoupons(settle, settleExit, units);
     const couponsB = nominalCoupons(settleExit, matB, unitsEnd);
     const finalBrl = unitsEnd * FACE + couponsA + couponsB + carryBrl;
 
