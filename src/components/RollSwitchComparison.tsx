@@ -9,7 +9,12 @@ import {
   groupDigits,
   normalizeDecimalInput,
 } from "@/lib/format";
-import { toISODate, today } from "@/lib/ntnfPricing";
+import {
+  getOrderSettlementDate,
+  parseIsoDate,
+  toISODate,
+  today,
+} from "@/lib/ntnfPricing";
 import {
   simulateRollVsSwitch,
   type RollSwitchInput,
@@ -42,6 +47,27 @@ function defaultSellDate(from: Date): string {
   const d = new Date(from);
   d.setUTCFullYear(d.getUTCFullYear() + 1);
   return toISODate(d);
+}
+
+/**
+ * 갈아타기(switch) 다리가 계산되지 않을 때(`result.switch === null`) 카드에
+ * 띄울 구체 사유. `simulateRollVsSwitch`의 `sell > settle && sell < matA` 조건을
+ * 사용자 언어로 되돌려준다.
+ */
+function switchUnavailableReason(
+  sellDate: string,
+  buyDate: string,
+  bondA: BondItem | undefined
+): string {
+  if (!sellDate) return "중도매도 시점을 입력하세요.";
+  const settleISO = toISODate(
+    getOrderSettlementDate(parseIsoDate(buyDate) ?? today())
+  );
+  if (sellDate <= settleISO)
+    return `중도매도 시점은 결제일(${settleISO}) 이후여야 합니다.`;
+  if (bondA && sellDate >= bondA.maturityDate)
+    return `중도매도 시점은 보유종목(A) 만기일(${bondA.maturityDate}) 이전이어야 합니다. 만기일 이후면 "만기상환 후 롤오버"입니다.`;
+  return "중도매도 조건을 확인하세요 (환율·매도수익률).";
 }
 
 /** 25 ─ A청산 ─ B만기 타임라인 */
@@ -118,15 +144,17 @@ function ScenarioCard({
   leg,
   frontFeePct,
   win,
+  reason,
 }: {
   leg: RollSwitchLeg | null;
   frontFeePct: number;
   win: boolean;
+  reason?: string;
 }) {
   if (!leg)
     return (
-      <div className="rounded-lg border border-zinc-200 p-3 text-xs text-zinc-400 dark:border-zinc-800">
-        조건을 확인하세요.
+      <div className="rounded-lg border border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {reason ?? "조건을 확인하세요."}
       </div>
     );
   return (
@@ -494,11 +522,17 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
               leg={result.rollover}
               frontFeePct={0}
               win={rollWin}
+              reason={
+                bondA && bondB && bondB.maturityDate <= bondA.maturityDate
+                  ? `갈아탈 종목(B) 만기가 보유종목(A) 만기보다 이르거나 같습니다. B를 더 장기물로 선택하세요.`
+                  : undefined
+              }
             />
             <ScenarioCard
               leg={result.switch}
               frontFeePct={parseFloat(trustFee) || 0}
               win={!rollWin && !!result.switch}
+              reason={switchUnavailableReason(sellDate, buyDate, bondA)}
             />
           </div>
         </>
