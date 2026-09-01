@@ -14,8 +14,9 @@ import {
  * (DU 컨벤션을 [S,C)로 맞춰 Tesouro 공시 PU와 0.001% 이내 일치 — 2026-09 감사.)
  */
 
-/** NTN-F 고정 파라미터 */
-const ANNUAL_COUPON_RATE = 0.1; // 표면이율 연 10%
+/** NTN-F 고정 파라미터 — 테조우로 나시오나우가 전 NTN-F를 아래 값으로 발행한다
+ *  (상품 정의상 불변, 종목·회차별로 달라지지 않음). */
+const ANNUAL_COUPON_RATE = 0.1; // 표면이율 연 10% (정의상 고정)
 const PERIODS_PER_YEAR = 2; // 6개월(반기) 지급
 const FACE = 1000; // 액면·상환가액 (per título)
 const BUSINESS_DAYS_PER_YEAR = 252;

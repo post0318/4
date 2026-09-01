@@ -1,7 +1,12 @@
 /**
  * 월지급 지급일(매월 10일) 계산에 쓰는 한국 영업일 캘린더.
  * 양력 고정공휴일 + 음력 명절(설날·부처님오신날·추석, KASI 발표 양력날짜 하드코딩)
- * + 대체공휴일 규칙까지 반영한다. 임시공휴일·선거일은 예측 불가라 미반영.
+ * + 대체공휴일 규칙(「공휴일에 관한 법률 시행령」 제3조)까지 반영한다.
+ * 임시공휴일·선거일은 예측 불가라 미반영.
+ *
+ * 대체공휴일: 설날·추석 연휴는 일요일 또는 다른 공휴일과 겹칠 때만(토요일 제외),
+ * 3·1절·광복절·개천절·한글날·어린이날·부처님오신날·성탄절은 토·일 또는 다른
+ * 공휴일과 겹칠 때. 신정·현충일은 대상 아님.
  *
  * 음력 명절 표는 2025~2040년만 담는다(현행 NTN-F 최장물 만기 + 신탁 청산분 커버).
  * 범위 밖 연도는 명절을 건너뛰고 양력 공휴일만 적용한다.
@@ -71,43 +76,52 @@ function baseHolidays(year: number): Date[] {
   return list;
 }
 
-/** 대체공휴일 대상 공휴일(신정·현충일 제외). 설/추석/어린이날은 토요일도 대체 적용. */
-function needsSubstitute(d: Date, satAlso: boolean): boolean {
-  const w = d.getDay();
-  return w === 0 || (satAlso && w === 6);
-}
-
 function koreaHolidaysOfYear(year: number): Set<string> {
   const cached = holidayCache.get(year);
   if (cached) return cached;
 
-  const set = new Set(baseHolidays(year).map(dateKey));
+  const baseList = baseHolidays(year);
+  const counts = new Map<string, number>();
+  for (const d of baseList) {
+    counts.set(dateKey(d), (counts.get(dateKey(d)) ?? 0) + 1);
+  }
+  const set = new Set(counts.keys());
+  // 같은 날에 공휴일이 둘 이상(예: 어린이날·부처님오신날) 겹치면 대체 대상
+  const overlapsOtherHoliday = (d: Date) => (counts.get(dateKey(d)) ?? 0) > 1;
 
-  // 대체공휴일: 겹침(주말/타공휴일)이 있으면 그 연휴의 마지막 날 다음의
-  // 첫 "비공휴일 평일"을 하나 추가한다.
+  // 대체공휴일 (「공휴일에 관한 법률 시행령」 제3조). 겹침이 있으면 그 연휴의
+  // 마지막 날 다음의 첫 "비공휴일 평일" 하나를 추가한다. 신정·현충일은 대상 아님.
+  // - 설날·추석 연휴: 일요일 또는 다른 공휴일과 겹칠 때 (토요일은 제외 — 이미 3일 연휴)
+  // - 그 외(3·1절·광복절·개천절·한글날·어린이날·부처님오신날·성탄절):
+  //   토요일·일요일 또는 다른 공휴일과 겹칠 때
   const rollFrom: Date[] = [];
   const lunar = LUNAR_HOLIDAYS[year];
   if (lunar) {
     const [seol, buddha, chuseok] = lunar.map(ymd);
     for (const anchor of [seol, chuseok]) {
       const trio = [addDays(anchor, -1), anchor, addDays(anchor, 1)];
-      if (trio.some((d) => needsSubstitute(d, true))) rollFrom.push(addDays(anchor, 1));
+      if (trio.some((d) => d.getDay() === 0 || overlapsOtherHoliday(d))) {
+        rollFrom.push(addDays(anchor, 1));
+      }
     }
-    if (needsSubstitute(buddha, false)) rollFrom.push(buddha);
+    if (isWeekend(buddha) || overlapsOtherHoliday(buddha)) rollFrom.push(buddha);
   }
-  for (const [m, d, satAlso] of [
-    [2, 1, false], // 삼일절
-    [4, 5, true], // 어린이날 (토요일도 대체)
-    [7, 15, false], // 광복절
-    [9, 3, false], // 개천절
-    [9, 9, false], // 한글날
-    [11, 25, false], // 성탄절
+  for (const [m, d] of [
+    [2, 1], // 삼일절
+    [4, 5], // 어린이날
+    [7, 15], // 광복절
+    [9, 3], // 개천절
+    [9, 9], // 한글날
+    [11, 25], // 성탄절
   ] as const) {
     const date = new Date(year, m, d);
-    if (needsSubstitute(date, satAlso)) rollFrom.push(date);
+    if (isWeekend(date) || overlapsOtherHoliday(date)) rollFrom.push(date);
   }
 
+  const rolled = new Set<string>();
   for (const start of rollFrom) {
+    if (rolled.has(dateKey(start))) continue; // 같은 날 두 공휴일 → 대체 1일
+    rolled.add(dateKey(start));
     let cur = addDays(start, 1);
     while (isWeekend(cur) || set.has(dateKey(cur))) cur = addDays(cur, 1);
     set.add(dateKey(cur));
