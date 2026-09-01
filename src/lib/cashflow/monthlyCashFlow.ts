@@ -288,8 +288,11 @@ export function generateMonthlyCashFlow(
       held -= payout;
       if (held < -1) cashWentNegative = true; // 반올림 오차(±1) 제외
 
+      // 과세표준은 그 구간(직전 지급일~이번 지급일) 발생한 현금이자 전액 기준이다.
+      // 월지급액보다 큰 현금이자가 발생해 일부가 신탁에 남더라도, 발생 시점에
+      // 신탁에 귀속된 이자소득이므로 그 회차에 과세한다(cashIncomePart로 캡 안 함).
       const taxBase = trunc(
-        cashIncomePart > totalDeduction ? cashIncomePart - totalDeduction : 0
+        cashInterest > totalDeduction ? cashInterest - totalDeduction : 0
       );
       const incomeTax = roundTax(taxBase * CASH_INTEREST_TAX_RATE);
       const netAmount = trunc(payout - backFeeThisPeriod - incomeTax);
