@@ -25,6 +25,27 @@ function actualDays(start: Date, end: Date): number {
   return Math.round((end.getTime() - start.getTime()) / MS_PER_DAY);
 }
 
+/**
+ * 반기(등) 실효 표면이율 계수 [(1+연이율)^(1/periods) − 1].
+ * ANBIMA "Caderno de Fórmulas — NTN-F"대로 백분율 기준 소수 6자리 반올림한다
+ * (연 10% → 반기 4.880885% → per 1,000 face 48.80885).
+ */
+export function anbimaCouponFactor(
+  annualRateDec: number,
+  periodsPerYear: number
+): number {
+  return (
+    Math.round(
+      (Math.pow(1 + annualRateDec, 1 / periodsPerYear) - 1) * 1e8
+    ) / 1e8
+  );
+}
+
+/** ANBIMA: PU는 소수 6자리 절사(truncamento). */
+export function truncPu(value: number): number {
+  return Math.trunc(value * 1e6) / 1e6;
+}
+
 /** 30/360 (미국 NASD) 방식 일수 */
 function days360Us(start: Date, end: Date): number {
   const y1 = start.getFullYear();
@@ -241,7 +262,7 @@ export function computeBrazilDirtyPrice(
   if (settlement >= maturity) return null;
 
   const f = FREQUENCY_PER_YEAR[frequency];
-  const coupon = redemption * (Math.pow(1 + annualRate, 1 / f) - 1);
+  const coupon = redemption * anbimaCouponFactor(annualRate, f);
   const dates = brazilCouponDates(settlement, maturity, frequency);
   if (dates.length === 0) return null;
 
@@ -357,10 +378,9 @@ export function computeBondPricing(
       input.couponFrequency
     );
     if (dirtyRaw === null) return null;
-    dirtyPrice = roundUp(dirtyRaw, 4);
-    cleanPrice = roundUp(
-      dirtyPrice - accruedInterestFor(redemptionBasis, rate / 100, accrualFrac, true),
-      4
+    dirtyPrice = truncPu(dirtyRaw);
+    cleanPrice = truncPu(
+      dirtyPrice - accruedInterestFor(redemptionBasis, rate / 100, accrualFrac, true)
     );
   } else {
     const cleanRaw = computeCleanPrice(

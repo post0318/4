@@ -21,6 +21,22 @@ const PERIODS_PER_YEAR = 2; // 6개월(반기) 지급
 const FACE = 1000; // 액면·상환가액 (per título)
 const BUSINESS_DAYS_PER_YEAR = 252;
 
+/**
+ * 반기 실효 표면이율 = [(1+연이율)^(1/2) − 1], ANBIMA "Caderno de Fórmulas — NTN-F"
+ * 대로 백분율 기준 소수 6자리 반올림 → 4.880885% → per 1,000 face = 48.80885.
+ */
+export const SEMI_COUPON =
+  (FACE *
+    Math.round(
+      (Math.pow(1 + ANNUAL_COUPON_RATE, 1 / PERIODS_PER_YEAR) - 1) * 1e8
+    )) /
+  1e8;
+
+/** ANBIMA: PU는 소수 6자리 절사(truncamento). */
+function truncPu(value: number): number {
+  return Math.trunc(value * 1e6) / 1e6;
+}
+
 function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
   result.setUTCMonth(result.getUTCMonth() + months);
@@ -86,11 +102,6 @@ function couponDates(settlement: Date, maturity: Date): Date[] {
   return dates;
 }
 
-function roundUp(value: number, digits: number): number {
-  const factor = Math.pow(10, digits);
-  return Math.ceil(value * factor) / factor;
-}
-
 /**
  * NTN-F 매수단가(PU, per 1,000 face = per título, dirty price).
  * @param maturityDate "YYYY-MM-DD"
@@ -108,8 +119,6 @@ export function computeNtnfPu(
   if (!Number.isFinite(buyYieldPct)) return null;
 
   const yld = buyYieldPct / 100;
-  const coupon =
-    FACE * (Math.pow(1 + ANNUAL_COUPON_RATE, 1 / PERIODS_PER_YEAR) - 1);
 
   const dates = couponDates(settlement, maturity);
   if (dates.length === 0) return null;
@@ -117,10 +126,10 @@ export function computeNtnfPu(
   let pv = 0;
   for (const date of dates) {
     const isMaturity = date.getTime() === maturity.getTime();
-    const cashFlow = coupon + (isMaturity ? FACE : 0);
+    const cashFlow = SEMI_COUPON + (isMaturity ? FACE : 0);
     const businessDays = brazilBusinessDaysBetween(settlement, date);
     pv += cashFlow / Math.pow(1 + yld, businessDays / BUSINESS_DAYS_PER_YEAR);
   }
 
-  return roundUp(pv, 4);
+  return truncPu(pv);
 }

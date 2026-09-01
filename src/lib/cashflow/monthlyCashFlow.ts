@@ -9,7 +9,11 @@ import {
   addMonths,
   getInvestmentDays,
 } from "@/lib/cashflow/couponSchedule";
-import { computeBondPricing, roundDown } from "@/lib/cashflow/bondPricing";
+import {
+  anbimaCouponFactor,
+  computeBondPricing,
+  roundDown,
+} from "@/lib/cashflow/bondPricing";
 import { isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
 import { CASH_INTEREST_TAX_RATE } from "@/lib/cashflow/taxRules";
 import { koreaPaymentDate } from "@/lib/cashflow/koreaCalendar";
@@ -144,7 +148,7 @@ export function generateMonthlyCashFlow(
   // 환산하고 절사해 정수 KRW로 만든다(월 분할 시 소수점이 새지 않도록).
   const semiCouponFace =
     input.calcBasis === "Business/252"
-      ? pricing.faceValue * (Math.pow(1 + rate, 1 / freqPerYear) - 1)
+      ? pricing.faceValue * anbimaCouponFactor(rate, freqPerYear)
       : (rate * pricing.faceValue) / freqPerYear;
   const semiCoupon = trunc(roundDown(semiCouponFace, 2) * maturityFx);
   const principalRedemption = trunc(pricing.faceValue * maturityFx);

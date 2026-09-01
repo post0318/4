@@ -5,7 +5,11 @@ import {
   TaxStatus,
 } from "@/lib/cashflow/bondLayout";
 import { FREQUENCY_MONTHS, addMonths } from "@/lib/cashflow/couponSchedule";
-import { computeBondPricing, roundDown } from "@/lib/cashflow/bondPricing";
+import {
+  anbimaCouponFactor,
+  computeBondPricing,
+  roundDown,
+} from "@/lib/cashflow/bondPricing";
 import { isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
 import {
   CASH_INTEREST_TAX_RATE,
@@ -108,11 +112,10 @@ export function generateFixCashFlow(
   if (dates.length === 0) return null;
 
   // 브라질 국채(Business/252)는 표면금리를 단순 나눗셈이 아니라 복리로 환산한
-  // 반기 실효쿠폰을 지급한다(예: 연 10% -> 반기 4.880885%). 블룸버그 실제 값과
-  // 대조해 확인함(computeBrazilDirtyPrice 참고).
+  // 반기 실효쿠폰을 지급한다(연 10% → 반기 4.880885%, ANBIMA 6자리).
   const couponAmount = roundDown(
     input.calcBasis === "Business/252"
-      ? pricing.faceValue * (Math.pow(1 + rate, 1 / freqPerYear) - 1)
+      ? pricing.faceValue * anbimaCouponFactor(rate, freqPerYear)
       : (rate * pricing.faceValue) / freqPerYear,
     2
   ) * maturityFxRate;

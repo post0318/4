@@ -16,7 +16,11 @@ import {
   addMonths,
   getInvestmentDays,
 } from "@/lib/cashflow/couponSchedule";
-import { computeBondPricing, roundDown } from "@/lib/cashflow/bondPricing";
+import {
+  anbimaCouponFactor,
+  computeBondPricing,
+  roundDown,
+} from "@/lib/cashflow/bondPricing";
 import { computeNtnfPu, parseIsoDate, toISODate } from "@/lib/ntnfPricing";
 import { getEffectiveIncomeTaxRate } from "@/lib/cashflow/taxRules";
 
@@ -130,7 +134,7 @@ export function generateReinvestCashFlow(
   const f = FREQUENCY_PER_YEAR[input.couponFrequency];
   const couponFactor =
     input.calcBasis === "Business/252"
-      ? Math.pow(1 + rate, 1 / f) - 1
+      ? anbimaCouponFactor(rate, f)
       : rate / f;
 
   // 이표일: 결제일 이후 첫 이표일 ~ 만기 (날짜만 비교 — 시각차로 만기가 빠지지 않도록)

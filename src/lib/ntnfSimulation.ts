@@ -9,12 +9,13 @@ import {
   computeNtnfPu,
   getOrderSettlementDate,
   parseIsoDate,
+  SEMI_COUPON,
   toISODate,
   today,
 } from "@/lib/ntnfPricing";
 
 const FACE = 1000;
-const COUPON = FACE * (Math.pow(1.1, 0.5) - 1); // 반기 실효쿠폰 ≈ 48.8088
+const COUPON = SEMI_COUPON; // 반기 실효쿠폰 (ANBIMA 6자리, ≈ 48.80885)
 const BD_YEAR = 252;
 
 /** start 초과 ~ end 이하의 이표일(1/1·7/1) 목록 (UTC 자정) */
