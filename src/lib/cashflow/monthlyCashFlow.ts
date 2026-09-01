@@ -314,7 +314,23 @@ export function generateMonthlyCashFlow(
     }
 
     if (ev.kind === "만기상환") {
-      held += semiCoupon + principalRedemption; // 마지막 쿠폰 + 원금상환 (분할 안 함)
+      // 위에서 held += cashInterest 는 prev~신탁만기일 전 구간을 '원금상환 전
+      // held'에 적용한 값이다. 원금상환·마지막 쿠폰은 만기일(1/1)에 들어와
+      // 신탁만기일(만기+11일)까지 신탁 현금으로 남으므로, 그 11일치 현금성이자를
+      // 원금상환액까지 포함해 별도로 반영한다.
+      held -= cashInterest;
+      const preDays = Math.max(0, daysBetween(prev, maturity));
+      const tailDays = Math.max(0, daysBetween(maturity, trustMaturity));
+      const cashIntPre = trunc(
+        (held * (cashRate / 100)) / 365 * preDays
+      );
+      held += cashIntPre + semiCoupon + principalRedemption; // 만기일 시점 잔액
+      const cashIntTail = trunc(
+        (held * (cashRate / 100)) / 365 * tailDays
+      );
+      held += cashIntTail;
+      const cashInterestMat = cashIntPre + cashIntTail;
+
       payout = trunc(held);
       // 만기상환 행은 원금을 "수령"한다 → 양수. 금액 = 상환 액면 × 만기환율
       // (경과이자차감 원금 잔액이 아님). 반기표의 원금 열과 같은 취급.
@@ -324,7 +340,7 @@ export function generateMonthlyCashFlow(
       bondInterest = semiCoupon; // 만기에 받는 마지막 반기쿠폰
 
       const taxBase = trunc(
-        cashInterest > totalDeduction ? cashInterest - totalDeduction : 0
+        cashInterestMat > totalDeduction ? cashInterestMat - totalDeduction : 0
       );
       const incomeTax = roundTax(taxBase * CASH_INTEREST_TAX_RATE);
       const netAmount = trunc(payout - backFeeThisPeriod - incomeTax);
@@ -337,8 +353,8 @@ export function generateMonthlyCashFlow(
         payout,
         principalDelta,
         bondInterest,
-        cashInterest,
-        taxableIncome: bondInterest + cashInterest,
+        cashInterest: cashInterestMat,
+        taxableIncome: bondInterest + cashInterestMat,
         taxBase,
         incomeTax,
         netAmount,
