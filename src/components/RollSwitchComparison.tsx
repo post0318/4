@@ -486,8 +486,8 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
             (선취 {fmtNum(parseFloat(trustFee) || 0, 1)}%,{" "}
             {fmtInt(result.frontFeeKrw)}원) → A {fmtInt(result.units)}좌 매수 ·
             최초 매수단가 R${fmtNum(result.buyPriceA, 2)}. 두 전략 모두 B(
-            {bondB?.nameKo}) 만기에 종료 · 쿠폰은 재투자 없이 명목 합산(현금 보유
-            가정) · 단일환율.
+            {bondB?.nameKo}) 만기에 종료 · 쿠폰은 받는 즉시 지급하고 총수익률에
+            명목 합산(현금흐름 탭과 동일) · 단일환율.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <ScenarioCard
