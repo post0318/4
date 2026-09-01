@@ -183,9 +183,15 @@ export function OrderConsole() {
       if (distMap) {
         autoUsd = checked && krwNum > 0 ? (distMap[key] ?? 0) : null;
       } else {
+        // 폴백: 종목 원화투자금액 ÷ 환율. 사용자가 고시환율을 고쳤으면 그 값,
+        // 아니면 자동 조회 원/달러 환율.
+        const fbRate =
+          derivedExchange.rateEdited && derivedExchange.rate > 0
+            ? derivedExchange.rate
+            : (fx?.usdKrw ?? 0);
         autoUsd =
-          fx && krwInput !== "" && krwNum > 0
-            ? Math.round((krwNum / fx.usdKrw) * 100) / 100
+          fbRate > 0 && krwInput !== "" && krwNum > 0
+            ? Math.round((krwNum / fbRate) * 100) / 100
             : null;
       }
       const usdOverride = usdOverrides[key];

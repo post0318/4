@@ -44,23 +44,32 @@ interface Props {
 
 const sanitizeDecimal = normalizeDecimalInput;
 
-/** value에서 고시환율 유효값(자동/수정)과 원화·달러 표시·계산값을 도출한다 */
+/**
+ * value에서 고시환율 유효값(수정했으면 그 값, 아니면 원/달러 환율)과 원화·달러
+ * 표시·계산값을 도출한다. `rate`는 환전금액 배분·폴백 계산 양쪽에서 쓰는
+ * 단일 기준 환율이다.
+ */
 export function deriveExchange(
   value: ExchangeState,
   usdKrw: number | null
-): { rate: number; krwTotal: number; usdTotal: number } {
+): { rate: number; rateEdited: boolean; krwTotal: number; usdTotal: number } {
+  // 화면 고시환율 칸과 같은 값(자동일 때는 소수 2자리)을 계산에도 그대로 쓴다.
   const autoRate = usdKrw != null ? usdKrw.toFixed(2) : "";
-  const effRate = value.rateEdited ? value.rate : autoRate;
-  const rate = parseFloat(effRate) || 0;
+  const rate = parseFloat(value.rateEdited ? value.rate : autoRate) || 0;
   const krwTyped = parseInt(value.krw || "0", 10) || 0;
   const usdTyped = parseFloat(value.usd || "0") || 0;
 
   if (value.driver === "usd") {
     const krwTotal = rate > 0 && usdTyped > 0 ? Math.round(usdTyped * rate) : 0;
-    return { rate, krwTotal, usdTotal: usdTyped };
+    return { rate, rateEdited: value.rateEdited, krwTotal, usdTotal: usdTyped };
   }
   const usdTotal = rate > 0 && krwTyped > 0 ? krwTyped / rate : 0;
-  return { rate, krwTotal: krwTyped, usdTotal };
+  return {
+    rate,
+    rateEdited: value.rateEdited,
+    krwTotal: krwTyped,
+    usdTotal,
+  };
 }
 
 /**
