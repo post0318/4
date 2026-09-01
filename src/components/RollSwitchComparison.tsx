@@ -40,15 +40,15 @@ const DEFAULT_TRUST_FEE = "1.5";
 /** 중도매도 시점 기본값 = 최초투자시점 + 1년 */
 function defaultSellDate(from: Date): string {
   const d = new Date(from);
-  d.setFullYear(d.getFullYear() + 1);
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
   return toISODate(d);
 }
 
 /** 25 ─ A청산 ─ B만기 타임라인 */
 function Timeline({ leg }: { leg: RollSwitchLeg }) {
-  const start = today().getFullYear();
-  const exitY = new Date(leg.exitDate).getFullYear();
-  const endY = new Date(leg.endDate).getFullYear();
+  const start = today().getUTCFullYear();
+  const exitY = Number(leg.exitDate.slice(0, 4));
+  const endY = Number(leg.endDate.slice(0, 4));
   const span = Math.max(1, endY - start);
   const exitX = ((exitY - start) / span) * 100;
   return (
@@ -81,16 +81,15 @@ function Timeline({ leg }: { leg: RollSwitchLeg }) {
 }
 
 /**
- * 하단 손익 분해 — 왼쪽은 A(보유종목) 몫, 오른쪽은 B(갈아탈 종목) 몫
- * (만기효과 + 증분효과). 왼쪽 A 항목이 오른쪽 B 만기효과와 같은 선상에 오도록
- * 위 정렬한다. 롤오버는 A를 만기까지 보유하므로 "만기효과", 갈아타기는 중도에
- * 시장가로 팔므로 만기효과가 아니라 "중도매도효과"다.
+ * 하단 손익 분해. 합산부(원금상환효과 + 이자효과)는 정확히 총기대수익률과
+ * 일치한다 — 선취신탁보수·잔돈은 원금상환효과에 흡수된다. 그 아래 만기효과
+ * A·B와 좌수 증분효과는 "그 값이 왜 그렇게 나왔는지" 보여주는 참고지표로,
+ * 합산에는 들어가지 않는다. 롤오버는 A를 만기까지 보유하므로 "A 만기효과",
+ * 갈아타기는 중도 시장가 매도라 "A 중도매도효과".
  */
 function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   const isRoll = leg.key === "rollover";
-  const aLabel = isRoll ? "만기효과" : "중도매도효과";
-  const priceRef = isRoll ? "롤오버가격 대비" : "갈아타기가격 대비";
-  const qtyRef = isRoll ? "만기상환수량 대비" : "중도매도수량 대비";
+  const aLabel = isRoll ? "A 만기효과" : "A 중도매도효과";
   const row = (c: string, label: string, note: string, v: number) => (
     <div className="flex items-baseline gap-1.5">
       <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-sm ${c}`} />
@@ -105,17 +104,11 @@ function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   );
   return (
     <div className="mt-1 space-y-1 text-[11px]">
-      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-        <div className="flex items-start">
-          {row("bg-zinc-400", aLabel, "", leg.maturityEffectAPct)}
-        </div>
-        <div className="space-y-1">
-          {row("bg-zinc-500", "만기효과", priceRef, leg.maturityEffectBPct)}
-          {row("bg-orange-400", "증분효과", qtyRef, leg.incrementPct)}
-        </div>
-      </div>
-      <div className="border-t border-zinc-100 pt-1 dark:border-zinc-800">
-        {row("bg-emerald-500", "이자효과", "A·B 쿠폰 명목합", leg.couponEffectPct)}
+      {row("bg-orange-400", "원금상환효과", "신탁원금 → B 만기상환", leg.principalEffectPct)}
+      {row("bg-emerald-500", "이자효과", "A·B 쿠폰 명목합", leg.couponEffectPct)}
+      <div className="border-t border-zinc-100 pt-1 text-[10px] text-zinc-400 dark:border-zinc-800">
+        참고 · {aLabel} {pct(leg.maturityEffectAPct)} · B 만기효과{" "}
+        {pct(leg.maturityEffectBPct)} · 증분효과(좌수) {pct(leg.incrementPct)}
       </div>
     </div>
   );
@@ -493,7 +486,8 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
             (선취 {fmtNum(parseFloat(trustFee) || 0, 1)}%,{" "}
             {fmtInt(result.frontFeeKrw)}원) → A {fmtInt(result.units)}좌 매수 ·
             최초 매수단가 R${fmtNum(result.buyPriceA, 2)}. 두 전략 모두 B(
-            {bondB?.nameKo}) 만기에 종료 · 쿠폰 명목 포함 · 단일환율.
+            {bondB?.nameKo}) 만기에 종료 · 쿠폰은 재투자 없이 명목 합산(현금 보유
+            가정) · 단일환율.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <ScenarioCard

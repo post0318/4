@@ -133,15 +133,21 @@ export interface RollSwitchLeg {
   buyPriceB: number;
   unitsStart: number;
   unitsEnd: number;
-  /** 증분효과 = unitsEnd/unitsStart − 1 (%) */
+  /** 참고지표 · 증분효과 = unitsEnd/unitsStart − 1 (%). 합산에는 안 들어감 */
   incrementPct: number;
-  /** A 만기효과 (%) — 롤오버: 액면/A매수가−1, 갈아타기: A매도가/A매수가−1 */
+  /** 참고지표 · A 만기효과 (%) — 롤오버: 액면/A매수가−1, 갈아타기: A매도가/A매수가−1 */
   maturityEffectAPct: number;
-  /** B 만기효과 (%) = 액면/B매수가 − 1 */
+  /** 참고지표 · B 만기효과 (%) = 액면/B매수가 − 1 */
   maturityEffectBPct: number;
-  /** 이자효과 (%) = (A쿠폰 + B쿠폰 명목합) ÷ 분모. 총기대수익률 = 증분효과 + 이자효과 + 잔돈 */
+  /**
+   * 원금상환효과 (%) = (unitsEnd×액면 + 잔돈) ÷ 신탁원금(헤알) − 1.
+   * 선취신탁보수·매수단가·갈아타기까지 다 반영된, "낸 원금이 B 만기상환 par로
+   * 얼마가 되어 돌아오나(이자 제외)". 총기대수익률 = 원금상환효과 + 이자효과.
+   */
+  principalEffectPct: number;
+  /** 이자효과 (%) = (A쿠폰 + B쿠폰 명목합) ÷ 신탁원금(헤알) */
   couponEffectPct: number;
-  /** 총 기대수익률 (BRL = KRW, 단일환율, 쿠폰 명목 포함, %) */
+  /** 총 기대수익률 (BRL = KRW, 단일환율, 쿠폰 재투자 없이 명목합, %) */
   totalReturnPct: number;
 }
 
@@ -188,10 +194,11 @@ export function simulateRollVsSwitch(
   if (units <= 0) return null;
   const carryBrl0 = availableBrl - units * puA;
 
-  // 수익률 분모 = A 만기상환금액(좌수 × 액면). 신탁투자원금이 아니라 "A를 만기까지
-  // 보유해 par로 상환받는 금액"을 기준으로 잡아야, 롤오버·갈아타기 두 전략이
-  // 동일 잣대에서 "B 만기까지 보유해 불어난 효과"로 비교된다.
-  const investBrl = units * FACE;
+  // 수익률 분모 = 고객이 낸 신탁투자원금(헤알 환산). 현금흐름 탭의 "신탁원금 대비
+  // 수익률"과 같은 기준 — 선취신탁보수·A매수단가가 총기대수익률에 제대로 반영되고,
+  // 소액 원금에서 잔돈(carryBrl)이 분자에만 잡혀 수익률이 폭주하던 문제가 없어진다.
+  // 두 전략이 완전히 동일한 분모를 쓰므로 롤오버 vs 갈아타기가 공정하게 비교된다.
+  const investBrl = input.principalKrw / fx;
 
   const leg = (
     key: "rollover" | "switch",
@@ -230,6 +237,7 @@ export function simulateRollVsSwitch(
       incrementPct: (unitsEnd / units - 1) * 100,
       maturityEffectAPct: (exitPriceA / puA - 1) * 100,
       maturityEffectBPct: (FACE / puB - 1) * 100,
+      principalEffectPct: ((unitsEnd * FACE + carryBrl) / investBrl - 1) * 100,
       couponEffectPct: ((couponsA + couponsB) / investBrl) * 100,
       totalReturnPct: totalReturn * 100,
     };
