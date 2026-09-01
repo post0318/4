@@ -17,7 +17,7 @@ import {
   getInvestmentDays,
 } from "@/lib/cashflow/couponSchedule";
 import { computeBondPricing, roundDown } from "@/lib/cashflow/bondPricing";
-import { computeNtnfPu, parseLocalDate, toISODate } from "@/lib/ntnfPricing";
+import { computeNtnfPu, parseIsoDate, toISODate } from "@/lib/ntnfPricing";
 import { getEffectiveIncomeTaxRate } from "@/lib/cashflow/taxRules";
 
 const FACE = 1000;
@@ -104,8 +104,8 @@ export function generateReinvestCashFlow(
   const pricing = computeBondPricing(input);
   if (!pricing) return null;
 
-  const maturity = parseLocalDate(input.maturityDate);
-  const settlement = parseLocalDate(pricing.settlementDate);
+  const maturity = parseIsoDate(input.maturityDate);
+  const settlement = parseIsoDate(pricing.settlementDate);
   if (!maturity || !settlement || settlement >= maturity) return null;
 
   const rate = Number(input.couponRate) / 100;
@@ -136,7 +136,7 @@ export function generateReinvestCashFlow(
   // 이표일: 결제일 이후 첫 이표일 ~ 만기 (날짜만 비교 — 시각차로 만기가 빠지지 않도록)
   const dates: Date[] = [];
   const recentCoupon =
-    parseLocalDate(pricing.recentCouponDate) ??
+    parseIsoDate(pricing.recentCouponDate) ??
     new Date(pricing.recentCouponDate);
   let cursor = addMonths(recentCoupon, months);
   while (toTime(cursor) <= toTime(maturity)) {

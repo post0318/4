@@ -3,6 +3,8 @@
  * ANBIMA/B3가 쓰는 국경일 캘린더(고정일 + 부활절 기준 이동공휴일)를 구현한다.
  * 카니발(월/화)·성금요일·성체축일(corpus christi)은 부활절 기준으로 계산하고,
  * 나머지는 매년 같은 날짜의 고정 국경일이다.
+ *
+ * 모든 날짜는 UTC 자정 기준으로 다룬다(프로젝트 전역 규칙 — ntnfPricing 참고).
  */
 
 /** 그레고리력 부활절(춘분 후 첫 만월 다음 일요일) 계산 - Anonymous Gregorian algorithm */
@@ -22,17 +24,17 @@ function easterSunday(year: number): Date {
   const monthDay = h + l - 7 * m + 114;
   const month = Math.floor(monthDay / 31); // 3 = March, 4 = April
   const day = (monthDay % 31) + 1;
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
-  result.setDate(result.getDate() + days);
+  result.setUTCDate(result.getUTCDate() + days);
   return result;
 }
 
 function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 }
 
 const holidayCache = new Map<number, Set<string>>();
@@ -43,21 +45,21 @@ function brazilHolidaysOfYear(year: number): Set<string> {
 
   const easter = easterSunday(year);
   const dates = [
-    new Date(year, 0, 1), // 신정
+    new Date(Date.UTC(year, 0, 1)), // 신정
     addDays(easter, -48), // 카니발 월요일
     addDays(easter, -47), // 카니발 화요일
     addDays(easter, -2), // 성금요일
-    new Date(year, 3, 21), // 치라덴치스의 날
-    new Date(year, 4, 1), // 노동절
+    new Date(Date.UTC(year, 3, 21)), // 치라덴치스의 날
+    new Date(Date.UTC(year, 4, 1)), // 노동절
     addDays(easter, 60), // 성체축일(Corpus Christi)
-    new Date(year, 8, 7), // 독립기념일
-    new Date(year, 9, 12), // 아파레시다 성모의 날
-    new Date(year, 10, 2), // 위령의 날
-    new Date(year, 10, 15), // 공화국 선포일
-    new Date(year, 11, 25), // 크리스마스
+    new Date(Date.UTC(year, 8, 7)), // 독립기념일
+    new Date(Date.UTC(year, 9, 12)), // 아파레시다 성모의 날
+    new Date(Date.UTC(year, 10, 2)), // 위령의 날
+    new Date(Date.UTC(year, 10, 15)), // 공화국 선포일
+    new Date(Date.UTC(year, 11, 25)), // 크리스마스
   ];
   if (year >= 2024) {
-    dates.push(new Date(year, 10, 20)); // 흑인 의식의 날(2024년부터 국경일, Lei 14.759/2023)
+    dates.push(new Date(Date.UTC(year, 10, 20))); // 흑인 의식의 날(2024년부터 국경일, Lei 14.759/2023)
   }
 
   const set = new Set(dates.map(dateKey));
@@ -66,11 +68,11 @@ function brazilHolidaysOfYear(year: number): Set<string> {
 }
 
 function isBrazilHoliday(date: Date): boolean {
-  return brazilHolidaysOfYear(date.getFullYear()).has(dateKey(date));
+  return brazilHolidaysOfYear(date.getUTCFullYear()).has(dateKey(date));
 }
 
 export function isBrazilBusinessDay(date: Date): boolean {
-  const dow = date.getDay();
+  const dow = date.getUTCDay();
   return dow !== 0 && dow !== 6 && !isBrazilHoliday(date);
 }
 
@@ -82,7 +84,7 @@ export function isBrazilBusinessDay(date: Date): boolean {
  */
 export function isPlausibleYear(date: Date): boolean {
   if (Number.isNaN(date.getTime())) return false;
-  const y = date.getFullYear();
+  const y = date.getUTCFullYear();
   return y >= 1990 && y <= 2200;
 }
 
@@ -113,7 +115,7 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
   while (cursor < e) {
     // 종료일 제외
     if (isBrazilBusinessDay(cursor)) count++;
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return sign * count;
 }

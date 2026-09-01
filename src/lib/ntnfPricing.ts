@@ -23,42 +23,46 @@ const BUSINESS_DAYS_PER_YEAR = 252;
 
 function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
-  result.setMonth(result.getMonth() + months);
+  result.setUTCMonth(result.getUTCMonth() + months);
   return result;
 }
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
-  result.setDate(result.getDate() + days);
+  result.setUTCDate(result.getUTCDate() + days);
   return result;
 }
 
-/** "YYYY-MM-DD" → 로컬 자정 Date (UTC 파싱으로 인한 하루 밀림 방지) */
-export function parseLocalDate(iso: string): Date | null {
+/**
+ * "YYYY-MM-DD" → 그 날짜의 UTC 자정 Date.
+ *
+ * 프로젝트 전역에서 날짜(시각 없는 캘린더 날짜)는 UTC 자정으로 통일한다.
+ * 현금흐름 모듈(`new Date("YYYY-MM-DD")`)과 같은 표현이라, 영업일수 계산에서
+ * 두 계열이 섞여 시각차로 하루 어긋나는 일이 없다. `toISOString().slice(0,10)`이
+ * 뷰어 타임존과 무관하게 항상 맞는 캘린더 날짜를 준다.
+ */
+export function parseIsoDate(iso: string): Date | null {
   const m = iso.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
   const year = Number(m[1]);
   // date input에 직접 타이핑하면 연도가 한 자리씩 채워지며 "0002"·"0202"
-  // 같은 미완성 값이 onChange로 흘러든다. 이 경우 결제일이 1902년(JS의 2자리
-  // 연도 규칙) 또는 서기 202년이 되어, 만기까지의 브라질 영업일수를 하루씩
-  // 걷는 루프가 수백만 회 돌며 탭이 멈춘다. 현실적 범위만 통과시킨다.
+  // 같은 미완성 값이 onChange로 흘러든다. 만기까지의 브라질 영업일수를 하루씩
+  // 걷는 루프가 수백만 회 돌며 탭이 멈추므로 현실적 범위만 통과시킨다.
   // (하한은 cashflow의 isPlausibleYear와 동일하게 1990.)
   if (year < 1990 || year > 2200) return null;
-  const d = new Date(year, Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(Date.UTC(year, Number(m[2]) - 1, Number(m[3])));
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** 오늘(로컬) 자정 */
+/** 오늘 (UTC 자정) */
 export function today(): Date {
   const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
 }
 
+/** Date → "YYYY-MM-DD" (UTC 기준) */
 export function toISODate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return date.toISOString().slice(0, 10);
 }
 
 /**
@@ -98,7 +102,7 @@ export function computeNtnfPu(
   buyYieldPct: number,
   settlement: Date = getOrderSettlementDate()
 ): number | null {
-  const maturity = parseLocalDate(maturityDate);
+  const maturity = parseIsoDate(maturityDate);
   if (!maturity) return null;
   if (settlement >= maturity) return null;
   if (!Number.isFinite(buyYieldPct)) return null;

@@ -8,7 +8,7 @@ import { brazilBusinessDaysBetween } from "@/lib/brazilCalendar";
 import {
   computeNtnfPu,
   getOrderSettlementDate,
-  parseLocalDate,
+  parseIsoDate,
   toISODate,
   today,
 } from "@/lib/ntnfPricing";
@@ -17,12 +17,12 @@ const FACE = 1000;
 const COUPON = FACE * (Math.pow(1.1, 0.5) - 1); // 반기 실효쿠폰 ≈ 48.8088
 const BD_YEAR = 252;
 
-/** start 초과 ~ end 이하의 이표일(1/1·7/1) 목록 */
+/** start 초과 ~ end 이하의 이표일(1/1·7/1) 목록 (UTC 자정) */
 function couponDatesBetween(start: Date, end: Date): Date[] {
   const out: Date[] = [];
-  for (let y = start.getFullYear() - 1; y <= end.getFullYear() + 1; y++) {
+  for (let y = start.getUTCFullYear() - 1; y <= end.getUTCFullYear() + 1; y++) {
     for (const m of [0, 6]) {
-      const d = new Date(y, m, 1);
+      const d = new Date(Date.UTC(y, m, 1));
       if (d > start && d <= end) out.push(d);
     }
   }
@@ -64,7 +64,7 @@ export function holdToMaturityBrl(
   reinvest = false
 ): { annualPct: number; totalPct: number; years: number } | null {
   const settle = getOrderSettlementDate(today());
-  const mat = parseLocalDate(maturity);
+  const mat = parseIsoDate(maturity);
   if (!mat || mat <= settle) return null;
   const puBuy = computeNtnfPu(maturity, buyYieldPct, settle);
   if (puBuy == null || puBuy <= 0) return null;
@@ -162,12 +162,12 @@ function nominalCoupons(from: Date, to: Date, units: number): number {
 export function simulateRollVsSwitch(
   input: RollSwitchInput
 ): RollSwitchResult | null {
-  const buy = input.buyDate ? parseLocalDate(input.buyDate) : today();
+  const buy = input.buyDate ? parseIsoDate(input.buyDate) : today();
   if (!buy) return null;
   const settle = getOrderSettlementDate(buy);
-  const matA = parseLocalDate(input.bondA.maturity);
-  const matB = parseLocalDate(input.bondB.maturity);
-  const sell = parseLocalDate(input.sellDate);
+  const matA = parseIsoDate(input.bondA.maturity);
+  const matB = parseIsoDate(input.bondB.maturity);
+  const sell = parseIsoDate(input.sellDate);
   if (!matA || !matB || !sell) return null;
 
   const puA =
