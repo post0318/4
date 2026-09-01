@@ -23,8 +23,8 @@ function pct(v: number, d = 2) {
   return `${v >= 0 ? "+" : ""}${fmtNum(v, d)}%`;
 }
 
-// 환율 시나리오: 원화 대비 헤알화 강세(+) ~ 약세(−)
-const FX_SHIFTS = [15, 10, 5, 0, -5, -10, -15];
+// 환율 시나리오: 원화 대비 헤알화 강세(+) ~ 약세(−). 3%p 간격, 최대 ±15%p.
+const FX_SHIFTS = [15, 12, 9, 6, 3, 0, -3, -6, -9, -12, -15];
 
 /**
  * 헤알 강세(+)는 따뜻한 모래빛, 약세(−)는 차분한 청회색으로 은은하게 구분한다.
@@ -201,11 +201,14 @@ export function DurationPanel({ bonds, fx }: Props) {
   const [dfx, setDfx] = useState(0); // 환율변동 %
   const [reinvest, setReinvest] = useState(false); // 쿠폰 재투자형
 
-  // 잔존만기 1년 미만은 듀레이션·시나리오 의미가 없어 제외
+  // 잔존만기 1년 미만은 듀레이션·시나리오 의미가 없어 제외 (UTC 기준 오늘+1년)
   const cutoff = useMemo(() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() + 1);
-    return d.toISOString().slice(0, 10);
+    const n = new Date();
+    return new Date(
+      Date.UTC(n.getUTCFullYear() + 1, n.getUTCMonth(), n.getUTCDate())
+    )
+      .toISOString()
+      .slice(0, 10);
   }, []);
   const sorted = useMemo(
     () =>
@@ -215,15 +218,31 @@ export function DurationPanel({ bonds, fx }: Props) {
     [bonds, cutoff]
   );
 
+  // bondRisk는 금리·환율 슬라이더와 무관 — 종목이 바뀔 때만 재계산한다
+  // (슬라이더 드래그마다 전종목 PU를 다시 걷지 않도록).
+  const risks = useMemo(
+    () =>
+      sorted.map((b) => ({
+        bond: b,
+        risk:
+          b.buyYieldPct != null
+            ? bondRisk(b.maturityDate, b.buyYieldPct)
+            : null,
+      })),
+    [sorted]
+  );
+
   const rows = useMemo(
     () =>
-      sorted.map((b) => {
-        const risk =
-          b.buyYieldPct != null ? bondRisk(b.maturityDate, b.buyYieldPct) : null;
-        const shock = risk ? shockReturn(risk, dy, dfx) : null;
-        return { bond: b, risk, shock };
-      }),
-    [sorted, dy, dfx]
+      risks.map(({ bond, risk }) => ({
+        bond,
+        risk,
+        shock:
+          risk && bond.buyYieldPct != null
+            ? shockReturn(risk, bond.maturityDate, bond.buyYieldPct, dy, dfx)
+            : null,
+      })),
+    [risks, dy, dfx]
   );
 
   // 요약표: 종목별 "현재 매수금리로 만기까지 보유 시 헤알 수익률" (금리 Δ 무관)
