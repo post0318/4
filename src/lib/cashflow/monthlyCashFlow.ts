@@ -95,7 +95,7 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 function toTime(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
 type Event =
@@ -172,15 +172,15 @@ export function generateMonthlyCashFlow(
   if (couponDates.length === 0) return null;
   const firstCoupon = couponDates[0];
   const trustMaturity = new Date(maturity);
-  trustMaturity.setDate(trustMaturity.getDate() + TRUST_MATURITY_LEAD_DAYS);
+  trustMaturity.setUTCDate(trustMaturity.getUTCDate() + TRUST_MATURITY_LEAD_DAYS);
 
   // ── 이벤트 타임라인 ──
   const events: Event[] = [];
   // Phase 1: 계약일이 속한 달(계약일 10일 이후면 익월)부터 첫 쿠폰 전까지 매월 10일
-  let m = new Date(contract.getFullYear(), contract.getMonth(), 1);
-  if (contract.getDate() > 10) m = addMonths(m, 1);
+  let m = new Date(Date.UTC(contract.getUTCFullYear(), contract.getUTCMonth(), 1));
+  if (contract.getUTCDate() > 10) m = addMonths(m, 1);
   while (m < firstCoupon) {
-    const pd = koreaPaymentDate(m.getFullYear(), m.getMonth());
+    const pd = koreaPaymentDate(m.getUTCFullYear(), m.getUTCMonth());
     if (pd >= settlement && pd < firstCoupon) {
       events.push({ date: pd, kind: "월지급", cycleIndex: -1, monthInCycle: -1 });
     }
@@ -192,8 +192,11 @@ export function generateMonthlyCashFlow(
     if (toTime(cd) === toTime(maturity)) return;
     events.push({ date: cd, kind: "쿠폰수령" });
     for (let k = 0; k < paymentsPerCycle; k++) {
-      const mm = addMonths(new Date(cd.getFullYear(), cd.getMonth(), 1), k);
-      const pd = koreaPaymentDate(mm.getFullYear(), mm.getMonth());
+      const mm = addMonths(
+        new Date(Date.UTC(cd.getUTCFullYear(), cd.getUTCMonth(), 1)),
+        k
+      );
+      const pd = koreaPaymentDate(mm.getUTCFullYear(), mm.getUTCMonth());
       events.push({ date: pd, kind: "월지급", cycleIndex: ci, monthInCycle: k });
     }
   });

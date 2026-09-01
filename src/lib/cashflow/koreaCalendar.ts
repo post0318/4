@@ -34,21 +34,21 @@ const LUNAR_HOLIDAYS: Record<number, [string, string, string]> = {
 
 function addDays(date: Date, days: number): Date {
   const r = new Date(date);
-  r.setDate(r.getDate() + days);
+  r.setUTCDate(r.getUTCDate() + days);
   return r;
 }
 
 function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 }
 
 function ymd(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(Date.UTC(y, m - 1, d));
 }
 
 function isWeekend(d: Date): boolean {
-  const w = d.getDay();
+  const w = d.getUTCDay();
   return w === 0 || w === 6;
 }
 
@@ -57,14 +57,14 @@ const holidayCache = new Map<number, Set<string>>();
 /** 대체공휴일 없이 그 해의 "본" 공휴일 날짜들 */
 function baseHolidays(year: number): Date[] {
   const list: Date[] = [
-    new Date(year, 0, 1), // 신정
-    new Date(year, 2, 1), // 삼일절
-    new Date(year, 4, 5), // 어린이날
-    new Date(year, 5, 6), // 현충일
-    new Date(year, 7, 15), // 광복절
-    new Date(year, 9, 3), // 개천절
-    new Date(year, 9, 9), // 한글날
-    new Date(year, 11, 25), // 성탄절
+    new Date(Date.UTC(year, 0, 1)), // 신정
+    new Date(Date.UTC(year, 2, 1)), // 삼일절
+    new Date(Date.UTC(year, 4, 5)), // 어린이날
+    new Date(Date.UTC(year, 5, 6)), // 현충일
+    new Date(Date.UTC(year, 7, 15)), // 광복절
+    new Date(Date.UTC(year, 9, 3)), // 개천절
+    new Date(Date.UTC(year, 9, 9)), // 한글날
+    new Date(Date.UTC(year, 11, 25)), // 성탄절
   ];
   const lunar = LUNAR_HOLIDAYS[year];
   if (lunar) {
@@ -100,7 +100,7 @@ function koreaHolidaysOfYear(year: number): Set<string> {
     const [seol, buddha, chuseok] = lunar.map(ymd);
     for (const anchor of [seol, chuseok]) {
       const trio = [addDays(anchor, -1), anchor, addDays(anchor, 1)];
-      if (trio.some((d) => d.getDay() === 0 || overlapsOtherHoliday(d))) {
+      if (trio.some((d) => d.getUTCDay() === 0 || overlapsOtherHoliday(d))) {
         rollFrom.push(addDays(anchor, 1));
       }
     }
@@ -114,7 +114,7 @@ function koreaHolidaysOfYear(year: number): Set<string> {
     [9, 9], // 한글날
     [11, 25], // 성탄절
   ] as const) {
-    const date = new Date(year, m, d);
+    const date = new Date(Date.UTC(year, m, d));
     if (isWeekend(date) || overlapsOtherHoliday(date)) rollFrom.push(date);
   }
 
@@ -132,7 +132,7 @@ function koreaHolidaysOfYear(year: number): Set<string> {
 }
 
 export function isKoreaHoliday(date: Date): boolean {
-  return koreaHolidaysOfYear(date.getFullYear()).has(dateKey(date));
+  return koreaHolidaysOfYear(date.getUTCFullYear()).has(dateKey(date));
 }
 
 export function isKoreaBusinessDay(date: Date): boolean {
@@ -142,12 +142,10 @@ export function isKoreaBusinessDay(date: Date): boolean {
 /**
  * 지정한 연·월(0-based month)의 월지급일 = 그 달 10일, 한국 비영업일이면 다음 영업일.
  *
- * 반환값은 UTC 자정 기준으로 맞춘다. 다른 날짜(결제일 등)가 "YYYY-MM-DD" 문자열
- * 파싱으로 만들어져 UTC 자정인데, 여기서 로컬 자정 Date를 돌려주면 toISOString()
- * 직렬화 시 KST 등 UTC+ 환경에서 하루가 당겨져 표시·일수계산이 어긋난다.
+ * 반환값은 프로젝트 전역 규칙대로 UTC 자정 Date다.
  */
 export function koreaPaymentDate(year: number, month: number): Date {
-  let d = new Date(year, month, 10);
+  let d = new Date(Date.UTC(year, month, 10));
   while (!isKoreaBusinessDay(d)) d = addDays(d, 1);
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  return d;
 }

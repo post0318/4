@@ -99,7 +99,7 @@ export interface ReinvestCashFlowResult {
 }
 
 function toTime(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
 export function generateReinvestCashFlow(
