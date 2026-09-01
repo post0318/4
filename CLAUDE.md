@@ -32,7 +32,10 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 
 - `src/lib/ntnfPricing.ts` — 매수단가(PU) ANBIMA 공식, 결제일(D+0 브라질 영업일)
 - `src/lib/ntnfMeta.ts` — 만기연도 → ISIN·종목명 정적 맵 (2027~2037 ISIN 확인 완료)
-- `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수
+- `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수 +
+  `distributeUsdByKrwWeight`(환전 달러금액을 종목별 원화투자금액 비중대로 2자리
+  절사 배분, 잔동은 최대 종목 가산). 절사는 `format.ts`의 `truncDecimals`(부동소수
+  표현오차 보정)
 - `src/lib/orderEmail.ts` — 주문 이메일 제목/본문 생성
 - `src/lib/ntnfSimulation.ts` — 신탁투자원금 기준 롤오버 vs 갈아타기 비교
   (`simulateRollVsSwitch`). 좌수는 현금흐름 탭 로직대로 (원금−선취)÷환율÷PU 절사,
@@ -41,7 +44,8 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/lib/ntnfDuration.ts` — PU 공식 수치미분으로 수정듀레이션·컨벡시티·DV01,
   금리·환율 쇼크 시 가격/원화가치 변동. `DurationPanel`
 - 탭: 시장정보 · 트레이딩 · 현금흐름 · 시뮬레이션 · 듀레이션 (`OrderConsole`)
-- `src/components/CurrencyExchange.tsx` — 원화금액÷고시환율=달러금액 계산기(시장정보 탭)
+- `src/components/CurrencyExchange.tsx` — 환전금액(원화금액÷고시환율=달러금액).
+  제어 컴포넌트, 원화금액이 종목별 원화투자금액 합계·달러 배분의 기준
 - `src/app/api/fx-rates` — USD/KRW·USD/BRL 조회, KRW/BRL 파생
 - `src/app/api/fx-history` — 7년치 일간 환율 추이(Frankfurter 시계열, 12h 재검증)
 - `src/app/api/br-selic` — 브라질 기준금리(Selic) 7년 추이(BCB SGS 432, 무인증)
