@@ -63,6 +63,8 @@ export function OrderConsole() {
   const [usdOverrides, setUsdOverrides] = useState<Record<string, string>>({});
   // 실제 주문수량 override. 값이 없으면 매수가능수량을 그대로 쓴다.
   const [orderQtys, setOrderQtys] = useState<Record<string, string>>({});
+  // 수량계산 안전 버퍼(%) — 주문↔체결 시점차 가격·환율 변동 대비
+  const [buffer, setBuffer] = useState("");
   const [defaultTo, setDefaultTo] = useState("");
   const [defaultCc, setDefaultCc] = useState("");
 
@@ -219,6 +221,7 @@ export function OrderConsole() {
           usdKrw: fx.usdKrw,
           usdBrl: fx.usdBrl,
           pu,
+          bufferPct: Number(buffer) || 0,
         };
         if (isValidOrderInputs(inputs)) order = computeOrder(inputs);
       }
@@ -258,6 +261,7 @@ export function OrderConsole() {
     amounts,
     usdOverrides,
     orderQtys,
+    buffer,
     fx,
     settlement,
     derivedExchange,
@@ -319,9 +323,10 @@ export function OrderConsole() {
           pu: r.pu as number,
           quantity: order.quantity,
           orderQuantity: r.effectiveQty,
+          bufferPct: Number(buffer) || 0,
         };
       });
-  }, [rows]);
+  }, [rows, buffer]);
 
   const incompleteCount = useMemo(
     () =>
@@ -443,6 +448,8 @@ export function OrderConsole() {
             settlementDate={settlementDate}
             exchangeKrwTotal={exchangeKrwTotal}
             exchangeUsdTotal={exchangeUsdTotal}
+            buffer={buffer}
+            onBufferChange={setBuffer}
             onToggle={toggle}
             onAmountChange={changeAmount}
             onUsdChange={changeUsd}

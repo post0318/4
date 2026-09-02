@@ -21,6 +21,8 @@ export interface PendingLine {
   quantity: number;
   /** 실제 주문수량 */
   orderQuantity: number;
+  /** 수량계산 안전 버퍼(%) — 서버 재계산 대조용 */
+  bufferPct: number;
 }
 
 interface OrderReviewProps {

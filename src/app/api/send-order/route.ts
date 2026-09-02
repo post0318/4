@@ -67,6 +67,8 @@ interface IncomingLine {
   quantity: number;
   /** 사용자가 지정한 실제 주문수량 */
   orderQuantity: number;
+  /** 수량계산 안전 버퍼(%) */
+  bufferPct?: number;
 }
 
 interface SendOrderBody {
@@ -166,6 +168,7 @@ export async function POST(request: NextRequest) {
       usdKrw: fx.usdKrw,
       usdBrl: fx.usdBrl,
       pu,
+      bufferPct: line.bufferPct ?? 0,
     };
     if (!isValidOrderInputs(inputs)) {
       return NextResponse.json(

@@ -42,6 +42,9 @@ interface BondOrderTableProps {
   exchangeKrwTotal: number;
   /** 환전금액의 달러금액 (0이면 미입력) — 달러($) 합계와의 차이 표시용 */
   exchangeUsdTotal: number;
+  /** 수량계산 안전 버퍼(%) 입력 문자열 */
+  buffer: string;
+  onBufferChange: (value: string) => void;
   onToggle: (key: string) => void;
   onAmountChange: (key: string, value: string) => void;
   onUsdChange: (key: string, value: string) => void;
@@ -76,6 +79,8 @@ export function BondOrderTable({
   settlementDate,
   exchangeKrwTotal,
   exchangeUsdTotal,
+  buffer,
+  onBufferChange,
   onToggle,
   onAmountChange,
   onUsdChange,
@@ -101,10 +106,28 @@ export function BondOrderTable({
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          수량계산 <span className="text-zinc-400">({rows.length}개)</span>
-        </h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            수량계산 <span className="text-zinc-400">({rows.length}개)</span>
+          </h2>
+          <label
+            className="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"
+            title="주문(한국시간)↔체결(브라질시간) 시점차 가격·환율 변동 대비. PU를 (1+버퍼)배, 달러/헤알을 (1−버퍼)배로 보수적으로 잡아 매수가능수량을 산정합니다."
+          >
+            버퍼
+            <input
+              inputMode="decimal"
+              value={buffer}
+              onChange={(e) =>
+                onBufferChange(e.target.value.replace(/[^\d.]/g, ""))
+              }
+              placeholder="0"
+              className={`${numInput} w-14 border-zinc-300 dark:border-zinc-700`}
+            />
+            %
+          </label>
+        </div>
         <span className="text-[11px] text-zinc-400">
           {asOfDate ? `시세 기준일 ${asOfDate} · 결제일 ${settlementDate}` : ""}
         </span>
@@ -239,7 +262,7 @@ export function BondOrderTable({
               <tfoot>
                 <tr className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700">
                   <td className={`${td} text-right`} colSpan={5}>
-                    원화투자금액 합계
+                    합계
                   </td>
                   <td className={`${td} text-right`}>
                     {totalKrw > 0 ? groupDigits(String(totalKrw)) : "-"}

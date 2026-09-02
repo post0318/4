@@ -20,6 +20,14 @@ export interface OrderInputs {
   usdBrl: number;
   /** NTN-F 매수단가 (PU, per 1,000 face = per título, BRL) */
   pu: number;
+  /**
+   * 안전 버퍼(%). 주문시점(한국시간)과 체결시점(브라질현지시간) 사이 가격·환율
+   * 변동으로 결제금액이 환전액을 초과하는 것을 막기 위해, 좌수 계산에서 PU와
+   * 달러/헤알(USD/BRL)을 각각 버퍼%만큼 불리하게 잡는다 —
+   * PU × (1+버퍼)(더 비싸게), USD/BRL × (1−버퍼)(같은 달러로 사는 헤알 감소).
+   * 없으면 0. 예: 버퍼 10%, PU 1000·USD/BRL 5.40 → PU 1100·USD/BRL 4.86 로 계산.
+   */
+  bufferPct?: number;
 }
 
 export interface OrderResult {
@@ -94,10 +102,17 @@ export function distributeUsdByKrwWeight(
 }
 
 export function computeOrder(input: OrderInputs): OrderResult {
-  const { usdAmount, usdKrw, usdBrl, pu } = input;
+  const { usdAmount, usdKrw, usdBrl, pu, bufferPct } = input;
 
   const brlAmount = round(usdAmount * usdBrl, 2);
-  const quantity = Math.floor(brlAmount / pu);
+
+  // 안전 버퍼: 좌수 계산에만 적용. PU는 (1+버퍼)배 비싸게, USD/BRL은 (1−버퍼)배
+  // (같은 달러로 사는 헤알 감소) → 결제금액이 환전액을 넘지 않도록 여유.
+  const buf = Math.max(0, Math.min(100, bufferPct ?? 0)) / 100;
+  const puEff = pu * (1 + buf);
+  const brlForQty = round(usdAmount * usdBrl * (1 - buf), 2);
+  const quantity = Math.floor(brlForQty / puEff);
+
   const krwPerUnit = Math.round((pu * usdKrw) / usdBrl);
 
   return { usdAmount, brlAmount, quantity, krwPerUnit };
