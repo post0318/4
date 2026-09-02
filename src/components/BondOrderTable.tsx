@@ -277,7 +277,7 @@ export function BondOrderTable({
                         : "font-semibold text-red-600 dark:text-red-400"
                     }
                   >
-                    <td className={`${td} text-right`} colSpan={6}>
+                    <td className={`${td} text-right`} colSpan={5}>
                       환전금액 달러금액(${fmtNum(exchangeUsdTotal, 2)})과의 차이
                     </td>
                     <td className={`${td} text-right`}>
@@ -286,7 +286,7 @@ export function BondOrderTable({
                         : (usdDiff > 0 ? "+" : "−") +
                           fmtNum(Math.abs(usdDiff), 2)}
                     </td>
-                    <td className={td} colSpan={4} />
+                    <td className={td} colSpan={5} />
                   </tr>
                 )}
               </tfoot>
