@@ -63,7 +63,13 @@ export function holdToMaturityBrl(
   buyYieldPct: number,
   shiftPct: number,
   reinvest = false
-): { annualPct: number; totalPct: number; years: number } | null {
+): {
+  annualPct: number;
+  totalPct: number;
+  /** 쿠폰 제외 — 매수단가에 사서 만기에 액면만 상환받는 BRL 수익률 (par/puBuy − 1) */
+  parTotalPct: number;
+  years: number;
+} | null {
   const settle = getOrderSettlementDate(today());
   const mat = parseIsoDate(maturity);
   if (!mat || mat <= settle) return null;
@@ -76,6 +82,7 @@ export function holdToMaturityBrl(
   return {
     annualPct: (Math.pow(1 + total, 1 / t) - 1) * 100,
     totalPct: total * 100,
+    parTotalPct: (FACE / puBuy - 1) * 100,
     years: t,
   };
 }

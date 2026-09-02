@@ -41,7 +41,13 @@ function fxRowBg(shift: number): string | undefined {
 interface MatrixBond {
   label: string;
   /** 만기까지 보유 시 헤알 연환산·누적 수익률(%), 잔존연수 */
-  hold: { annualPct: number; totalPct: number; years: number } | null;
+  hold: {
+    annualPct: number;
+    totalPct: number;
+    /** 쿠폰 제외 — 매수단가에 사서 만기에 액면만 상환받는 BRL 수익률 */
+    parTotalPct: number;
+    years: number;
+  } | null;
 }
 
 /**
@@ -53,9 +59,12 @@ interface MatrixBond {
 function ReturnMatrix({
   bonds,
   baseFx,
+  parOnly = false,
 }: {
   bonds: MatrixBond[];
   baseFx: number;
+  /** true면 쿠폰 제외 — 채권 액면(만기 par 상환)만 기준 */
+  parOnly?: boolean;
 }) {
   const th =
     "px-1.5 py-1.5 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/60";
@@ -121,8 +130,10 @@ function ReturnMatrix({
                         <FragmentDash key={b.label} cell={cell} />
                       );
                     const fxCum = shift / 100;
-                    const total =
-                      ((1 + b.hold.totalPct / 100) * (1 + fxCum) - 1) * 100;
+                    const base = parOnly
+                      ? b.hold.parTotalPct
+                      : b.hold.totalPct;
+                    const total = ((1 + base / 100) * (1 + fxCum) - 1) * 100;
                     // 단리 연환산 (총수익률 ÷ 잔존연수) — 일반형·재투자형 동일,
                     // 현금흐름 탭과 같은 방식
                     const annual = total / b.hold.years;
@@ -438,6 +449,21 @@ export function DurationPanel({ bonds, fx }: Props) {
           ? "재투자형: 쿠폰을 매수금리로 재투자한다고 가정."
           : "일반형: 쿠폰을 현금으로 받아 재투자하지 않음(현금이자 0)."}
       </p>
+
+      <div className="mt-4 border-t border-zinc-300 pt-3 dark:border-zinc-700">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          채권 액면만 — 이자 제외
+        </h3>
+        <p className="mt-1 mb-2 text-xs text-zinc-400">
+          매수단가에 사서 만기에 <b>액면 R$1,000만 상환</b>(쿠폰 미포함) → 헤알
+          강·약세가 <b>투자 원금</b>에 미치는 영향만. 위 표와 같은 구조.
+        </p>
+        {fx?.krwBrl ? (
+          <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} parOnly />
+        ) : (
+          <p className="text-xs text-zinc-400">환율을 불러오면 표시됩니다.</p>
+        )}
+      </div>
     </section>
     </div>
   );
