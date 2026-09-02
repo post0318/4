@@ -190,6 +190,8 @@ export function BondLayoutForm({
   lockToggleDisabled = false,
 }: BondLayoutFormProps) {
   const [linkStatus, setLinkStatus] = useState<string | null>(null);
+  // 고객 공유용 — 링크로 연 화면에서 트레이딩(주문) 탭을 숨긴다. 기본 켜짐.
+  const [hideTradingInLink, setHideTradingInLink] = useState(true);
 
   const update = <K extends keyof BondLayoutInput>(
     key: K,
@@ -404,7 +406,7 @@ export function BondLayoutForm({
         : maturitySummary;
 
   const handleCreateLink = async () => {
-    const link = encodeBondLink(value);
+    const link = encodeBondLink(value, { hideTrading: hideTradingInLink });
     try {
       await navigator.clipboard.writeText(link);
       setLinkStatus("링크를 클립보드에 복사했습니다.");
@@ -479,6 +481,15 @@ export function BondLayoutForm({
           >
             링크 생성
           </button>
+          <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            <input
+              type="checkbox"
+              checked={hideTradingInLink}
+              onChange={(e) => setHideTradingInLink(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-zinc-300 dark:border-zinc-600"
+            />
+            트레이딩 탭 숨김
+          </label>
           <button
             type="button"
             disabled={lockToggleDisabled}

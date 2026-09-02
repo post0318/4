@@ -238,15 +238,25 @@ function unpack(text: string): Partial<BondLayoutInput> | null {
   return result;
 }
 
-/** 화면 전체 입력값을 담아 현재 페이지 URL에 붙일 공유 링크를 만든다 */
-export function encodeBondLink(value: BondLayoutInput): string {
+/** 화면 전체 입력값을 담아 현재 페이지 URL에 붙일 공유 링크를 만든다.
+ *  `hideTrading`이면 링크로 연 화면에서 트레이딩(주문) 탭을 숨긴다(고객 공유용). */
+export function encodeBondLink(
+  value: BondLayoutInput,
+  opts?: { hideTrading?: boolean }
+): string {
   const encoded = compressToEncodedURIComponent(pack(value));
 
   const url = new URL(window.location.href);
   url.search = "";
   url.hash = "";
   url.searchParams.set("bond", encoded);
+  if (opts?.hideTrading) url.searchParams.set("view", "client");
   return url.toString();
+}
+
+/** 공유 링크가 트레이딩 탭을 숨기도록 지정했는지 (`?view=client`) */
+export function linkHidesTrading(search: string): boolean {
+  return new URLSearchParams(search).get("view") === "client";
 }
 
 /** 링크의 bond 쿼리 파라미터를 화면 입력값으로 되돌린다 */

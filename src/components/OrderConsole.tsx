@@ -15,6 +15,7 @@ import { DurationPanel } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
+import { linkHidesTrading } from "@/lib/cashflow/bondLink";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -41,9 +42,13 @@ export function OrderConsole() {
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
 
+  // 고객 공유 링크(?view=client)면 트레이딩(주문) 탭을 숨긴다.
+  const [hideTrading] = useState(
+    () => typeof window !== "undefined" && linkHidesTrading(window.location.search)
+  );
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
-  >("market");
+  >(() => (hideTrading ? "cashflow" : "market"));
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -330,7 +335,7 @@ export function OrderConsole() {
     { key: "cashflow" as const, label: "현금흐름" },
     { key: "simulation" as const, label: "시뮬레이션" },
     { key: "duration" as const, label: "금리/환율 민감도" },
-  ];
+  ].filter((t) => !(hideTrading && t.key === "trading"));
 
   return (
     <div className="print-page mx-auto grid max-w-6xl gap-5 p-4 sm:p-6">
@@ -367,7 +372,7 @@ export function OrderConsole() {
         </>
       )}
 
-      {tab === "trading" && (
+      {tab === "trading" && !hideTrading && (
         <>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-zinc-200/80 bg-white px-3.5 py-2.5 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none">
             <span className="font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
