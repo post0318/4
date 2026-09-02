@@ -296,7 +296,7 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
       !p ||
       !Number.isFinite(aY) ||
       !Number.isFinite(bY) ||
-      !Number.isFinite(fxN)
+      !(fxN > 0)
     )
       return null;
     const fee = parseFloat(trustFee) || 0;

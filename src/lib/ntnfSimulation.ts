@@ -185,6 +185,7 @@ export function simulateRollVsSwitch(
       : computeNtnfPu(input.bondA.maturity, input.bondA.buyYieldPct, settle);
   if (puA == null || puA <= 0) return null;
   const fx = input.fxKrwPerBrl;
+  if (!(fx > 0)) return null; // 환율 0·음수·NaN → 나눗셈 Infinity 방어
 
   // 현금흐름 탭과 동일: (원금 − 선취신탁보수) → 헤알 환산 → PU로 나눠 정수 좌수만
   // 매수하고, 사고 남은 헤알 잔돈은 무이자로 만기까지 이월한다.
