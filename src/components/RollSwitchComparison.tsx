@@ -255,7 +255,23 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     setSellPriceA("");
   };
 
-  const bondA = sorted.find((x) => x.maturityDate === aKey) ?? sorted[0];
+  // 기본 보유종목(A) = 만기가 오늘로부터 3년 이상 남은 첫 종목(≈2029물). 최단물
+  // (27년 등)은 만기가 곧이라 중도매도 후 갈아탈 구간이 거의 없어 기본값에서 뺀다.
+  const defaultBondA = useMemo(() => {
+    const cutoff = new Date(
+      Date.UTC(now.getUTCFullYear() + 3, now.getUTCMonth(), now.getUTCDate())
+    )
+      .toISOString()
+      .slice(0, 10);
+    return (
+      sorted.find((b) => b.maturityDate >= cutoff) ??
+      sorted[Math.min(1, sorted.length - 1)] ??
+      sorted[0]
+    );
+  }, [sorted, now]);
+
+  const bondA =
+    sorted.find((x) => x.maturityDate === aKey) ?? defaultBondA;
   const bondB =
     sorted.find((x) => x.maturityDate === bKey) ?? sorted[sorted.length - 1];
   const liveFx = fx?.krwBrl ?? null;
