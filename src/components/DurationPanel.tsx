@@ -419,8 +419,8 @@ export function DurationPanel({ bonds, fx }: Props) {
     </section>
 
     <section className="space-y-3 rounded-xl border border-zinc-300 bg-zinc-50/60 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
           환율 시나리오별 예상 수익률
         </h2>
         <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
@@ -435,35 +435,39 @@ export function DurationPanel({ bonds, fx }: Props) {
       </div>
       <p className="text-xs text-zinc-400">
         현재 가격으로 매입해 만기까지 보유를 가정 → 금리변동에 따른 평가손익 없음
-        (금리 손익은 위 가격변동 표 참고).
+        (금리 손익은 위 가격변동 표 참고). 세전 · 단리 연환산(총수익률 ÷
+        잔존연수, 현금흐름 탭과 동일) · 수수료·세금 미반영.
       </p>
+
       {fx?.krwBrl ? (
-        <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
+        <>
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+              총수익률 기준 <span className="font-normal text-zinc-400">(이자 포함)</span>
+            </h3>
+            <p className="mb-2 text-xs text-zinc-400">
+              액면 상환 + 쿠폰 명목 수령을 합산.{" "}
+              {reinvest
+                ? "재투자형: 쿠폰을 매수금리로 재투자한다고 가정."
+                : "일반형: 쿠폰을 현금으로 받아 재투자하지 않음."}
+            </p>
+            <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
+          </div>
+
+          <div className="mt-4 border-t border-zinc-300 pt-3 dark:border-zinc-700">
+            <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+              액면 기준 <span className="font-normal text-zinc-400">(이자 제외)</span>
+            </h3>
+            <p className="mb-2 text-xs text-zinc-400">
+              매수단가에 사서 만기에 <b>액면 R$1,000만 상환</b>(쿠폰 미포함) →
+              헤알 강·약세가 <b>투자 원금</b>에 미치는 영향만.
+            </p>
+            <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} parOnly />
+          </div>
+        </>
       ) : (
         <p className="text-xs text-zinc-400">환율을 불러오면 표시됩니다.</p>
       )}
-      <p className="text-xs text-zinc-400">
-        세전 · 단리 연환산(총수익률 ÷ 잔존연수, 현금흐름 탭과 동일) · 수수료·세금
-        미반영.{" "}
-        {reinvest
-          ? "재투자형: 쿠폰을 매수금리로 재투자한다고 가정."
-          : "일반형: 쿠폰을 현금으로 받아 재투자하지 않음(현금이자 0)."}
-      </p>
-
-      <div className="mt-4 border-t border-zinc-300 pt-3 dark:border-zinc-700">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          채권 액면만 — 이자 제외
-        </h3>
-        <p className="mt-1 mb-2 text-xs text-zinc-400">
-          매수단가에 사서 만기에 <b>액면 R$1,000만 상환</b>(쿠폰 미포함) → 헤알
-          강·약세가 <b>투자 원금</b>에 미치는 영향만. 위 표와 같은 구조.
-        </p>
-        {fx?.krwBrl ? (
-          <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} parOnly />
-        ) : (
-          <p className="text-xs text-zinc-400">환율을 불러오면 표시됩니다.</p>
-        )}
-      </div>
     </section>
     </div>
   );
