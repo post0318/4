@@ -117,6 +117,11 @@ export interface RollSwitchInput {
   overrideBuyPriceA?: number | null;
   /** A 매도가격 직접 지정 (R$, per 좌). 없으면 sellYieldA로 계산 */
   overrideSellPriceA?: number | null;
+  /**
+   * 수익률 분모를 예전 방식(A par = 좌수 × 액면)으로 되돌린다 — 화면 하단
+   * "기존 로직" 비교 블록 전용. 기본(false)은 신탁투자원금 ÷ 환율.
+   */
+  legacyParDenominator?: boolean;
 }
 
 export interface RollSwitchLeg {
@@ -198,7 +203,10 @@ export function simulateRollVsSwitch(
   // 수익률"과 같은 기준 — 선취신탁보수·A매수단가가 총기대수익률에 제대로 반영되고,
   // 소액 원금에서 잔돈(carryBrl)이 분자에만 잡혀 수익률이 폭주하던 문제가 없어진다.
   // 두 전략이 완전히 동일한 분모를 쓰므로 롤오버 vs 갈아타기가 공정하게 비교된다.
-  const investBrl = input.principalKrw / fx;
+  // legacyParDenominator=true면 예전 방식(A par = 좌수 × 액면)으로 되돌린다.
+  const investBrl = input.legacyParDenominator
+    ? units * FACE
+    : input.principalKrw / fx;
 
   const leg = (
     key: "rollover" | "switch",

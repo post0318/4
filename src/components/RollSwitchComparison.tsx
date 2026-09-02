@@ -311,6 +311,14 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     () => (input ? simulateRollVsSwitch(input) : null),
     [input]
   );
+  // 화면 하단 비교용 — 예전 방식(A par = 좌수 × 액면) 분모로 다시 계산.
+  const resultLegacy = useMemo(
+    () =>
+      input
+        ? simulateRollVsSwitch({ ...input, legacyParDenominator: true })
+        : null,
+    [input]
+  );
 
   if (sorted.length === 0) return null;
 
@@ -318,6 +326,10 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     !!result?.rollover &&
     !!result?.switch &&
     result.rollover.totalReturnPct >= result.switch.totalReturnPct;
+  const rollWinLegacy =
+    !!resultLegacy?.rollover &&
+    !!resultLegacy?.switch &&
+    resultLegacy.rollover.totalReturnPct >= resultLegacy.switch.totalReturnPct;
 
   return (
     <>
@@ -542,6 +554,29 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
         </p>
       )}
       </section>
+
+      {resultLegacy && (resultLegacy.rollover || resultLegacy.switch) && (
+        <section className="space-y-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/60 p-4 dark:border-zinc-700 dark:bg-zinc-900/40">
+          <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            [비교] 기존 로직 — 분모 = A par(좌수 × 액면)
+            <span className="ml-1 font-normal text-zinc-400">
+              시각 비교용. 최종본은 위쪽(신탁원금 ÷ 환율).
+            </span>
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ScenarioCard
+              leg={resultLegacy.rollover}
+              frontFeePct={0}
+              win={rollWinLegacy}
+            />
+            <ScenarioCard
+              leg={resultLegacy.switch}
+              frontFeePct={parseFloat(trustFee) || 0}
+              win={!rollWinLegacy && !!resultLegacy.switch}
+            />
+          </div>
+        </section>
+      )}
 
       <CashFlowDisclaimer />
     </>
