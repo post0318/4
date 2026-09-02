@@ -250,13 +250,22 @@ export function encodeBondLink(
   url.search = "";
   url.hash = "";
   url.searchParams.set("bond", encoded);
-  if (opts?.hideTrading) url.searchParams.set("view", "client");
+  if (opts?.hideTrading) {
+    url.searchParams.set("view", "client");
+    url.searchParams.set("iss", new Date().toISOString().slice(0, 10)); // 발급일(워터마크용)
+  }
   return url.toString();
 }
 
-/** 공유 링크가 트레이딩 탭을 숨기도록 지정했는지 (`?view=client`) */
+/** 공유 링크가 고객 열람 모드인지 (`?view=client`) — 트레이딩 탭 숨김 + 인쇄·복사 차단 */
 export function linkHidesTrading(search: string): boolean {
   return new URLSearchParams(search).get("view") === "client";
+}
+
+/** 고객 열람 링크의 발급일 (`?iss=YYYY-MM-DD`), 없으면 null */
+export function clientLinkIssued(search: string): string | null {
+  const v = new URLSearchParams(search).get("iss");
+  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 }
 
 /** 링크의 bond 쿼리 파라미터를 화면 입력값으로 되돌린다 */

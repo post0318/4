@@ -123,3 +123,36 @@ body {
     display: table-header-group;
   }
 }
+
+/* ── 고객 열람 링크(?view=client) 제한 ── 원본(사내) 화면엔 영향 없음.
+   ClientViewGuard가 <body>에 .client-view 클래스를 붙였을 때만 적용된다. */
+body.client-view {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.client-print-notice {
+  display: none;
+}
+@media print {
+  /* 본문은 모두 숨기고 안내문만 (인쇄·PDF 저장 차단) */
+  body.client-view * {
+    visibility: hidden !important;
+  }
+  body.client-view .client-print-notice,
+  body.client-view .client-print-notice * {
+    visibility: visible !important;
+  }
+  body.client-view .client-print-notice {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 20mm;
+    background: #fff;
+    color: #000;
+    font-size: 15pt;
+    font-weight: 700;
+    text-align: center;
+  }
+}

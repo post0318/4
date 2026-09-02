@@ -15,7 +15,8 @@ import { DurationPanel } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
-import { linkHidesTrading } from "@/lib/cashflow/bondLink";
+import { ClientViewGuard } from "@/components/ClientViewGuard";
+import { clientLinkIssued, linkHidesTrading } from "@/lib/cashflow/bondLink";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -42,9 +43,12 @@ export function OrderConsole() {
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
 
-  // 고객 공유 링크(?view=client)면 트레이딩(주문) 탭을 숨긴다.
+  // 고객 공유 링크(?view=client)면 트레이딩(주문) 탭 숨김 + 인쇄·복사 차단.
   const [hideTrading] = useState(
     () => typeof window !== "undefined" && linkHidesTrading(window.location.search)
+  );
+  const [clientIssued] = useState(() =>
+    typeof window !== "undefined" ? clientLinkIssued(window.location.search) : null
   );
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
@@ -339,6 +343,7 @@ export function OrderConsole() {
 
   return (
     <div className="print-page mx-auto grid max-w-6xl gap-5 p-4 sm:p-6">
+      {hideTrading && <ClientViewGuard issued={clientIssued} />}
       <header className="print:hidden">
         <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
