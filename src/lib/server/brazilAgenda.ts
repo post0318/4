@@ -31,8 +31,10 @@ interface Curated {
   unit: string;
   /** 발표월 → 참조월 오프셋 (IPCA는 전월분 발표: -1) */
   refOffset: number;
-  /** 발표치 SGS 시리즈 코드 */
+  /** 월간 발표치 SGS 시리즈 코드 */
   sgs: number | null;
+  /** 분기 발표치 IBGE SIDRA (표·변수). 분기 지표(GDP) 전용 */
+  sidra?: { table: number; variable: number };
   /** Focus 예상치 설정 */
   focus: { indicador: string; kind: FocusKind } | null;
   /** 이 지표 값의 상식 범위 (검증). 벗어나면 값을 버린다 */
@@ -82,6 +84,8 @@ const CURATED: [RegExp, Curated | null][] = [
       unit: "%",
       refOffset: 0,
       sgs: null,
+      // SIDRA 5932, 변수 6561 = 전년동기比(YoY). Focus "PIB Total" 분기치와 같은 정의라 예상 vs 발표 비교가 성립.
+      sidra: { table: 5932, variable: 6561 },
       focus: { indicador: "PIB Total", kind: "quarter" },
       bounds: [-20, 20],
     },
@@ -180,6 +184,30 @@ async function sgsMonthly(
   }
 }
 
+/**
+ * IBGE SIDRA 분기 지표의 특정 참조분기 값(%). refQuarter 는 "Q/YYYY"("2/2026").
+ * 참조분기가 아직 발표 전이면 헤더 행만 오므로 null.
+ */
+async function sidraQuarterlyPct(
+  table: number,
+  variable: number,
+  refQuarter: string
+): Promise<number | null> {
+  try {
+    const [q, y] = refQuarter.split("/");
+    const period = `${y}${q.padStart(2, "0")}`; // "2/2026" → "202602"
+    const res = await fetch(
+      `https://apisidra.ibge.gov.br/values/t/${table}/n1/1/v/${variable}/p/${period}/c11255/90707`
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as { V?: string }[];
+    const v = Number(rows?.[1]?.V);
+    return Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 interface IbgeItem {
   titulo: string;
   data_divulgacao: string;
@@ -225,16 +253,23 @@ async function fetchIbge(from: string, to: string): Promise<AgendaItem[]> {
     }
 
     const released = date <= today;
-    const expectedRef =
-      c.focus?.kind === "quarter" ? null : refMonth(date, c.refOffset);
+    const isQuarter = c.focus?.kind === "quarter";
+    const expectedRef = isQuarter ? null : refMonth(date, c.refOffset);
 
-    // 발표치는 "정확히 해당 참조월"의 SGS 값, 직전치는 최근 가용값
+    // 발표치: 월간은 "정확히 해당 참조월"의 SGS 값, 분기는 IBGE SIDRA 참조분기 값.
+    // 직전치(prior)는 월간 SGS 최근 가용값.
     let atRef: number | null = null;
     let latest: number | null = null;
     if (c.sgs != null && expectedRef) {
       const r = await sgsMonthly(c.sgs, expectedRef);
       atRef = r.atRef;
       latest = r.latest;
+    } else if (isQuarter && c.sidra) {
+      atRef = await sidraQuarterlyPct(
+        c.sidra.table,
+        c.sidra.variable,
+        refQuarter(date)
+      );
     }
 
     // 무료 검증: 상식 범위를 벗어난 값은 버린다(소스/파싱 오류 방지)
