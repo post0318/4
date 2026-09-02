@@ -280,13 +280,14 @@ export function BondOrderTable({
                     <td className={`${td} text-right`} colSpan={5}>
                       환전금액 달러금액(${fmtNum(exchangeUsdTotal, 2)})과의 차이
                     </td>
+                    <td className={td} />
                     <td className={`${td} text-right`}>
                       {usdDiff === 0
                         ? "0"
                         : (usdDiff > 0 ? "+" : "−") +
                           fmtNum(Math.abs(usdDiff), 2)}
                     </td>
-                    <td className={td} colSpan={5} />
+                    <td className={td} colSpan={4} />
                   </tr>
                 )}
               </tfoot>
