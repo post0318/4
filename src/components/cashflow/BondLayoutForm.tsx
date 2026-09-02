@@ -467,39 +467,38 @@ export function BondLayoutForm({
           </Row>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden md:col-span-2">
-          {/* 링크 생성·트레이딩 탭 숨김은 사내(원본) 화면 전용 — 공유 링크로 연
-              화면(lockToggleDisabled)에선 숨긴다 */}
+          {/* 링크 생성·잠금·트레이딩 탭 숨김은 사내(원본) 화면 전용 — 공유
+              링크로 연 화면(lockToggleDisabled)에선 전부 숨긴다 */}
           {!lockToggleDisabled && (
-            <button
-              type="button"
-              onClick={handleCreateLink}
-              className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              링크 생성
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={lockToggleDisabled}
-            onClick={() => onLockedChange(!locked)}
-            className={
-              locked
-                ? "inline-flex w-fit items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400 dark:disabled:hover:bg-amber-950/40"
-                : "inline-flex w-fit items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-zinc-900"
-            }
-          >
-            {locked ? "🔒 편입자산정보 잠김 (해제)" : "🔓 편입자산정보 잠금"}
-          </button>
-          {!lockToggleDisabled && (
-            <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-              <input
-                type="checkbox"
-                checked={hideTradingInLink}
-                onChange={(e) => setHideTradingInLink(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-zinc-300 dark:border-zinc-600"
-              />
-              트레이딩 탭 숨김
-            </label>
+            <>
+              <button
+                type="button"
+                onClick={handleCreateLink}
+                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                링크 생성
+              </button>
+              <button
+                type="button"
+                onClick={() => onLockedChange(!locked)}
+                className={
+                  locked
+                    ? "inline-flex w-fit items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+                    : "inline-flex w-fit items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                }
+              >
+                {locked ? "🔒 편입자산정보 잠김 (해제)" : "🔓 편입자산정보 잠금"}
+              </button>
+              <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={hideTradingInLink}
+                  onChange={(e) => setHideTradingInLink(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-zinc-300 dark:border-zinc-600"
+                />
+                트레이딩 탭 숨김
+              </label>
+            </>
           )}
           {linkStatus && (
             <p className="ml-2 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
