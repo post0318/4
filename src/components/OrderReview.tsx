@@ -48,6 +48,7 @@ type SendState =
   | {
       status: "done";
       delivered: boolean;
+      testSend: boolean;
       to: string;
       cc: string;
       subject: string;
@@ -76,6 +77,7 @@ export function OrderReview({
   const [ccOverride, setCcOverride] = useState<string | null>(null);
   const cc = ccOverride ?? defaultCc;
   const [note, setNote] = useState("");
+  const [testSend, setTestSend] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [send, setSend] = useState<SendState>({ status: "idle" });
 
@@ -105,8 +107,7 @@ export function OrderReview({
   const canSend =
     lines.length > 0 &&
     confirmed &&
-    emailValid &&
-    ccValid &&
+    (testSend || (emailValid && ccValid)) &&
     !blockedByMatch &&
     send.status !== "sending";
 
@@ -127,6 +128,7 @@ export function OrderReview({
           cc: cc.trim() || undefined,
           confirmed: true,
           note: note.trim() || undefined,
+          testSend,
         }),
       });
       const data = await res.json();
@@ -137,6 +139,7 @@ export function OrderReview({
       setSend({
         status: "done",
         delivered: data.delivered,
+        testSend: !!data.testSend,
         to: data.to,
         cc: data.cc ?? "",
         subject: data.subject,
@@ -272,6 +275,19 @@ export function OrderReview({
         </p>
       )}
 
+      <label className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+        <input
+          type="checkbox"
+          checked={testSend}
+          onChange={(e) => setTestSend(e.target.checked)}
+          className="mt-0.5 h-4 w-4"
+        />
+        <span>
+          <b>테스트 발송</b> — 실제 수신자·참조가 아닌 개발자 이메일로만 보냅니다.
+          (제목에 <code>[테스트]</code> 표시)
+        </span>
+      </label>
+
       <label className="mt-3 flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
         <input
           type="checkbox"
@@ -281,8 +297,11 @@ export function OrderReview({
           className="mt-0.5 h-4 w-4"
         />
         <span>
-          환율·종목·수량·수신자 이메일을 모두 확인했습니다. 체크된 {lines.length}개
-          종목을 이 내용으로 발송합니다.
+          {testSend
+            ? "환율·종목·수량을 확인했습니다. "
+            : "환율·종목·수량·수신자 이메일을 모두 확인했습니다. "}
+          체크된 {lines.length}개 종목을{" "}
+          {testSend ? "테스트로 발송합니다." : "이 내용으로 발송합니다."}
         </span>
       </label>
 
@@ -290,9 +309,17 @@ export function OrderReview({
         type="button"
         disabled={!canSend}
         onClick={() => setModalOpen(true)}
-        className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-zinc-300 dark:disabled:bg-zinc-700"
+        className={`mt-3 w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 dark:disabled:bg-zinc-700 ${
+          testSend
+            ? "bg-amber-600 hover:bg-amber-700"
+            : "bg-blue-600 hover:bg-blue-700"
+        }`}
       >
-        {send.status === "sending" ? "발송 중…" : "확인 후 발송"}
+        {send.status === "sending"
+          ? "발송 중…"
+          : testSend
+            ? "확인 후 테스트 발송"
+            : "확인 후 발송"}
       </button>
 
       {send.status === "error" && (
@@ -303,6 +330,7 @@ export function OrderReview({
       {send.status === "done" && (
         <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
           <p className="font-semibold">
+            {send.testSend ? "[테스트] " : ""}
             {send.delivered
               ? `발송 완료 → ${send.to}`
               : `발송 준비 완료 (전송 미연동 · stub) → ${send.to}`}
@@ -328,15 +356,24 @@ export function OrderReview({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900">
             <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-              이 내용으로 발송할까요?
+              {testSend ? "테스트로 발송할까요?" : "이 내용으로 발송할까요?"}
             </h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              받는사람 {recipients.length}명 · {recipients.join(", ")}
-            </p>
-            {ccList.length > 0 && (
-              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                참조 {ccList.length}명 · {ccList.join(", ")}
+            {testSend ? (
+              <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                실제 수신자에게는 보내지 않습니다. 개발자 이메일로만 발송 ·
+                제목에 [테스트] 표시.
               </p>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  받는사람 {recipients.length}명 · {recipients.join(", ")}
+                </p>
+                {ccList.length > 0 && (
+                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    참조 {ccList.length}명 · {ccList.join(", ")}
+                  </p>
+                )}
+              </>
             )}
             <ul className="mt-3 space-y-2">
               {lines.map((l) => (

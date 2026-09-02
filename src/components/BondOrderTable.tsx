@@ -281,7 +281,7 @@ export function BondOrderTable({
                     }
                   >
                     <td className={`${td} text-right`} colSpan={5}>
-                      환전금액 원화금액({groupDigits(String(exchangeKrwTotal))})과의 차이
+                      환전금액 원화금액과의 차이
                     </td>
                     <td className={`${td} text-right`}>
                       {krwDiff === 0
@@ -301,7 +301,7 @@ export function BondOrderTable({
                     }
                   >
                     <td className={`${td} text-right`} colSpan={5}>
-                      환전금액 달러금액(${fmtNum(exchangeUsdTotal, 2)})과의 차이
+                      환전금액 달러금액과의 차이
                     </td>
                     <td className={td} />
                     <td className={`${td} text-right`}>

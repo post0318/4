@@ -46,6 +46,8 @@ const FALLBACK_CC = [
 ].join("; ");
 const DEFAULT_TO = process.env.ORDER_EMAIL_TO || FALLBACK_TO;
 const DEFAULT_CC = process.env.ORDER_EMAIL_CC || FALLBACK_CC;
+// 테스트 발송 수신자 — 실제 수신자 대신 개발자 본인 주소로만 보낸다.
+const TEST_TO = process.env.ORDER_EMAIL_TEST_TO || process.env.ORDER_EMAIL_FROM || "";
 // 환경변수는 리터럴 "\n"을 줄바꿈으로 해석한다
 const GREETING =
   process.env.ORDER_EMAIL_GREETING?.replace(/\\n/g, "\n") ?? DEFAULT_GREETING;
@@ -78,6 +80,8 @@ interface SendOrderBody {
   cc?: string;
   confirmed: boolean;
   note?: string;
+  /** 테스트 발송 — 실제 수신자 대신 개발자 주소로만 보낸다 */
+  testSend?: boolean;
 }
 
 async function sendEmail(params: {
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 본문" }, { status: 400 });
   }
 
-  const { lines, fx, to, cc, confirmed, note } = body ?? {};
+  const { lines, fx, to, cc, confirmed, note, testSend } = body ?? {};
 
   if (!confirmed) {
     return NextResponse.json(
@@ -113,20 +117,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 받는사람·참조는 ; 또는 , 로 여러 명 지정 가능. "이름 <a@b.com>" 형식 허용.
-  const toList = parseRecipients(to || DEFAULT_TO);
-  if (!allValidEmails(toList)) {
-    return NextResponse.json(
-      { error: "받는사람 이메일 주소가 올바르지 않습니다." },
-      { status: 400 }
-    );
-  }
-  const ccList = parseRecipients(cc ?? DEFAULT_CC);
-  if (ccList.length > 0 && !allValidEmails(ccList)) {
-    return NextResponse.json(
-      { error: "참조 이메일 주소가 올바르지 않습니다." },
-      { status: 400 }
-    );
+  // 테스트 발송이면 실제 수신자·참조를 무시하고 개발자 주소로만 보낸다.
+  let toList: string[];
+  let ccList: string[];
+  if (testSend) {
+    toList = parseRecipients(TEST_TO);
+    ccList = [];
+    if (!allValidEmails(toList) || toList.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "테스트 발송 주소가 설정되지 않았습니다. 환경변수 ORDER_EMAIL_TEST_TO 를 지정하세요.",
+        },
+        { status: 422 }
+      );
+    }
+  } else {
+    // 받는사람·참조는 ; 또는 , 로 여러 명 지정 가능. "이름 <a@b.com>" 형식 허용.
+    toList = parseRecipients(to || DEFAULT_TO);
+    if (!allValidEmails(toList)) {
+      return NextResponse.json(
+        { error: "받는사람 이메일 주소가 올바르지 않습니다." },
+        { status: 400 }
+      );
+    }
+    ccList = parseRecipients(cc ?? DEFAULT_CC);
+    if (ccList.length > 0 && !allValidEmails(ccList)) {
+      return NextResponse.json(
+        { error: "참조 이메일 주소가 올바르지 않습니다." },
+        { status: 400 }
+      );
+    }
   }
   const recipient = toList.join(", ");
 
@@ -232,14 +253,16 @@ export async function POST(request: NextRequest) {
     note: note?.trim() || undefined,
   };
 
-  const { subject, text, html } = buildOrderEmail(emailData);
+  const built = buildOrderEmail(emailData);
+  const subject = testSend ? `[테스트] ${built.subject}` : built.subject;
   const result = await sendEmail({
     to: toList,
     cc: ccList,
     subject,
-    text,
-    html,
+    text: built.text,
+    html: built.html,
   });
+  const text = built.text;
 
   const ccLine = ccList.length ? `\nCc: ${ccList.join(", ")}` : "";
   if (!result.delivered) {
@@ -252,6 +275,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     delivered: result.delivered,
     provider: result.provider,
+    testSend: !!testSend,
     to: recipient,
     cc: ccList.join(", "),
     subject,
