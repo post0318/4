@@ -140,16 +140,54 @@ function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   );
 }
 
+/** 하단 비교 블록 전용 — 예전 화면의 손익분해 구성 그대로 (par 분모 기준). */
+function LegacyBreakdown({ leg }: { leg: RollSwitchLeg }) {
+  const isRoll = leg.key === "rollover";
+  const aLabel = isRoll ? "만기효과" : "중도매도효과";
+  const priceRef = isRoll ? "롤오버가격 대비" : "갈아타기가격 대비";
+  const qtyRef = isRoll ? "만기상환수량 대비" : "중도매도수량 대비";
+  const row = (c: string, label: string, note: string, v: number) => (
+    <div className="flex items-baseline gap-1.5">
+      <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-sm ${c}`} />
+      <span className="text-zinc-500 dark:text-zinc-400">
+        {label}
+        {note && <span className="text-zinc-400"> ({note})</span>}{" "}
+        <span className="font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+          {pct(v)}
+        </span>
+      </span>
+    </div>
+  );
+  return (
+    <div className="mt-1 space-y-1 text-[11px]">
+      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        <div className="flex items-start">
+          {row("bg-zinc-400", aLabel, "", leg.maturityEffectAPct)}
+        </div>
+        <div className="space-y-1">
+          {row("bg-zinc-500", "만기효과", priceRef, leg.maturityEffectBPct)}
+          {row("bg-orange-400", "증분효과", qtyRef, leg.incrementPct)}
+        </div>
+      </div>
+      <div className="border-t border-zinc-100 pt-1 dark:border-zinc-800">
+        {row("bg-emerald-500", "이자효과", "A·B 쿠폰 명목합", leg.couponEffectPct)}
+      </div>
+    </div>
+  );
+}
+
 function ScenarioCard({
   leg,
   frontFeePct,
   win,
   reason,
+  legacy = false,
 }: {
   leg: RollSwitchLeg | null;
   frontFeePct: number;
   win: boolean;
   reason?: string;
+  legacy?: boolean;
 }) {
   if (!leg)
     return (
@@ -208,7 +246,7 @@ function ScenarioCard({
         </span>
       </div>
 
-      <Breakdown leg={leg} />
+      {legacy ? <LegacyBreakdown leg={leg} /> : <Breakdown leg={leg} />}
 
       <p className="mt-1.5 text-[10px] text-zinc-400">
         A 청산단가 R${fmtNum(leg.exitPriceA, 2)} · B 매수가격 R$
@@ -584,11 +622,13 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
               leg={resultLegacy.rollover}
               frontFeePct={0}
               win={rollWinLegacy}
+              legacy
             />
             <ScenarioCard
               leg={resultLegacy.switch}
               frontFeePct={parseFloat(trustFee) || 0}
               win={!rollWinLegacy && !!resultLegacy.switch}
+              legacy
             />
           </div>
         </section>
