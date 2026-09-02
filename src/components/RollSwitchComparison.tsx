@@ -140,44 +140,8 @@ function Breakdown({ leg }: { leg: RollSwitchLeg }) {
           {row("bg-orange-400", "증분효과", "할인 교차분·선취·잔돈", leg.incrementEffectPct)}
         </div>
       </div>
-      <div className="border-t border-zinc-100 pt-1 dark:border-zinc-800">
+      <div className="mt-1 border-t border-zinc-300 pt-1.5 dark:border-zinc-600">
         {row("bg-emerald-500", "이자효과", "쿠폰 ÷ A 보유 액면", leg.couponEffectPct)}
-      </div>
-    </div>
-  );
-}
-
-/** 하단 비교 블록 전용 — 예전 화면의 손익분해 구성 그대로 (par 분모 기준). */
-function LegacyBreakdown({ leg }: { leg: RollSwitchLeg }) {
-  const isRoll = leg.key === "rollover";
-  const aLabel = isRoll ? "만기효과" : "중도매도효과";
-  const priceRef = isRoll ? "롤오버가격 대비" : "갈아타기가격 대비";
-  const qtyRef = isRoll ? "만기상환수량 대비" : "중도매도수량 대비";
-  const row = (c: string, label: string, note: string, v: number) => (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-sm ${c}`} />
-      <span className="text-zinc-500 dark:text-zinc-400">
-        {label}
-        {note && <span className="text-zinc-400"> ({note})</span>}{" "}
-        <span className="font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
-          {pct(v)}
-        </span>
-      </span>
-    </div>
-  );
-  return (
-    <div className="mt-1 space-y-1 text-[11px]">
-      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-        <div className="flex items-start">
-          {row("bg-zinc-400", aLabel, "", leg.maturityEffectAPct)}
-        </div>
-        <div className="space-y-1">
-          {row("bg-zinc-500", "만기효과", priceRef, leg.maturityEffectBPct)}
-          {row("bg-orange-400", "증분효과", qtyRef, leg.incrementPct)}
-        </div>
-      </div>
-      <div className="border-t border-zinc-100 pt-1 dark:border-zinc-800">
-        {row("bg-emerald-500", "이자효과", "A·B 쿠폰 명목합", leg.couponEffectPct)}
       </div>
     </div>
   );
@@ -188,13 +152,11 @@ function ScenarioCard({
   frontFeePct,
   win,
   reason,
-  legacy = false,
 }: {
   leg: RollSwitchLeg | null;
   frontFeePct: number;
   win: boolean;
   reason?: string;
-  legacy?: boolean;
 }) {
   if (!leg)
     return (
@@ -253,7 +215,7 @@ function ScenarioCard({
         </span>
       </div>
 
-      {legacy ? <LegacyBreakdown leg={leg} /> : <Breakdown leg={leg} />}
+      <Breakdown leg={leg} />
 
       <p className="mt-1.5 text-[10px] text-zinc-400">
         A 청산단가 R${fmtNum(leg.exitPriceA, 2)} · B 매수가격 R$
@@ -372,14 +334,6 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     () => (input ? simulateRollVsSwitch(input) : null),
     [input]
   );
-  // 화면 하단 비교용 — 예전 방식(A par = 좌수 × 액면) 분모로 다시 계산.
-  const resultLegacy = useMemo(
-    () =>
-      input
-        ? simulateRollVsSwitch({ ...input, legacyParDenominator: true })
-        : null,
-    [input]
-  );
 
   if (sorted.length === 0) return null;
 
@@ -387,10 +341,6 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     !!result?.rollover &&
     !!result?.switch &&
     result.rollover.totalReturnPct >= result.switch.totalReturnPct;
-  const rollWinLegacy =
-    !!resultLegacy?.rollover &&
-    !!resultLegacy?.switch &&
-    resultLegacy.rollover.totalReturnPct >= resultLegacy.switch.totalReturnPct;
 
   return (
     <>
@@ -615,31 +565,6 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
         </p>
       )}
       </section>
-
-      {resultLegacy && (resultLegacy.rollover || resultLegacy.switch) && (
-        <section className="space-y-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/60 p-4 dark:border-zinc-700 dark:bg-zinc-900/40">
-          <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            [비교] 기존 로직 — 분모 = A par(좌수 × 액면)
-            <span className="ml-1 font-normal text-zinc-400">
-              시각 비교용. 최종본은 위쪽(신탁원금 ÷ 환율).
-            </span>
-          </h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ScenarioCard
-              leg={resultLegacy.rollover}
-              frontFeePct={0}
-              win={rollWinLegacy}
-              legacy
-            />
-            <ScenarioCard
-              leg={resultLegacy.switch}
-              frontFeePct={parseFloat(trustFee) || 0}
-              win={!rollWinLegacy && !!resultLegacy.switch}
-              legacy
-            />
-          </div>
-        </section>
-      )}
 
       <CashFlowDisclaimer />
     </>
