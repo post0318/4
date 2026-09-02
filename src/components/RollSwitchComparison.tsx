@@ -107,11 +107,10 @@ function Timeline({ leg }: { leg: RollSwitchLeg }) {
 }
 
 /**
- * 하단 손익 분해. 합산부(원금상환효과 + 이자효과)는 정확히 총기대수익률과
- * 일치한다 — 선취신탁보수·잔돈은 원금상환효과에 흡수된다. 그 아래 만기효과
- * A·B와 좌수 증분효과는 "그 값이 왜 그렇게 나왔는지" 보여주는 참고지표로,
- * 합산에는 들어가지 않는다. 롤오버는 A를 만기까지 보유하므로 "A 만기효과",
- * 갈아타기는 중도 시장가 매도라 "A 중도매도효과".
+ * 하단 손익 분해. 합산부(가격상승효과 + 이자효과)는 정확히 총기대수익률과
+ * 일치한다. 이자효과 = 받은 쿠폰 ÷ A 보유 액면(순수 쿠폰수익률, 매수가 무관),
+ * 가격상승효과 = 나머지 전부 — 매수 시 액면 대비 할인·선취, A→B 갈아타기 증분,
+ * B par 수렴, 잔돈. 그 아래 만기효과 A·B와 좌수 증분효과는 참고지표(합산 제외).
  */
 function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   const isRoll = leg.key === "rollover";
@@ -130,8 +129,8 @@ function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   );
   return (
     <div className="mt-1 space-y-1 text-[11px]">
-      {row("bg-orange-400", "원금상환효과", "신탁원금 → B 만기상환", leg.principalEffectPct)}
-      {row("bg-emerald-500", "이자효과", "A·B 쿠폰 명목합", leg.couponEffectPct)}
+      {row("bg-orange-400", "가격상승효과", "매수할인·갈아타기·par 수렴", leg.priceEffectPct)}
+      {row("bg-emerald-500", "이자효과", "쿠폰 ÷ A 보유 액면", leg.couponEffectPct)}
       <div className="border-t border-zinc-100 pt-1 text-[10px] text-zinc-400 dark:border-zinc-800">
         참고 · {aLabel} {pct(leg.maturityEffectAPct)} · B 만기효과{" "}
         {pct(leg.maturityEffectBPct)} · 증분효과(좌수) {pct(leg.incrementPct)}

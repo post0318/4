@@ -145,12 +145,12 @@ export interface RollSwitchLeg {
   /** 참고지표 · B 만기효과 (%) = 액면/B매수가 − 1 */
   maturityEffectBPct: number;
   /**
-   * 원금상환효과 (%) = (unitsEnd×액면 + 잔돈) ÷ 신탁원금(헤알) − 1.
-   * 선취신탁보수·매수단가·갈아타기까지 다 반영된, "낸 원금이 B 만기상환 par로
-   * 얼마가 되어 돌아오나(이자 제외)". 총기대수익률 = 원금상환효과 + 이자효과.
+   * 가격상승효과(만기효과) (%) = 총기대수익률 − 이자효과. 쿠폰을 뺀 가격으로 번
+   * 전부 — 매수 시 액면 대비 할인·선취, A→B 갈아타기 증분, B par 수렴, 잔돈.
+   * 총기대수익률 = 가격상승효과 + 이자효과.
    */
-  principalEffectPct: number;
-  /** 이자효과 (%) = (A쿠폰 + B쿠폰 명목합) ÷ 신탁원금(헤알) */
+  priceEffectPct: number;
+  /** 이자효과 (%) = (A쿠폰 + B쿠폰 명목합) ÷ A 보유 액면. 순수 쿠폰수익률(매수가 무관) */
   couponEffectPct: number;
   /** 총 기대수익률 (BRL = KRW, 단일환율, 쿠폰 재투자 없이 명목합, %) */
   totalReturnPct: number;
@@ -245,8 +245,13 @@ export function simulateRollVsSwitch(
       incrementPct: (unitsEnd / units - 1) * 100,
       maturityEffectAPct: (exitPriceA / puA - 1) * 100,
       maturityEffectBPct: (FACE / puB - 1) * 100,
-      principalEffectPct: ((unitsEnd * FACE + carryBrl) / investBrl - 1) * 100,
-      couponEffectPct: ((couponsA + couponsB) / investBrl) * 100,
+      // 이자효과 = 받은 쿠폰 ÷ A 보유 액면(좌수 × 액면) = 순수 쿠폰수익률
+      // (매수단가 무관, ≈ 표면율 × 보유년수). 가격상승효과 = 총기대수익률 − 이자
+      // 효과 = 쿠폰 외 가격으로 번 전부 (매수 시 액면 대비 할인·선취, A→B 갈아타기
+      // 증분, B par 수렴, 잔돈).
+      couponEffectPct: ((couponsA + couponsB) / (units * FACE)) * 100,
+      priceEffectPct:
+        (totalReturn - (couponsA + couponsB) / (units * FACE)) * 100,
       totalReturnPct: totalReturn * 100,
     };
   };
