@@ -154,10 +154,6 @@ function ReturnMatrix({
           </tbody>
         </table>
       </div>
-      <p className="mt-1 text-xs text-zinc-400">
-        총누적수익률 = 잔존기간 전체 수익률. 헤알화 강세(＋)는 따뜻한 색,
-        약세(−)는 차분한 색으로 표시.
-      </p>
     </div>
   );
 }
@@ -435,8 +431,7 @@ export function DurationPanel({ bonds, fx }: Props) {
       </div>
       <p className="text-xs text-zinc-400">
         현재 가격으로 매입해 만기까지 보유를 가정 → 금리변동에 따른 평가손익 없음
-        (금리 손익은 위 가격변동 표 참고). 세전 · 단리 연환산(총수익률 ÷
-        잔존연수, 현금흐름 탭과 동일) · 수수료·세금 미반영.
+        (금리 손익은 위 가격변동 표 참고).
       </p>
 
       {fx?.krwBrl ? (
@@ -464,6 +459,12 @@ export function DurationPanel({ bonds, fx }: Props) {
             </p>
             <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} parOnly />
           </div>
+
+          <p className="text-xs text-zinc-400">
+            총누적수익률 = 잔존기간 전체 수익률. 헤알화 강세(＋)는 따뜻한 색,
+            약세(−)는 차분한 색으로 표시. 세전 · 단리 연환산(총수익률 ÷ 잔존연수,
+            현금흐름 탭과 동일) · 수수료·세금 미반영.
+          </p>
         </>
       ) : (
         <p className="text-xs text-zinc-400">환율을 불러오면 표시됩니다.</p>
