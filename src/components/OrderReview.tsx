@@ -78,6 +78,7 @@ export function OrderReview({
   const cc = ccOverride ?? defaultCc;
   const [note, setNote] = useState("");
   const [testSend, setTestSend] = useState(false);
+  const [testTo, setTestTo] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [send, setSend] = useState<SendState>({ status: "idle" });
 
@@ -104,10 +105,14 @@ export function OrderReview({
   const emailValid = allValidEmails(recipients);
   const ccValid = ccList.length === 0 || allValidEmails(ccList);
   const blockedByMatch = krwMismatch || usdMismatch;
+  // 테스트 발송 주소: 비우면 서버 환경변수(ORDER_EMAIL_TEST_TO) 사용, 입력하면 유효해야 함
+  const testToList = parseRecipients(testTo);
+  const testToValid =
+    testTo.trim() === "" || (testToList.length > 0 && allValidEmails(testToList));
   const canSend =
     lines.length > 0 &&
     confirmed &&
-    (testSend || (emailValid && ccValid)) &&
+    (testSend ? testToValid : emailValid && ccValid) &&
     !blockedByMatch &&
     send.status !== "sending";
 
@@ -129,6 +134,7 @@ export function OrderReview({
           confirmed: true,
           note: note.trim() || undefined,
           testSend,
+          testTo: testSend && testTo.trim() ? testTo.trim() : undefined,
         }),
       });
       const data = await res.json();
@@ -275,18 +281,36 @@ export function OrderReview({
         </p>
       )}
 
-      <label className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-        <input
-          type="checkbox"
-          checked={testSend}
-          onChange={(e) => setTestSend(e.target.checked)}
-          className="mt-0.5 h-4 w-4"
-        />
-        <span>
-          <b>테스트 발송</b> — 실제 수신자·참조가 아닌 개발자 이메일로만 보냅니다.
-          (제목에 <code>[테스트]</code> 표시)
-        </span>
-      </label>
+      <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={testSend}
+            onChange={(e) => setTestSend(e.target.checked)}
+            className="mt-0.5 h-4 w-4"
+          />
+          <span>
+            <b>테스트 발송</b> — 실제 수신자·참조가 아닌 아래 주소로만 보냅니다.
+            (제목에 <code>[테스트]</code> 표시)
+          </span>
+        </label>
+        {testSend && (
+          <div className="mt-2">
+            <input
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="테스트 수신 이메일 (비우면 서버 기본값)"
+              className="w-full rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm text-zinc-900 outline-none focus:border-amber-500 dark:border-amber-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+            {!testToValid && (
+              <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                이메일 주소 형식이 올바르지 않습니다.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       <label className="mt-3 flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
         <input
@@ -360,8 +384,8 @@ export function OrderReview({
             </h3>
             {testSend ? (
               <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-                실제 수신자에게는 보내지 않습니다. 개발자 이메일로만 발송 ·
-                제목에 [테스트] 표시.
+                실제 수신자에게는 보내지 않습니다. 제목에 [테스트] 표시 · 수신:{" "}
+                {testTo.trim() || "서버 기본값(ORDER_EMAIL_TEST_TO)"}
               </p>
             ) : (
               <>

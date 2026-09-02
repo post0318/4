@@ -82,6 +82,8 @@ interface SendOrderBody {
   note?: string;
   /** 테스트 발송 — 실제 수신자 대신 개발자 주소로만 보낸다 */
   testSend?: boolean;
+  /** 테스트 발송 수신 주소 (없으면 ORDER_EMAIL_TEST_TO 환경변수) */
+  testTo?: string;
 }
 
 async function sendEmail(params: {
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 본문" }, { status: 400 });
   }
 
-  const { lines, fx, to, cc, confirmed, note, testSend } = body ?? {};
+  const { lines, fx, to, cc, confirmed, note, testSend, testTo } = body ?? {};
 
   if (!confirmed) {
     return NextResponse.json(
@@ -121,13 +123,15 @@ export async function POST(request: NextRequest) {
   let toList: string[];
   let ccList: string[];
   if (testSend) {
-    toList = parseRecipients(TEST_TO);
+    // 요청에 주소가 있으면 그것, 없으면 환경변수
+    toList = parseRecipients(testTo?.trim() || TEST_TO);
     ccList = [];
-    if (!allValidEmails(toList) || toList.length === 0) {
+    if (toList.length === 0 || !allValidEmails(toList)) {
       return NextResponse.json(
         {
-          error:
-            "테스트 발송 주소가 설정되지 않았습니다. 환경변수 ORDER_EMAIL_TEST_TO 를 지정하세요.",
+          error: testTo?.trim()
+            ? "테스트 발송 이메일 주소가 올바르지 않습니다."
+            : "테스트 발송 주소가 없습니다. 이메일을 입력하거나 환경변수 ORDER_EMAIL_TEST_TO 를 지정하세요.",
         },
         { status: 422 }
       );
