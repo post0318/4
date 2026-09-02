@@ -144,12 +144,10 @@ export interface RollSwitchLeg {
   maturityEffectAPct: number;
   /** 참고지표 · B 만기효과 (%) = 액면/B매수가 − 1 */
   maturityEffectBPct: number;
-  /**
-   * 가격상승효과(만기효과) (%) = 총기대수익률 − 이자효과. 쿠폰을 뺀 가격으로 번
-   * 전부 — 매수 시 액면 대비 할인·선취, A→B 갈아타기 증분, B par 수렴, 잔돈.
-   * 총기대수익률 = 가격상승효과 + 이자효과.
-   */
-  priceEffectPct: number;
+  /** 만기효과 (%) = A 보유 액면 ÷ 낸 돈 − 1. 매수 시 액면 대비 할인(− 선취) */
+  maturityEffectPct: number;
+  /** 증분효과 (%) = 총기대수익률 − 만기효과 − 이자효과. 수량이 늘며 생긴 효과 */
+  incrementEffectPct: number;
   /** 이자효과 (%) = (A쿠폰 + B쿠폰 명목합) ÷ A 보유 액면. 순수 쿠폰수익률(매수가 무관) */
   couponEffectPct: number;
   /** 총 기대수익률 (BRL = KRW, 단일환율, 쿠폰 재투자 없이 명목합, %) */
@@ -207,6 +205,8 @@ export function simulateRollVsSwitch(
   const investBrl = input.legacyParDenominator
     ? units * FACE
     : input.principalKrw / fx;
+  // 손익분해용 — 고객이 실제로 낸 돈(헤알). legacyParDenominator와 무관하게 고정.
+  const paidBrl = input.principalKrw / fx;
 
   const leg = (
     key: "rollover" | "switch",
@@ -245,13 +245,19 @@ export function simulateRollVsSwitch(
       incrementPct: (unitsEnd / units - 1) * 100,
       maturityEffectAPct: (exitPriceA / puA - 1) * 100,
       maturityEffectBPct: (FACE / puB - 1) * 100,
-      // 이자효과 = 받은 쿠폰 ÷ A 보유 액면(좌수 × 액면) = 순수 쿠폰수익률
-      // (매수단가 무관, ≈ 표면율 × 보유년수). 가격상승효과 = 총기대수익률 − 이자
-      // 효과 = 쿠폰 외 가격으로 번 전부 (매수 시 액면 대비 할인·선취, A→B 갈아타기
-      // 증분, B par 수렴, 잔돈).
+      // 총기대수익률 = 만기효과 + 증분효과 + 이자효과 (정확히 합산).
+      //  · 이자효과   = 받은 쿠폰 ÷ A 보유 액면 = 순수 쿠폰수익률(매수단가 무관)
+      //  · 만기효과   = A 보유 액면 ÷ 낸 돈 − 1 = 매수 시 액면 대비 할인(− 선취).
+      //                매수가 대비 par 수렴분. "800에 사서 1000에 상환" 개념.
+      //  · 증분효과   = 나머지 = 수량이 늘며 생긴 효과 (A→B 갈아타기 좌수 증가 +
+      //                할인 덕에 더 확보한 액면이 이자·상환에 곱해진 교차분 + 잔돈)
       couponEffectPct: ((couponsA + couponsB) / (units * FACE)) * 100,
-      priceEffectPct:
-        (totalReturn - (couponsA + couponsB) / (units * FACE)) * 100,
+      maturityEffectPct: ((units * FACE) / paidBrl - 1) * 100,
+      incrementEffectPct:
+        (totalReturn -
+          ((units * FACE) / paidBrl - 1) -
+          (couponsA + couponsB) / (units * FACE)) *
+        100,
       totalReturnPct: totalReturn * 100,
     };
   };
