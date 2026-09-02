@@ -103,7 +103,7 @@ export function BondOrderTable({
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          종목 · 매수가능수량 <span className="text-zinc-400">({rows.length}개)</span>
+          수량계산 <span className="text-zinc-400">({rows.length}개)</span>
         </h2>
         <span className="text-[11px] text-zinc-400">
           {asOfDate ? `시세 기준일 ${asOfDate} · 결제일 ${settlementDate}` : ""}
