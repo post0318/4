@@ -107,18 +107,16 @@ function Timeline({ leg }: { leg: RollSwitchLeg }) {
 }
 
 /**
- * 하단 손익 분해. 합산부(만기효과 + 증분효과 + 이자효과)는 정확히 총기대수익률과
- * 일치한다.
- *  · 이자효과 = 받은 쿠폰 ÷ A 보유 액면 = 순수 쿠폰수익률(매수가 무관)
- *  · 만기효과 = A 보유 액면 ÷ 낸 돈 − 1 = 매수 시 액면 대비 할인(− 선취). "800에
- *    사서 1000에 상환" 개념
- *  · 증분효과 = 나머지 = 수량이 늘며 생긴 효과 (A→B 갈아타기 좌수 증가 + 할인
- *    덕에 확보한 초과 액면이 이자·상환에 곱해진 교차분 + 잔돈)
- * 그 아래 A·B 단가효과와 좌수비는 참고지표(합산 제외).
+ * 하단 손익 분해. 네 항(만기효과 A + 만기효과 B + 증분효과 + 이자효과)의 합이
+ * 정확히 총기대수익률과 일치한다.
+ *  · 만기효과 A = A매도가(롤오버는 액면) ÷ A매수가 − 1 : A 만기·청산 시점 단가 상승
+ *  · 만기효과 B = 액면 ÷ B매수가 − 1 : 롤오버 후 B 만기 시점 단가 상승(par 수렴)
+ *  · 이자효과   = 받은 쿠폰 ÷ A 보유 액면 : 순수 쿠폰수익률(매수가 무관)
+ *  · 증분효과   = 나머지 : A·B 할인이 서로·쿠폰에 곱해진 교차분 + 선취 + 잔돈
  */
 function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   const isRoll = leg.key === "rollover";
-  const aLabel = isRoll ? "A 단가효과" : "A 매도단가효과";
+  const aLabel = isRoll ? "만기효과 A" : "매도효과 A";
   const row = (c: string, label: string, note: string, v: number) => (
     <div className="flex items-baseline gap-1.5">
       <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-sm ${c}`} />
@@ -133,12 +131,12 @@ function Breakdown({ leg }: { leg: RollSwitchLeg }) {
   );
   return (
     <div className="mt-1 space-y-1 text-[11px]">
-      {row("bg-sky-400", "만기효과", "매수 시 액면 대비 할인 − 선취", leg.maturityEffectPct)}
-      {row("bg-orange-400", "증분효과", "수량 증가 효과", leg.incrementEffectPct)}
+      {row("bg-sky-400", aLabel, "A 매수가 대비 청산가", leg.maturityEffectAPct)}
+      {row("bg-indigo-400", "만기효과 B", "B 매수가 대비 액면", leg.maturityEffectBPct)}
+      {row("bg-orange-400", "증분효과", "할인 교차분 + 선취 + 잔돈", leg.incrementEffectPct)}
       {row("bg-emerald-500", "이자효과", "쿠폰 ÷ A 보유 액면", leg.couponEffectPct)}
       <div className="border-t border-zinc-100 pt-1 text-[10px] text-zinc-400 dark:border-zinc-800">
-        참고 · {aLabel} {pct(leg.maturityEffectAPct)} · B 단가효과{" "}
-        {pct(leg.maturityEffectBPct)} · 좌수 A→B {pct(leg.incrementPct)}
+        참고 · 좌수 {fmtInt(leg.unitsStart)} → {fmtInt(leg.unitsEnd)} ({pct(leg.incrementPct)})
       </div>
     </div>
   );
