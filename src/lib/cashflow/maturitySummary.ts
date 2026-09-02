@@ -63,12 +63,13 @@ export function computeMaturitySummary(
   const totalPrincipal = rows.reduce((sum, row) => sum + row.principal, 0);
   const totalNetAmount = rows.reduce((sum, row) => sum + row.netAmount, 0);
 
-  // 첫 이자지급 회차에서 (채권쿠폰 - 채권쿠폰 과세분)은 매수 시 선지급한
-  // 경과이자로, 첫 이자지급 때 그대로 돌려받는다. 실제 투자에 묶인 원금은
-  // 이만큼 작다. taxableIncome에는 보유현금 이자도 섞여 있으므로 빼고 본다.
-  const bondTaxableRow0 = rows[0].taxableIncome - rows[0].cashInterest;
-  const preOwnedInterest = rows[0].interest - bondTaxableRow0;
-  const investedPrincipal = roundDown(principal - preOwnedInterest, 2);
+  // 첫 이자지급 회차에서 매수 시 선지급한 경과이자를 그대로 돌려받으므로,
+  // 실제 투자에 묶인 원금은 이만큼 작다. 표의 "원금" 열에 괄호로 찍히는 값
+  // (rows[0].principalReturn, 음수)을 그대로 써야 "경과이자차감 원금 + 경과이자
+  // = 신탁원금" 검산이 정확히 맞는다. (쿠폰·과세분을 각각 절사해 역산하면
+  // 이중 절사로 1원이 어긋난다.)
+  const shownAccrued = rows[0].principalReturn ? -rows[0].principalReturn : 0;
+  const investedPrincipal = roundDown(principal - shownAccrued, 2);
 
   // 만기청산(11일) 후취보수도 경과이자차감 원금 기준
   const lastBackFee = roundDown(
