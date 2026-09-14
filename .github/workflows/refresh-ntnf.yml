@@ -4,10 +4,16 @@ name: Refresh NTN-F snapshot
 # 갱신한다. 원본은 tesourotransparente.gov.br의 14MB CSV뿐이라 앱 요청 시점에
 # 받을 수 없어(40초), 여기서 받아 파싱한 결과만 커밋한다. 커밋이 push되면
 # Vercel이 자동 재배포하며 최신 시세가 반영된다.
+#
+# 스케줄을 월요일 09:00 UTC → 일요일 12:00 UTC 로 앞당김(2026-09): 5번
+# 프로젝트(글로벌 종목 리서치)의 주간 거시 리포트가 매주 월요일 00:00 UTC
+# (09:00 KST)에 이 저장소의 ntnf-yield-history.json 을 GitHub raw 로 읽는데,
+# 월요일 갱신이면 한 주 전 금요일 값이 들어가서 — 금요일 종가가 CSV에 반영된
+# 뒤(주말)에 갱신해 월요일 아침엔 지난주 금요일까지 있도록 한다.
 
 on:
   schedule:
-    - cron: "0 9 * * 1" # 매주 월요일 09:00 UTC
+    - cron: "0 12 * * 0" # 매주 일요일 12:00 UTC (21:00 KST)
   workflow_dispatch: {}
 
 jobs:
