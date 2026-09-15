@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { BondLayoutForm } from "@/components/cashflow/BondLayoutForm";
+import { ShareLinkButton } from "@/components/cashflow/ShareLinkButton";
 import { CashFlowTable } from "@/components/cashflow/CashFlowTable";
 import { MonthlyCashFlowTable } from "@/components/cashflow/MonthlyCashFlowTable";
 import { ReinvestCashFlowTable } from "@/components/cashflow/ReinvestCashFlowTable";
@@ -149,6 +150,8 @@ export function CashFlowPanel({ sharedInput }: CashFlowPanelProps) {
         <p className="text-xs font-bold text-red-600 dark:text-red-500 print:text-red-600">
           ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
         </p>
+        {/* 공유 링크 생성은 입력폼과 분리된 독립 버튼. 공유 링크로 연 화면에선 숨김 */}
+        {!isSharedLink && <ShareLinkButton value={input} />}
         <BondLayoutForm
           value={input}
           onChange={setInput}

@@ -18,7 +18,7 @@ import { CashFlowPanel } from "@/components/CashFlowPanel";
 import { ClientViewGuard } from "@/components/ClientViewGuard";
 import type { ShareResolution } from "@/lib/server/shareLink";
 import { UserButton } from "@clerk/nextjs";
-import { isAllowedEmail, useAppAuth } from "@/components/auth/AppAuth";
+import { useAppAuth } from "@/components/auth/AppAuth";
 import { TradingGate } from "@/components/auth/TradingGate";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
@@ -48,8 +48,7 @@ interface OrderConsoleProps {
 export function OrderConsole({ share, allowedDomains, openSignup = false }: OrderConsoleProps) {
   // 트레이딩 탭·주문 발송은 승인된 회사 계정만 (감사 ⑤ 치명1). 서버 API 도 같은 기준.
   const auth = useAppAuth();
-  const tradingUnlocked =
-    auth.enabled && auth.isSignedIn && !!auth.email && isAllowedEmail(auth.email, allowedDomains);
+  const tradingUnlocked = auth.enabled && auth.isSignedIn && auth.allowed === true;
 
   const [fx, setFx] = useState<FxRates | null>(null);
   const [fxLoading, setFxLoading] = useState(true);

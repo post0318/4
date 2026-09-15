@@ -79,7 +79,8 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 로 API 잠금, 화면은 `TradingGate`(로그인 팝업·가입 신청)와 `useAppAuth()`
 (`src/components/auth/AppAuth.tsx`, Clerk 키 없으면 비활성 값). Clerk 는 대기자
 (Waitlist) 모드 — 가입 신청 → 관리자가 dashboard.clerk.com 에서 승인. 회사 도메인
-검사는 `ALLOWED_EMAIL_DOMAINS`(기본 hanwha.com)로 가입 폼·서버 양쪽에서. 탭 순서는
+검사는 `ALLOWED_EMAIL_DOMAINS`(기본 hanwha.com)로 가입 폼·서버 양쪽에서, 관리자는
+`ADMIN_EMAILS`로 도메인 예외. 허용 판정은 서버 `/api/auth/me`가 내리고 화면은 그 결과만 쓴다. 탭 순서는
 시장정보·현금흐름·시뮬레이션·민감도·트레이딩. 나머지 탭과 조회 API 는 공개.
 
 ## 이메일 발송 (미완)

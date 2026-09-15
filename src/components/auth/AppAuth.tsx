@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 
 /**
@@ -16,6 +16,13 @@ export interface AppAuth {
   isSignedIn: boolean;
   /** 로그인한 계정의 대표 이메일 */
   email: string | null;
+  /**
+   * 트레이딩·링크 생성 허용 여부 — 서버(/api/auth/me)가 회사 도메인 또는 관리자
+   * 목록으로 판단. null 이면 아직 확인 전.
+   */
+  allowed: boolean | null;
+  /** 서버가 거부한 이유(허용 안 될 때) */
+  deniedReason: string | null;
   /** 로그인 팝업 열기 */
   openSignIn: () => void;
   /** 내 계정 팝업(비밀번호 변경 등) 열기 */
@@ -30,6 +37,8 @@ const DISABLED: AppAuth = {
   isLoaded: true,
   isSignedIn: false,
   email: null,
+  allowed: false,
+  deniedReason: null,
   openSignIn: () => {},
   openProfile: () => {},
   signOut: async () => {},
@@ -43,6 +52,30 @@ const Ctx = createContext<AppAuth>(DISABLED);
 function ClerkBridge({ children }: { children: ReactNode }) {
   const clerk = useClerk();
   const { isLoaded, isSignedIn, user } = useUser();
+  const [verdict, setVerdict] = useState<{ allowed: boolean; reason: string | null } | null>(null);
+
+  // 로그인 상태가 바뀔 때마다 서버에 허용 여부를 묻는다.
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      // 로그아웃 상태: 확인 불필요 — 상태를 명시적으로 초기화
+      const id = setTimeout(() => setVerdict({ allowed: false, reason: null }), 0);
+      return () => clearTimeout(id);
+    }
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d: { allowed?: boolean; reason?: string }) => {
+        if (!cancelled) setVerdict({ allowed: d.allowed === true, reason: d.reason ?? null });
+      })
+      .catch(() => {
+        if (!cancelled) setVerdict({ allowed: false, reason: "허용 여부를 확인하지 못했습니다." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, isSignedIn, user?.id]);
+
   const value: AppAuth = {
     enabled: true,
     isLoaded,
@@ -51,6 +84,8 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       user?.primaryEmailAddress?.emailAddress ??
       user?.emailAddresses?.[0]?.emailAddress ??
       null,
+    allowed: !isSignedIn ? false : verdict ? verdict.allowed : null,
+    deniedReason: verdict?.reason ?? null,
     openSignIn: () => clerk.openSignIn({}),
     openProfile: () => clerk.openUserProfile({}),
     signOut: () => clerk.signOut(),
@@ -85,7 +120,7 @@ export function useAppAuth(): AppAuth {
   return useContext(Ctx);
 }
 
-/** 이메일이 허용 도메인 목록에 속하는지 (클라이언트 안내용 — 최종 판단은 서버) */
+/** 가입 신청 폼의 사전 안내용 도메인 검사. 접근 허용 판단은 서버(/api/auth/me)가 한다. */
 export function isAllowedEmail(email: string, allowedDomains: string[]): boolean {
   const at = email.lastIndexOf("@");
   if (at < 0) return false;

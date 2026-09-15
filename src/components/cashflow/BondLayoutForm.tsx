@@ -9,7 +9,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { normalizeDecimalInput } from "@/lib/format";
 import {
@@ -31,7 +30,6 @@ import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
 import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
 import { computeMaturitySummary } from "@/lib/cashflow/maturitySummary";
 import { BrazilBondSearchBox } from "@/components/cashflow/BrazilBondSearchBox";
-import { useAppAuth } from "@/components/auth/AppAuth";
 
 function formatAmount(n: number): string {
   return n.toLocaleString("ko-KR", {
@@ -191,7 +189,6 @@ export function BondLayoutForm({
   onLockedChange,
   lockToggleDisabled = false,
 }: BondLayoutFormProps) {
-  const [linkStatus, setLinkStatus] = useState<string | null>(null);
   // 검색창의 늦은 비동기 반영(신용등급·환율)이 잠금 뒤에 도착해도 덮어쓰지 않도록
   // 최신 잠금 상태를 ref로 본다(fetch 콜백은 옛 렌더의 props를 붙들고 있음).
   const lockedRef = useRef(locked);
@@ -200,23 +197,6 @@ export function BondLayoutForm({
   }, [locked]);
   // 매수시점환율 포커스 시점 값 — blur 때 실제로 바뀐 경우에만 만기환율을 동기화.
   const purchaseFxAtFocusRef = useRef<string>("");
-  // 고객 공유용 — 링크로 연 화면에서 트레이딩(주문) 탭을 숨긴다. 기본 켜짐.
-  const [hideTradingInLink, setHideTradingInLink] = useState(true);
-  // 링크 방식: 서명형(값을 봉인해 링크에 담음, 저장소 불필요) / 서버저장형(값은
-  // 서버에 두고 토큰만 링크에, 회수·만료 가능). 둘 다 서버가 만든다(감사 ⑤ 중10).
-  const [linkMethod, setLinkMethod] = useState<"signed" | "token">("signed");
-  const [linkBusy, setLinkBusy] = useState(false);
-  // 링크 생성은 승인 계정만(서버 API 도 잠김). 로그인 전이면 팝업을 띄우고,
-  // 로그인이 끝나면 이어서 생성한다.
-  const auth = useAppAuth();
-  const linkPendingRef = useRef(false);
-  const createLinkRef = useRef<() => Promise<void>>(async () => {});
-  useEffect(() => {
-    if (linkPendingRef.current && auth.isSignedIn) {
-      linkPendingRef.current = false;
-      void createLinkRef.current();
-    }
-  }, [auth.isSignedIn]);
 
   const update = <K extends keyof BondLayoutInput>(
     key: K,
@@ -433,50 +413,6 @@ export function BondLayoutForm({
         ? reinvestSummary
         : maturitySummary;
 
-  const handleCreateLink = async () => {
-    if (linkBusy) return;
-    if (auth.enabled && !auth.isSignedIn) {
-      linkPendingRef.current = true;
-      setLinkStatus("링크 생성은 로그인 후 가능합니다.");
-      auth.openSignIn();
-      return;
-    }
-    setLinkBusy(true);
-    setLinkStatus("링크 생성 중…");
-    try {
-      const res = await fetch("/api/share-link", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ input: value, client: hideTradingInLink, method: linkMethod }),
-      });
-      let data: { url?: string; error?: string } = {};
-      try {
-        data = (await res.json()) as typeof data;
-      } catch {
-        /* 비JSON 응답 */
-      }
-      if (!res.ok || !data.url) {
-        setLinkStatus(
-          res.status === 401
-            ? "링크 생성은 로그인 후 가능합니다."
-            : (data.error ?? `링크 생성 실패 (HTTP ${res.status})`)
-        );
-        return;
-      }
-      const link = data.url;
-      try {
-        await navigator.clipboard.writeText(link);
-        setLinkStatus("링크를 클립보드에 복사했습니다.");
-      } catch {
-        setLinkStatus(link);
-      }
-    } catch {
-      setLinkStatus("링크 생성 중 네트워크 오류가 났습니다.");
-    } finally {
-      setLinkBusy(false);
-    }
-  };
-
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6 print:p-2">
       <div className="mb-5 flex items-center gap-3 print:hidden">
@@ -534,75 +470,21 @@ export function BondLayoutForm({
           </Row>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden md:col-span-2">
-          {/* 링크 생성·잠금·트레이딩 탭 숨김은 사내(원본) 화면 전용 — 공유
-              링크로 연 화면(lockToggleDisabled)에선 전부 숨긴다 */}
+          {/* 잠금 버튼은 사내(원본) 화면 전용 — 공유 링크로 연 화면
+              (lockToggleDisabled)에선 숨긴다. 공유 링크 생성은 별도 버튼
+              (ShareLinkButton, 현금흐름 탭 상단). */}
           {!lockToggleDisabled && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  createLinkRef.current = handleCreateLink;
-                  void handleCreateLink();
-                }}
-                disabled={linkBusy}
-                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                링크 생성
-              </button>
-              <span
-                role="radiogroup"
-                aria-label="링크 방식"
-                className="inline-flex overflow-hidden rounded-lg border border-zinc-300 text-xs dark:border-zinc-700"
-              >
-                {(
-                  [
-                    ["signed", "서명형", "값을 봉인해 링크에 담음 · 약 100자 · 저장소 불필요 · 회수 불가"],
-                    ["token", "서버저장형", "값은 서버에 두고 토큰만 링크에 · 약 50자 · 회수·만료 가능 · 저장소 필요"],
-                  ] as const
-                ).map(([m, label, title]) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="radio"
-                    aria-checked={linkMethod === m}
-                    title={title}
-                    onClick={() => setLinkMethod(m)}
-                    className={
-                      linkMethod === m
-                        ? "bg-zinc-800 px-2.5 py-1.5 font-medium text-white dark:bg-zinc-200 dark:text-zinc-900"
-                        : "bg-white px-2.5 py-1.5 text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </span>
-              <button
-                type="button"
-                onClick={() => onLockedChange(!locked)}
-                className={
-                  locked
-                    ? "inline-flex w-fit items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
-                    : "inline-flex w-fit items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                }
-              >
-                {locked ? "🔒 편입자산정보 잠김 (해제)" : "🔓 편입자산정보 잠금"}
-              </button>
-              <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={hideTradingInLink}
-                  onChange={(e) => setHideTradingInLink(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-zinc-300 dark:border-zinc-600"
-                />
-                트레이딩 탭 숨김
-              </label>
-            </>
-          )}
-          {linkStatus && (
-            <p className="ml-2 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
-              {linkStatus}
-            </p>
+            <button
+              type="button"
+              onClick={() => onLockedChange(!locked)}
+              className={
+                locked
+                  ? "inline-flex w-fit items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+                  : "inline-flex w-fit items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              }
+            >
+              {locked ? "🔒 편입자산정보 잠김 (해제)" : "🔓 편입자산정보 잠금"}
+            </button>
           )}
         </div>
       </div>

@@ -46,14 +46,22 @@ export function TradingGate({ allowedDomains, openSignup = false }: TradingGateP
     );
   }
 
-  if (auth.isSignedIn && auth.email && !isAllowedEmail(auth.email, allowedDomains)) {
+  if (auth.isSignedIn && auth.allowed === null) {
+    return (
+      <Box>
+        <p className="text-sm text-zinc-500">접근 권한 확인 중…</p>
+      </Box>
+    );
+  }
+
+  if (auth.isSignedIn && auth.allowed === false) {
     return (
       <Box>
         <p className="font-medium text-red-700 dark:text-red-300">
-          회사 이메일 계정만 트레이딩 탭을 쓸 수 있습니다.
+          이 계정은 트레이딩 탭을 쓸 수 없습니다.
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          현재 계정 {auth.email} · 허용 도메인 {domainsLabel}
+          현재 계정 {auth.email} · {auth.deniedReason ?? `허용 도메인 ${domainsLabel}`}
         </p>
         <button type="button" onClick={() => void auth.signOut()} className={btnSecondary}>
           로그아웃
