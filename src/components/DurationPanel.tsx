@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { fmtNum } from "@/lib/format";
 import { bondRisk, shockReturn } from "@/lib/ntnfDuration";
+import { today } from "@/lib/ntnfPricing";
 import { holdToMaturityBrl } from "@/lib/ntnfSimulation";
 import type { BondItem, FxRates } from "@/lib/types";
 
@@ -208,9 +209,9 @@ export function DurationPanel({ bonds, fx }: Props) {
   const [dfx, setDfx] = useState(0); // 환율변동 %
   const [reinvest, setReinvest] = useState(false); // 쿠폰 재투자형
 
-  // 잔존만기 1년 미만은 듀레이션·시나리오 의미가 없어 제외 (UTC 기준 오늘+1년)
+  // 잔존만기 1년 미만은 듀레이션·시나리오 의미가 없어 제외 (한국 날짜 오늘+1년)
   const cutoff = useMemo(() => {
-    const n = new Date();
+    const n = today();
     return new Date(
       Date.UTC(n.getUTCFullYear() + 1, n.getUTCMonth(), n.getUTCDate())
     )
@@ -410,7 +411,7 @@ export function DurationPanel({ bonds, fx }: Props) {
         수정듀레이션 D*는 수익률 100bp 변화 시 대략적인 PU 변화율(년)입니다.
         「수익률 0.01%p 가격변화」는 수익률이 0.01%p 오를 때 PU(액면 R$1,000)가
         떨어지는 금액입니다. 가격변동 ≈ −D*·Δy + ½·컨벡시티·Δy², 원화가치변동 =
-        (1+가격변동)(1+환율변동)−1. 결제일 D+0, NTN-F(액면 R$1,000). 근사치입니다.
+        (1+가격변동)(1+환율변동)−1. 결제일 D+1, NTN-F(액면 R$1,000). 근사치입니다.
       </p>
     </section>
 

@@ -33,14 +33,15 @@ export function toDateString(date: Date): string {
 }
 
 /**
- * 결제일. 브라질 국채는 SELIC 결제 관례대로 D+0 — 신탁계약일이 브라질 영업일
- * (토/일 + ANBIMA/B3 국경일 제외)이면 그날, 아니면 다음 영업일.
+ * 결제일 = 신탁계약일 기준 D+1 브라질 영업일 — 계약일 다음 날부터 세어 첫
+ * 브라질 영업일(토/일 + ANBIMA/B3 국경일 제외). 트레이딩 탭의
+ * `getOrderSettlementDate`와 같은 규칙(감사 ⑤ 높음1, 예전에는 D+0).
  */
 export function getSettlementDate(trustContractDate: string): Date | null {
   const start = new Date(trustContractDate);
   if (!isPlausibleYear(start)) return null;
 
-  let date = start;
+  let date = addDays(start, 1);
   while (!isBrazilBusinessDay(date)) date = addDays(date, 1);
   return date;
 }

@@ -30,7 +30,7 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 
 ## 구조
 
-- `src/lib/ntnfPricing.ts` — 매수단가(PU) ANBIMA 공식, 결제일(D+0 브라질 영업일)
+- `src/lib/ntnfPricing.ts` — 매수단가(PU) ANBIMA 공식, 결제일(주문일 D+1 브라질 영업일). 매수수익률은 Taxa Compra
 - `src/lib/ntnfMeta.ts` — 만기연도 → ISIN·종목명 정적 맵 (2027~2037 ISIN 확인 완료)
 - `src/lib/quantity.ts` — KRW→USD→BRL→수량(정수 절사) 순수 함수 +
   `distributeUsdByKrwWeight`(환전 달러금액을 종목별 원화투자금액 비중대로 2자리

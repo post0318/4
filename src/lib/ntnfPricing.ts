@@ -70,10 +70,17 @@ export function parseIsoDate(iso: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** 오늘 (UTC 자정) */
+/**
+ * 오늘 — 한국 달력 날짜(KST, UTC+9, 서머타임 없음)를 UTC 자정 Date로 표현.
+ * 주문일·결제일의 기준이며, 서버(Vercel, UTC)와 브라우저(어느 시간대든)가
+ * 같은 날짜를 얻도록 실행 환경의 로컬 시간대에 의존하지 않는다.
+ * (예전에는 UTC 날짜를 써서 KST 00:00~09:00에 주문일이 전날로 잡혔다.)
+ */
 export function today(): Date {
-  const n = new Date();
-  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return new Date(
+    Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate())
+  );
 }
 
 /** Date → "YYYY-MM-DD" (UTC 기준) */
@@ -82,11 +89,13 @@ export function toISODate(date: Date): string {
 }
 
 /**
- * 결제일. 브라질 국채는 SELIC 결제 관례대로 D+0 — 주문일이 브라질 영업일
- * (토/일 + ANBIMA/B3 국경일 제외)이면 그날, 아니면 다음 영업일.
+ * 결제일 = 주문일 기준 D+1 브라질 영업일 — 주문일 다음 날부터 세어 첫 브라질
+ * 영업일(토/일 + ANBIMA/B3 국경일 제외). 실제 결제 관행이 D+1이고, Tesouro
+ * 공시 PU Compra도 Taxa Compra + D+1 결제로 재현된다(감사 ⑤ 높음1).
+ * 예전에는 D+0(주문일이 영업일이면 그날)이었다.
  */
 export function getOrderSettlementDate(orderDate: Date = today()): Date {
-  let date = new Date(orderDate);
+  let date = addDays(orderDate, 1);
   while (!isBrazilBusinessDay(date)) date = addDays(date, 1);
   return date;
 }
@@ -106,7 +115,7 @@ function couponDates(settlement: Date, maturity: Date): Date[] {
  * NTN-F 매수단가(PU, per 1,000 face = per título, dirty price).
  * @param maturityDate "YYYY-MM-DD"
  * @param buyYieldPct  매수수익률 (연, %). 예: 14.53
- * @param settlement   결제일 (기본: D+0 브라질 영업일)
+ * @param settlement   결제일 (기본: 주문일 D+1 브라질 영업일)
  */
 export function computeNtnfPu(
   maturityDate: string,

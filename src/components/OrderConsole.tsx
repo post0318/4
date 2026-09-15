@@ -436,7 +436,7 @@ export function OrderConsole() {
           />
 
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            주문일 {orderDate} · 결제일 {settlementDate} (D+0 브라질 영업일)
+            주문일 {orderDate} · 결제일 {settlementDate} (D+1 브라질 영업일)
           </p>
 
           <BondOrderTable
