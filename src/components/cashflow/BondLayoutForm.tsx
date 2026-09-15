@@ -444,9 +444,7 @@ export function BondLayoutForm({
       const link = data.url;
       try {
         await navigator.clipboard.writeText(link);
-        setLinkStatus(
-          `${linkMethod === "token" ? "서버저장형" : "서명형"} 링크(${link.length}자)를 클립보드에 복사했습니다.`
-        );
+        setLinkStatus("링크를 클립보드에 복사했습니다.");
       } catch {
         setLinkStatus(link);
       }
