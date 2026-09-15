@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/ui";
 
 interface TabsProps<K extends string> {
@@ -5,6 +6,8 @@ interface TabsProps<K extends string> {
   active: K;
   onChange: (key: K) => void;
   className?: string;
+  /** 탭 줄 오른쪽 끝에 놓을 요소(예: 공유 링크 버튼) */
+  trailing?: ReactNode;
 }
 
 /** 밑줄형 탭 바. */
@@ -13,12 +16,13 @@ export function Tabs<K extends string>({
   active,
   onChange,
   className,
+  trailing,
 }: TabsProps<K>) {
   return (
     <div
       role="tablist"
       className={cn(
-        "flex flex-wrap gap-0.5 border-b border-zinc-200 dark:border-zinc-800",
+        "flex flex-wrap items-center gap-0.5 border-b border-zinc-200 dark:border-zinc-800",
         className
       )}
     >
@@ -42,6 +46,7 @@ export function Tabs<K extends string>({
           </button>
         );
       })}
+      {trailing && <div className="ml-auto flex items-center pb-1.5 pl-2">{trailing}</div>}
     </div>
   );
 }

@@ -20,6 +20,9 @@ import type { ShareResolution } from "@/lib/server/shareLink";
 import { UserButton } from "@clerk/nextjs";
 import { useAppAuth } from "@/components/auth/AppAuth";
 import { TradingGate } from "@/components/auth/TradingGate";
+import { ShareLinkButton } from "@/components/cashflow/ShareLinkButton";
+import { createDefaultInput } from "@/components/CashFlowPanel";
+import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -76,6 +79,14 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
   >(() => (hideTrading ? "cashflow" : openSignup ? "trading" : "market"));
+
+  // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
+  // 탭 줄의 공유 링크 버튼이 같은 값을 쓴다.
+  const isSharedLink = shareInput !== null;
+  const [cfInput, setCfInput] = useState<BondLayoutInput>(() =>
+    shareInput ? { ...createDefaultInput(), ...shareInput } : createDefaultInput()
+  );
+  const [cfLocked, setCfLocked] = useState<boolean>(isSharedLink);
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -439,6 +450,8 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
         active={tab}
         onChange={setTab}
         className="print:hidden"
+        // 공유 링크 생성은 트레이딩 탭과 같은 줄의 독립 버튼. 고객 화면에선 없음.
+        trailing={!isSharedLink && !hideTrading ? <ShareLinkButton value={cfInput} /> : null}
       />
 
       {tab === "market" && (
@@ -563,7 +576,15 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
         </>
       )}
 
-      {tab === "cashflow" && <CashFlowPanel sharedInput={shareInput} />}
+      {tab === "cashflow" && (
+        <CashFlowPanel
+          value={cfInput}
+          onChange={setCfInput}
+          locked={cfLocked}
+          onLockedChange={setCfLocked}
+          isSharedLink={isSharedLink}
+        />
+      )}
 
       {tab === "simulation" && <SimulationPanel bonds={bonds} fx={fx} />}
 

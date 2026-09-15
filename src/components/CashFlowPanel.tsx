@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { BondLayoutForm } from "@/components/cashflow/BondLayoutForm";
-import { ShareLinkButton } from "@/components/cashflow/ShareLinkButton";
 import { CashFlowTable } from "@/components/cashflow/CashFlowTable";
 import { MonthlyCashFlowTable } from "@/components/cashflow/MonthlyCashFlowTable";
 import { ReinvestCashFlowTable } from "@/components/cashflow/ReinvestCashFlowTable";
@@ -20,7 +19,7 @@ function todayDateString(): string {
   return `${y}-${m}-${d}`;
 }
 
-function createDefaultInput(): BondLayoutInput {
+export function createDefaultInput(): BondLayoutInput {
   return {
     calcBasis: "Business/252",
     investorType: "개인",
@@ -49,20 +48,27 @@ function createDefaultInput(): BondLayoutInput {
 }
 
 interface CashFlowPanelProps {
-  /** 공유 링크로 열었을 때 서버가 해석한 입력값. 링크가 아니면 null. */
-  sharedInput: Partial<BondLayoutInput> | null;
+  /** 입력값·잠금 상태는 OrderConsole 이 보유 — 탭을 옮겨도 유지되고, 탭 줄의
+   *  공유 링크 버튼이 같은 값을 쓴다. */
+  value: BondLayoutInput;
+  onChange: Dispatch<SetStateAction<BondLayoutInput>>;
+  locked: boolean;
+  onLockedChange: (locked: boolean) => void;
+  /** 공유 링크로 연 화면(값 고정, 검색·잠금 조작 불가) */
+  isSharedLink: boolean;
 }
 
 /**
  * 현금흐름 탭 — 프로젝트 3(채권세상)의 브라질 NTN-F 현금흐름 계산기를 그대로 담는다.
  * 이자 지급을 월/반기 중 선택해 신탁 현금흐름표를 산출한다.
  */
-export function CashFlowPanel({ sharedInput }: CashFlowPanelProps) {
-  const isSharedLink = sharedInput !== null;
-  const [input, setInput] = useState<BondLayoutInput>(() =>
-    sharedInput ? { ...createDefaultInput(), ...sharedInput } : createDefaultInput()
-  );
-  const [locked, setLocked] = useState<boolean>(isSharedLink);
+export function CashFlowPanel({
+  value: input,
+  onChange: setInput,
+  locked,
+  onLockedChange: setLocked,
+  isSharedLink,
+}: CashFlowPanelProps) {
 
   const isMonthly = input.distributionType === "월";
   const isReinvest = input.distributionType === "재투자";
@@ -150,8 +156,6 @@ export function CashFlowPanel({ sharedInput }: CashFlowPanelProps) {
         <p className="text-xs font-bold text-red-600 dark:text-red-500 print:text-red-600">
           ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
         </p>
-        {/* 공유 링크 생성은 입력폼과 분리된 독립 버튼. 공유 링크로 연 화면에선 숨김 */}
-        {!isSharedLink && <ShareLinkButton value={input} />}
         <BondLayoutForm
           value={input}
           onChange={setInput}
