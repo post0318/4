@@ -41,6 +41,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# 로컬 개발용 공유 링크 저장소 (서버저장형 링크, Upstash 미연결 시)
+/.data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

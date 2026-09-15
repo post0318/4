@@ -9,7 +9,6 @@ import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 import { generateFixCashFlow } from "@/lib/cashflow/cashFlowSchedule";
 import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
 import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
-import { decodeBondLink } from "@/lib/cashflow/bondLink";
 import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
 
 function todayDateString(): string {
@@ -48,25 +47,21 @@ function createDefaultInput(): BondLayoutInput {
   };
 }
 
-function createInitialInput(): BondLayoutInput {
-  if (typeof window === "undefined") return createDefaultInput();
-  const decoded = decodeBondLink(window.location.search);
-  return decoded ? { ...createDefaultInput(), ...decoded } : createDefaultInput();
-}
-
-function createInitialLocked(): boolean {
-  if (typeof window === "undefined") return false;
-  return decodeBondLink(window.location.search) !== null;
+interface CashFlowPanelProps {
+  /** 공유 링크로 열었을 때 서버가 해석한 입력값. 링크가 아니면 null. */
+  sharedInput: Partial<BondLayoutInput> | null;
 }
 
 /**
  * 현금흐름 탭 — 프로젝트 3(채권세상)의 브라질 NTN-F 현금흐름 계산기를 그대로 담는다.
  * 이자 지급을 월/반기 중 선택해 신탁 현금흐름표를 산출한다.
  */
-export function CashFlowPanel() {
-  const [input, setInput] = useState<BondLayoutInput>(createInitialInput);
-  const [locked, setLocked] = useState<boolean>(createInitialLocked);
-  const [isSharedLink] = useState<boolean>(createInitialLocked);
+export function CashFlowPanel({ sharedInput }: CashFlowPanelProps) {
+  const isSharedLink = sharedInput !== null;
+  const [input, setInput] = useState<BondLayoutInput>(() =>
+    sharedInput ? { ...createDefaultInput(), ...sharedInput } : createDefaultInput()
+  );
+  const [locked, setLocked] = useState<boolean>(isSharedLink);
 
   const isMonthly = input.distributionType === "월";
   const isReinvest = input.distributionType === "재투자";

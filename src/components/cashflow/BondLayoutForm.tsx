@@ -30,7 +30,6 @@ import { generateFixCashFlow } from "@/lib/cashflow/cashFlowSchedule";
 import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
 import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
 import { computeMaturitySummary } from "@/lib/cashflow/maturitySummary";
-import { encodeBondLink } from "@/lib/cashflow/bondLink";
 import { BrazilBondSearchBox } from "@/components/cashflow/BrazilBondSearchBox";
 
 function formatAmount(n: number): string {
@@ -202,6 +201,10 @@ export function BondLayoutForm({
   const purchaseFxAtFocusRef = useRef<string>("");
   // 고객 공유용 — 링크로 연 화면에서 트레이딩(주문) 탭을 숨긴다. 기본 켜짐.
   const [hideTradingInLink, setHideTradingInLink] = useState(true);
+  // 링크 방식: 서명형(값을 봉인해 링크에 담음, 저장소 불필요) / 서버저장형(값은
+  // 서버에 두고 토큰만 링크에, 회수·만료 가능). 둘 다 서버가 만든다(감사 ⑤ 중10).
+  const [linkMethod, setLinkMethod] = useState<"signed" | "token">("signed");
+  const [linkBusy, setLinkBusy] = useState(false);
 
   const update = <K extends keyof BondLayoutInput>(
     key: K,
@@ -419,12 +422,38 @@ export function BondLayoutForm({
         : maturitySummary;
 
   const handleCreateLink = async () => {
-    const link = encodeBondLink(value, { hideTrading: hideTradingInLink });
+    if (linkBusy) return;
+    setLinkBusy(true);
+    setLinkStatus("링크 생성 중…");
     try {
-      await navigator.clipboard.writeText(link);
-      setLinkStatus("링크를 클립보드에 복사했습니다.");
+      const res = await fetch("/api/share-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input: value, client: hideTradingInLink, method: linkMethod }),
+      });
+      let data: { url?: string; error?: string } = {};
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        /* 비JSON 응답 */
+      }
+      if (!res.ok || !data.url) {
+        setLinkStatus(data.error ?? `링크 생성 실패 (HTTP ${res.status})`);
+        return;
+      }
+      const link = data.url;
+      try {
+        await navigator.clipboard.writeText(link);
+        setLinkStatus(
+          `${linkMethod === "token" ? "서버저장형" : "서명형"} 링크(${link.length}자)를 클립보드에 복사했습니다.`
+        );
+      } catch {
+        setLinkStatus(link);
+      }
     } catch {
-      setLinkStatus(link);
+      setLinkStatus("링크 생성 중 네트워크 오류가 났습니다.");
+    } finally {
+      setLinkBusy(false);
     }
   };
 
@@ -492,10 +521,39 @@ export function BondLayoutForm({
               <button
                 type="button"
                 onClick={handleCreateLink}
-                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                disabled={linkBusy}
+                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 링크 생성
               </button>
+              <span
+                role="radiogroup"
+                aria-label="링크 방식"
+                className="inline-flex overflow-hidden rounded-lg border border-zinc-300 text-xs dark:border-zinc-700"
+              >
+                {(
+                  [
+                    ["signed", "서명형", "값을 봉인해 링크에 담음 · 약 100자 · 저장소 불필요 · 회수 불가"],
+                    ["token", "서버저장형", "값은 서버에 두고 토큰만 링크에 · 약 50자 · 회수·만료 가능 · 저장소 필요"],
+                  ] as const
+                ).map(([m, label, title]) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={linkMethod === m}
+                    title={title}
+                    onClick={() => setLinkMethod(m)}
+                    className={
+                      linkMethod === m
+                        ? "bg-zinc-800 px-2.5 py-1.5 font-medium text-white dark:bg-zinc-200 dark:text-zinc-900"
+                        : "bg-white px-2.5 py-1.5 text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </span>
               <button
                 type="button"
                 onClick={() => onLockedChange(!locked)}

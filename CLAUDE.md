@@ -63,6 +63,12 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/app/api/br-agenda` — 15일 전 ~ 2개월 후 경제지표(IBGE 캘린더)·시장 휴장일·
   대선 일정
 - `src/app/api/br-bond-search` — 스냅샷 + 메타 머지
+- 현금흐름 공유 링크 — 생성·해석 모두 서버. `src/lib/cashflow/shareCodec.ts`(입력값
+  바이너리 패킹, 고객모드·발급일 포함) + `src/lib/server/shareLink.ts`. 두 방식:
+  서명형 `?p=`(HMAC 64비트, `SHARE_LINK_SECRET`, 저장소 불필요) · 서버저장형
+  `?t=`(10자 토큰, Upstash Redis, 로컬은 `.data/share-links.json`, TTL 180일).
+  옛 `?bond=` lz-string 링크는 읽기만 호환. `page.tsx`가 `resolveShareLink`로 해석해
+  `OrderConsole`에 props 로 내림(브라우저에서 URL 을 읽지 않는다)
 - `src/app/api/send-order` — 서버 재계산 대조 후 발송. **이메일 전송은 현재
   stub** — `sendEmail()` 어댑터에 Resend 또는 Gmail SMTP 연결하면 됨.
 

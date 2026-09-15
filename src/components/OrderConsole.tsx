@@ -16,7 +16,7 @@ import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
 import { ClientViewGuard } from "@/components/ClientViewGuard";
-import { clientLinkIssued, linkHidesTrading } from "@/lib/cashflow/bondLink";
+import type { ShareResolution } from "@/lib/server/shareLink";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -33,7 +33,12 @@ import {
 import { truncDecimals } from "@/lib/format";
 import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 
-export function OrderConsole() {
+interface OrderConsoleProps {
+  /** 서버가 해석한 공유 링크. 링크가 아니면 null. */
+  share: ShareResolution | null;
+}
+
+export function OrderConsole({ share }: OrderConsoleProps) {
   const [fx, setFx] = useState<FxRates | null>(null);
   const [fxLoading, setFxLoading] = useState(true);
   const [fxError, setFxError] = useState<string | null>(null);
@@ -43,13 +48,20 @@ export function OrderConsole() {
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
 
-  // 고객 공유 링크(?view=client)면 트레이딩(주문) 탭 숨김 + 인쇄·복사 차단.
-  const [hideTrading] = useState(
-    () => typeof window !== "undefined" && linkHidesTrading(window.location.search)
-  );
-  const [clientIssued] = useState(() =>
-    typeof window !== "undefined" ? clientLinkIssued(window.location.search) : null
-  );
+  // 고객 공유 링크(고객 모드)면 트레이딩(주문) 탭 숨김 + 인쇄·복사 차단.
+  // 서버가 해석해 내려주므로 서버 HTML 과 첫 클라이언트 렌더가 같다.
+  const shareOk = share?.status === "ok" ? share : null;
+  const hideTrading = shareOk?.meta.client ?? false;
+  const clientIssued = shareOk?.meta.issued ?? null;
+  const shareInput = shareOk?.input ?? null;
+  const shareProblem =
+    share && share.status !== "ok"
+      ? share.status === "expired"
+        ? "공유 링크의 유효기간이 지났습니다. 새 링크를 요청하세요."
+        : share.status === "unavailable"
+          ? "공유 링크를 확인할 수 없습니다(서버 설정 누락). 관리자에게 문의하세요."
+          : "공유 링크가 손상되었거나 변조되었습니다. 링크를 다시 확인하세요."
+      : null;
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
   >(() => (hideTrading ? "cashflow" : "market"));
@@ -374,6 +386,14 @@ export function OrderConsole() {
   return (
     <div className="print-page mx-auto grid max-w-6xl gap-5 p-4 sm:p-6">
       {hideTrading && <ClientViewGuard issued={clientIssued} />}
+      {shareProblem && (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {shareProblem}
+        </p>
+      )}
       <header className="print:hidden">
         <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -513,7 +533,7 @@ export function OrderConsole() {
         </>
       )}
 
-      {tab === "cashflow" && <CashFlowPanel />}
+      {tab === "cashflow" && <CashFlowPanel sharedInput={shareInput} />}
 
       {tab === "simulation" && <SimulationPanel bonds={bonds} fx={fx} />}
 
