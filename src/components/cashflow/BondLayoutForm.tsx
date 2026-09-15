@@ -6,7 +6,9 @@ import {
   KeyboardEvent,
   ReactNode,
   SetStateAction,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { normalizeDecimalInput } from "@/lib/format";
@@ -190,6 +192,14 @@ export function BondLayoutForm({
   lockToggleDisabled = false,
 }: BondLayoutFormProps) {
   const [linkStatus, setLinkStatus] = useState<string | null>(null);
+  // 검색창의 늦은 비동기 반영(신용등급·환율)이 잠금 뒤에 도착해도 덮어쓰지 않도록
+  // 최신 잠금 상태를 ref로 본다(fetch 콜백은 옛 렌더의 props를 붙들고 있음).
+  const lockedRef = useRef(locked);
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
+  // 매수시점환율 포커스 시점 값 — blur 때 실제로 바뀐 경우에만 만기환율을 동기화.
+  const purchaseFxAtFocusRef = useRef<string>("");
   // 고객 공유용 — 링크로 연 화면에서 트레이딩(주문) 탭을 숨긴다. 기본 켜짐.
   const [hideTradingInLink, setHideTradingInLink] = useState(true);
 
@@ -370,10 +380,13 @@ export function BondLayoutForm({
       comprehensiveTaxRate: value.incomeTaxRate,
     });
     if (!r) return null;
-    const fx = Number(value.maturityFxRate) || 1;
+    // 만기환율이 없으면 헤알 쿠폰을 원화로 환산할 수 없다 — 1배로 두면 헤알값이
+    // 원화처럼 표시되므로 null로 둔다 (감사 ⑤ 낮음).
+    const fx = Number(value.maturityFxRate);
     return {
       investedPrincipal: Number(value.trustInvestmentAmount) || 0,
-      totalInterest: r.summary.totalCouponBrl * fx,
+      totalInterest:
+        Number.isFinite(fx) && fx > 0 ? r.summary.totalCouponBrl * fx : null,
       postTaxMaturityAmount: r.summary.postTaxMaturityKrw,
       postTaxYield: r.summary.postTaxYield,
       bankEquivalentYield: r.summary.bankEquivalentYield,
@@ -431,6 +444,11 @@ export function BondLayoutForm({
           autoDefault={!lockToggleDisabled && !value.maturityDate}
           onApply={(fields) => {
             onLockedChange(false);
+            onChange((prev) => ({ ...prev, ...fields }));
+          }}
+          onUpdate={(fields) => {
+            // 늦게 도착한 신용등급·환율: 잠금을 다시 풀지 않고, 이미 잠갔으면 무시.
+            if (lockedRef.current) return;
             onChange((prev) => ({ ...prev, ...fields }));
           }}
         />
@@ -816,14 +834,30 @@ export function BondLayoutForm({
               placeholder="예: 1449.60"
               value={value.purchaseFxRate}
               disabled={value.custodyCurrency === value.tradeCurrency}
-              onFocus={selectAllOnFocus}
+              onFocus={(e) => {
+                purchaseFxAtFocusRef.current = value.purchaseFxRate;
+                selectAllOnFocus(e);
+              }}
               onChange={(e) => {
                 const _v = normalizeDecimalInput(e.target.value);
                   if (PERCENT_INPUT_PATTERN.test(_v)) update("purchaseFxRate", _v);
               }}
               onBlur={(e) => {
                 const formatted = formatTwoDecimals(e.target.value);
-                if (value.custodyCurrency !== value.tradeCurrency) {
+                // 만기예상환율 동기화는 (1) 매수시점환율이 실제로 바뀌었고
+                // (2) 만기예상환율을 사용자가 따로 손대지 않은 경우(비어 있거나
+                // 이전 매수시점환율과 같음)에만. Tab으로 지나가기만 해도
+                // 사용자가 입력한 만기환율이 초기화되던 문제 방지 (감사 ⑤ 중).
+                const before = formatTwoDecimals(purchaseFxAtFocusRef.current);
+                const changed = formatted !== before;
+                const maturityUntouched =
+                  value.maturityFxRate === "" ||
+                  formatTwoDecimals(value.maturityFxRate) === before;
+                if (
+                  value.custodyCurrency !== value.tradeCurrency &&
+                  changed &&
+                  maturityUntouched
+                ) {
                   onChange({
                     ...value,
                     purchaseFxRate: formatted,
@@ -960,10 +994,14 @@ export function BondLayoutForm({
             )}
           </Row>
           <Row label="지급이자 총액">
-            {summary ? (
+            {summary && summary.totalInterest == null ? (
+              <span className="text-sm italic text-zinc-400 dark:text-zinc-600">
+                만기환율 입력 필요
+              </span>
+            ) : summary ? (
               <span className="text-sm text-zinc-900 dark:text-zinc-100">
                 {formatSettlementAmount(
-                  summary.totalInterest,
+                  summary.totalInterest ?? 0,
                   value.custodyCurrency === "KRW"
                 )}
               </span>

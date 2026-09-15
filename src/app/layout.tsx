@@ -16,9 +16,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ko" className="h-full antialiased">
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
+        {/* 버전 고정(v1.3.9) CSS라 SRI 해시로 변조 방지. 버전을 올리면 해시도 재계산. */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+          integrity="sha384-GIdEBaqGN9mNkDkMkzMHW8EKUqtpPIe/sLj1X7DIrnc9uPtLROJgmuDlh+3rBw0j"
+          crossOrigin="anonymous"
         />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>

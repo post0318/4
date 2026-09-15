@@ -6,6 +6,15 @@
  * ModSecurity가 기본 UA를 막으므로 브라우저 UA로 요청한다.
  */
 
+/** 숫자 문자 참조 → 문자. BMP 밖(이모지 등)도 처리하고, 범위 밖이면 원문 유지. */
+function codePointOrRaw(code: number, raw: string): string {
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return raw;
+  }
+}
+
 const FEED_URL = "https://bomdianews.com.br/category/brazilnews/feed/";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -28,7 +37,7 @@ function decode(s: string): string {
     .replace(/&#8211;/g, "–")
     .replace(/&#8217;|&#8216;/g, "'")
     .replace(/&#8220;|&#8221;/g, '"')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#(\d+);/g, (m, n) => codePointOrRaw(Number(n), m))
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")

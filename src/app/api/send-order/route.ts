@@ -15,8 +15,17 @@ import {
 } from "@/lib/ntnfPricing";
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
+import { BOUNDS } from "@/lib/server/sanity";
 
 export const runtime = "nodejs";
+
+// 요청 본문 검증 상한/형식 (감사 ⑤ 낮음)
+const MAX_LINES = 20;
+const MAX_NOTE_LENGTH = 500;
+const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const inBounds = (v: number, [lo, hi]: readonly [number, number]) =>
+  Number.isFinite(v) && v >= lo && v <= hi;
 
 /**
  * 매수 주문 이메일 발송 (요구사항 4·5).
@@ -148,9 +157,31 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  // 입력 상한·형식 검증(감사 ⑤ 낮음). NTN-F는 만기가 10개 남짓이라 20줄이면 충분.
+  if (lines.length > MAX_LINES) {
+    return NextResponse.json(
+      { error: `종목 수가 너무 많습니다 (최대 ${MAX_LINES}개).` },
+      { status: 400 }
+    );
+  }
+  if (note != null && (typeof note !== "string" || note.length > MAX_NOTE_LENGTH)) {
+    return NextResponse.json(
+      { error: `메모는 ${MAX_NOTE_LENGTH}자 이내의 문자열이어야 합니다.` },
+      { status: 400 }
+    );
+  }
 
   if (!fx || typeof fx.usdKrw !== "number" || typeof fx.usdBrl !== "number") {
     return NextResponse.json({ error: "환율 정보가 없습니다." }, { status: 400 });
+  }
+  if (
+    !inBounds(fx.usdKrw, BOUNDS.usdKrw) ||
+    !inBounds(fx.usdBrl, BOUNDS.usdBrl)
+  ) {
+    return NextResponse.json(
+      { error: "환율 값이 정상 범위를 벗어났습니다. 새로고침 후 다시 시도하세요." },
+      { status: 400 }
+    );
   }
 
   const settlement = getOrderSettlementDate();
@@ -163,6 +194,18 @@ export async function POST(request: NextRequest) {
     if (!line?.maturityDate || typeof line.buyYieldPct !== "number") {
       return NextResponse.json(
         { error: `종목 정보가 불완전합니다: ${line?.nameKo ?? line?.isin ?? "?"}` },
+        { status: 400 }
+      );
+    }
+    if (typeof line.maturityDate !== "string" || !ISO_DATE_RE.test(line.maturityDate)) {
+      return NextResponse.json(
+        { error: `만기일 형식이 올바르지 않습니다: ${String(line.maturityDate)}` },
+        { status: 400 }
+      );
+    }
+    if (line.isin != null && (typeof line.isin !== "string" || !ISIN_RE.test(line.isin))) {
+      return NextResponse.json(
+        { error: `ISIN 형식이 올바르지 않습니다: ${String(line.isin)}` },
         { status: 400 }
       );
     }

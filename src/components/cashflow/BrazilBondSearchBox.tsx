@@ -16,7 +16,13 @@ const NTNF_COUPON_RATE = "10";
 
 interface BrazilBondSearchBoxProps {
   disabled: boolean;
+  /** 종목 선택 즉시 반영 (호출 측에서 잠금 해제 등 1회성 처리) */
   onApply: (fields: Partial<BondLayoutInput>) => void;
+  /**
+   * 선택 후 비동기로 도착하는 보조값(신용등급·환율) 반영. 없으면 onApply.
+   * 호출 측이 잠금 상태면 무시하는 등 덮어쓰기 방지를 여기서 한다.
+   */
+  onUpdate?: (fields: Partial<BondLayoutInput>) => void;
   /** true면 마운트 시 만기 최장(2037년 만기 우선) 종목을 자동 반영한다 */
   autoDefault?: boolean;
 }
@@ -44,10 +50,20 @@ interface BrazilBondSearchBoxProps {
 export function BrazilBondSearchBox({
   disabled,
   onApply,
+  onUpdate,
   autoDefault,
 }: BrazilBondSearchBoxProps) {
   const [open, setOpen] = useState(false);
   const didAutoRef = useRef(false);
+  // 선택 순번 — 늦게 도착한 이전 선택의 fetch 응답이 최신 선택을 덮어쓰지 않게 한다.
+  const selectSeqRef = useRef(0);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const [bonds, setBonds] = useState<BrazilBondItem[] | null>(null);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -121,10 +137,17 @@ export function BrazilBondSearchBox({
     onApply(fields);
     setOpen(false);
 
+    // 이후 비동기 반영은 이 선택이 여전히 최신이고 컴포넌트가 살아 있을 때만.
+    const seq = ++selectSeqRef.current;
+    const applyLater = (late: Partial<BondLayoutInput>) => {
+      if (!mountedRef.current || seq !== selectSeqRef.current) return;
+      (onUpdate ?? onApply)(late);
+    };
+
     fetch("/api/cashflow/country-rating?slug=brazil")
       .then((res) => res.json())
       .then((data: { rating?: string | null }) => {
-        if (data.rating) onApply({ creditRating: data.rating });
+        if (data.rating) applyLater({ creditRating: data.rating });
       })
       .catch(() => {});
 
@@ -137,7 +160,7 @@ export function BrazilBondSearchBox({
       .then((data: { rate?: number | null }) => {
         if (typeof data.rate === "number") {
           const rate = String(data.rate);
-          onApply({ purchaseFxRate: rate, maturityFxRate: rate });
+          applyLater({ purchaseFxRate: rate, maturityFxRate: rate });
         }
       })
       .catch(() => {});

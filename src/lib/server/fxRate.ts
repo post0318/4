@@ -11,15 +11,34 @@ export async function fetchFxRate(
   base: string,
   quote: string
 ): Promise<number | null> {
-  if (base === quote) return 1;
+  return (await fetchFxRateWithDate(base, quote)).rate;
+}
+
+/**
+ * fetchFxRate + ECB 고시일. Frankfurter 응답의 `date`는 실제 고시 영업일이라
+ * 주말·유럽 휴일에는 조회 시각보다 며칠 전 날짜가 온다(감사 ⑤ 낮음 — 화면에
+ * 조회 시각만 보이면 방금 값처럼 오해).
+ */
+export async function fetchFxRateWithDate(
+  base: string,
+  quote: string
+): Promise<{ rate: number | null; rateDate: string | null }> {
+  if (base === quote) return { rate: 1, rateDate: null };
 
   const url = `${API_URL}?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(quote)}`;
   const res = await fetch(url);
-  if (!res.ok) return null;
+  if (!res.ok) return { rate: null, rateDate: null };
 
-  const data = (await res.json()) as { rates?: Record<string, number> };
+  const data = (await res.json()) as {
+    date?: string;
+    rates?: Record<string, number>;
+  };
   const rate = data.rates?.[quote];
-  return typeof rate === "number" ? rate : null;
+  const rateDate =
+    typeof data.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.date)
+      ? data.date
+      : null;
+  return { rate: typeof rate === "number" ? rate : null, rateDate };
 }
 
 export interface FxSeries {

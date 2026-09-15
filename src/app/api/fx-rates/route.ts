@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchFxRate } from "@/lib/server/fxRate";
+import { fetchFxRateWithDate } from "@/lib/server/fxRate";
 import { BOUNDS, inRange } from "@/lib/server/sanity";
 
 /**
@@ -9,10 +9,19 @@ import { BOUNDS, inRange } from "@/lib/server/sanity";
  */
 export async function GET() {
   try {
-    const [usdKrw, usdBrl] = await Promise.all([
-      fetchFxRate("USD", "KRW"),
-      fetchFxRate("USD", "BRL"),
+    const [krw, brl] = await Promise.all([
+      fetchFxRateWithDate("USD", "KRW"),
+      fetchFxRateWithDate("USD", "BRL"),
     ]);
+    const usdKrw = krw.rate;
+    const usdBrl = brl.rate;
+    // ECB 고시일(두 통화쌍이 다르면 더 이른 쪽)
+    const rateDate =
+      krw.rateDate && brl.rateDate
+        ? krw.rateDate < brl.rateDate
+          ? krw.rateDate
+          : brl.rateDate
+        : (krw.rateDate ?? brl.rateDate ?? null);
 
     // 팩트 검증: 상식적 범위를 벗어나면 소스 오류로 보고 거부한다
     if (!inRange(usdKrw, BOUNDS.usdKrw) || !inRange(usdBrl, BOUNDS.usdBrl)) {
@@ -27,6 +36,7 @@ export async function GET() {
       usdBrl,
       krwBrl: usdKrw / usdBrl,
       asOf: new Date().toISOString(),
+      rateDate,
       source: "Frankfurter (ECB reference rates)",
     });
   } catch (error) {

@@ -97,14 +97,6 @@ body {
     gap: 2mm !important;
   }
 
-  /* 본문: CashFlowPanel이 beforeprint에서 계산한 --print-scale 로 축소.
-     width는 1/scale 로 잡아 축소 후에도 폭을 꽉 채운다. */
-  .cf-print-body {
-    transform: scale(var(--print-scale, 1));
-    transform-origin: top left;
-    width: calc(100% / var(--print-scale, 1));
-  }
-
   /* 하단 주석: 페이지 맨 아래 고정 (본문 스케일과 무관) */
   .cf-print-footer {
     position: fixed;

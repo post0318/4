@@ -51,16 +51,31 @@ interface BondOrderTableProps {
   onOrderQtyChange: (key: string, value: string) => void;
 }
 
-/** 달러 입력값 정규화: 숫자·소수점 1개, 소수 2자리까지만 */
-function sanitizeUsd(value: string): string {
+/** 소수 입력값 정규화: 숫자·소수점 1개, 소수 maxFrac자리까지만 */
+function sanitizeDecimal(value: string, maxFrac: number): string {
   const cleaned = value.replace(/[^\d.]/g, "");
   const firstDot = cleaned.indexOf(".");
   if (firstDot === -1) return cleaned;
   const frac = cleaned
     .slice(firstDot + 1)
     .replace(/\./g, "")
-    .slice(0, 2);
+    .slice(0, maxFrac);
   return `${cleaned.slice(0, firstDot + 1)}${frac}`;
+}
+
+/** 달러 입력값 정규화: 숫자·소수점 1개, 소수 2자리까지만 */
+function sanitizeUsd(value: string): string {
+  return sanitizeDecimal(value, 2);
+}
+
+/** 안전 버퍼(%) 허용 범위. 계산은 0~100으로 clamp되지만 실무상 50% 넘는 값은 오타로 본다. */
+const BUFFER_MAX_PCT = 50;
+
+/** 버퍼 입력이 비어 있지 않은데 숫자가 아니거나 0~50 밖이면 true */
+function bufferInvalid(buffer: string): boolean {
+  if (buffer === "") return false;
+  const n = Number(buffer);
+  return !Number.isFinite(n) || n < 0 || n > BUFFER_MAX_PCT;
 }
 
 /**
@@ -103,6 +118,7 @@ export function BondOrderTable({
   );
   const krwDiff = totalKrw - exchangeKrwTotal;
   const usdDiff = truncDecimals(totalUsd - exchangeUsdTotal, 2);
+  const bufferBad = bufferInvalid(buffer);
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -113,20 +129,31 @@ export function BondOrderTable({
           </h2>
           <label
             className="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"
-            title="주문(한국시간)↔체결(브라질시간) 시점차 가격·환율 변동 대비. PU를 (1+버퍼)배, 달러/헤알을 (1−버퍼)배로 보수적으로 잡아 매수가능수량을 산정합니다."
+            title={`주문(한국시간)↔체결(브라질시간) 시점차 가격·환율 변동 대비. PU를 (1+버퍼)배, 달러/헤알을 (1−버퍼)배로 보수적으로 잡아 매수가능수량을 산정합니다. PU와 USD/BRL 양쪽에 적용되어 실효 수량 감소폭은 입력값의 약 2배입니다(1% → 약 −2%). 허용 범위 0~${BUFFER_MAX_PCT}%.`}
           >
             버퍼
             <input
               inputMode="decimal"
               value={buffer}
               onChange={(e) =>
-                onBufferChange(e.target.value.replace(/[^\d.]/g, ""))
+                onBufferChange(sanitizeDecimal(e.target.value, 2))
               }
               placeholder="0"
-              className={`${numInput} w-14 border-zinc-300 dark:border-zinc-700`}
+              aria-invalid={bufferBad}
+              aria-label="수량계산 안전 버퍼(%)"
+              className={`${numInput} w-14 ${
+                bufferBad
+                  ? "border-red-400 text-red-600 dark:text-red-400"
+                  : "border-zinc-300 dark:border-zinc-700"
+              }`}
             />
             %
           </label>
+          {bufferBad && (
+            <span className="text-[11px] text-red-500" role="alert">
+              버퍼는 0~{BUFFER_MAX_PCT} 사이 숫자여야 합니다
+            </span>
+          )}
         </div>
         <span className="text-[11px] text-zinc-400">
           {asOfDate ? `시세 기준일 ${asOfDate} · 결제일 ${settlementDate}` : ""}
@@ -153,7 +180,12 @@ export function BondOrderTable({
                 <th className={`${th} text-right`}>PU (R$)</th>
                 <th className={`${th} text-right`}>1좌당 매수가격(₩)</th>
                 <th className={`${th} text-right`}>종목별 매수가능수량</th>
-                <th className={`${th} text-right`}>실제주문수량</th>
+                <th
+                  className={`${th} text-right`}
+                  title="비우면 매수가능수량 전량으로 주문합니다. 매수가능수량 이하로만 조정할 수 있습니다."
+                >
+                  실제주문수량
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -239,6 +271,12 @@ export function BondOrderTable({
                           onOrderQtyChange(row.key, digitsOnly(e.target.value))
                         }
                         maxLength={9}
+                        placeholder={order ? groupDigits(String(order.quantity)) : ""}
+                        title={
+                          order
+                            ? `비우면 매수가능수량 ${fmtInt(order.quantity)}좌 전량`
+                            : undefined
+                        }
                         aria-invalid={row.orderQtyExceeds}
                         className={`w-[4.5rem] font-bold disabled:font-normal ${numInput} ${
                           row.orderQtyExceeds
@@ -331,7 +369,8 @@ export function BondOrderTable({
         잔동은 최대 종목 가산) 채운 자동값이며 직접 수정할 수 있고, 환전금액이
         비어 있으면 원화투자금액 ÷ 환율로 채웁니다. 매수가능수량은 달러 환전액
         기준 헤알 환산액 ÷ PU 정수 절사(1좌 = 액면 R$1,000)입니다. 실제주문수량은
-        기본값이 매수가능수량이며 그 이하로 조정합니다.
+        기본값이 매수가능수량이며 그 이하로 조정합니다(비우면 전량). 1좌당
+        매수가격(₩)은 환전금액의 고시환율(수정했으면 그 값)을 씁니다.
       </p>
     </section>
   );

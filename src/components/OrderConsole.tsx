@@ -75,7 +75,13 @@ export function OrderConsole() {
       return;
     }
     setFxError(null);
-    setFx({ usdKrw: d.usdKrw, usdBrl: d.usdBrl, krwBrl: d.krwBrl, asOf: d.asOf });
+    setFx({
+      usdKrw: d.usdKrw,
+      usdBrl: d.usdBrl,
+      krwBrl: d.krwBrl,
+      asOf: d.asOf,
+      rateDate: d.rateDate ?? null,
+    });
   }, []);
 
   const loadFx = useCallback(() => {
@@ -91,7 +97,9 @@ export function OrderConsole() {
   useEffect(() => {
     let cancelled = false;
 
-    void (async () => {
+    // 세 요청은 서로 독립이라 병렬로 보낸다(예전엔 직렬 await라 종목 표가 환율
+    // 응답을 기다렸다). 실패는 각자의 에러 state에만 반영한다.
+    const loadFxInitial = (async () => {
       try {
         const d = await fetch("/api/fx-rates").then((r) => r.json());
         if (!cancelled) applyFxResponse(d);
@@ -100,7 +108,9 @@ export function OrderConsole() {
       } finally {
         if (!cancelled) setFxLoading(false);
       }
+    })();
 
+    const loadBonds = (async () => {
       try {
         const d: BondSearchResponse & { error?: string } = await fetch(
           "/api/br-bond-search"
@@ -118,7 +128,9 @@ export function OrderConsole() {
       } finally {
         if (!cancelled) setBondLoading(false);
       }
+    })();
 
+    const loadDefaults = (async () => {
       try {
         const d: { defaultTo?: string; defaultCc?: string } = await fetch(
           "/api/send-order"
@@ -129,6 +141,8 @@ export function OrderConsole() {
         /* 기본 수신자 없음 — 무시 */
       }
     })();
+
+    void Promise.allSettled([loadFxInitial, loadBonds, loadDefaults]);
 
     return () => {
       cancelled = true;
@@ -161,6 +175,18 @@ export function OrderConsole() {
     () => deriveExchange(exchange, fx?.usdKrw ?? null),
     [exchange, fx]
   );
+
+  // 실효 원/달러: 환전금액의 고시환율을 사용자가 고쳤으면 그 값, 아니면 API 값.
+  // 1좌당 매수가격(₩)·서버 재계산 대조에 모두 이 값을 쓴다(감사 ⑤ 낮음 —
+  // 예전엔 달러 환전은 수정값, 1좌당 원화가격은 API 값이라 표 안에서 기준이 엇갈렸다).
+  const effectiveFx: FxRates | null = useMemo(() => {
+    if (!fx) return null;
+    if (derivedExchange.rateEdited && derivedExchange.rate > 0) {
+      const usdKrw = derivedExchange.rate;
+      return { ...fx, usdKrw, krwBrl: usdKrw / fx.usdBrl };
+    }
+    return fx;
+  }, [fx, derivedExchange.rateEdited, derivedExchange.rate]);
 
   const rows: BondRow[] = useMemo(() => {
     // 환전금액의 달러금액이 있으면 종목별 달러($) 자동값을 원화투자금액 비중대로
@@ -196,13 +222,12 @@ export function OrderConsole() {
       } else {
         // 폴백: 종목 원화투자금액 ÷ 환율. 사용자가 고시환율을 고쳤으면 그 값,
         // 아니면 자동 조회 원/달러 환율.
-        const fbRate =
-          derivedExchange.rateEdited && derivedExchange.rate > 0
-            ? derivedExchange.rate
-            : (fx?.usdKrw ?? 0);
+        const fbRate = effectiveFx?.usdKrw ?? 0;
+        // 다른 달러 경로(표시·배분)와 같은 2자리 절사(예전엔 반올림이라 최대
+        // 0.5센트 과다).
         autoUsd =
           fbRate > 0 && krwInput !== "" && krwNum > 0
-            ? Math.round((krwNum / fbRate) * 100) / 100
+            ? truncDecimals(krwNum / fbRate, 2)
             : null;
       }
       const usdOverride = usdOverrides[key];
@@ -215,11 +240,11 @@ export function OrderConsole() {
       const effectiveUsd = usdEdited ? Number(usdOverride) : autoUsd;
 
       let order = null;
-      if (checked && fx && pu !== null && effectiveUsd) {
+      if (checked && effectiveFx && pu !== null && effectiveUsd) {
         const inputs = {
           usdAmount: effectiveUsd,
-          usdKrw: fx.usdKrw,
-          usdBrl: fx.usdBrl,
+          usdKrw: effectiveFx.usdKrw,
+          usdBrl: effectiveFx.usdBrl,
           pu,
           bufferPct: Number(buffer) || 0,
         };
@@ -262,7 +287,7 @@ export function OrderConsole() {
     usdOverrides,
     orderQtys,
     buffer,
-    fx,
+    effectiveFx,
     settlement,
     derivedExchange,
   ]);
@@ -459,7 +484,7 @@ export function OrderConsole() {
           <OrderReview
             lines={pendingLines}
             incompleteCount={incompleteCount}
-            fx={fx}
+            fx={effectiveFx}
             defaultTo={defaultTo}
             defaultCc={defaultCc}
             krwMismatch={krwMismatch}

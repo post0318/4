@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFxRate } from "@/lib/cashflow/server/fxRate";
 
-// ECB 환율은 하루 1회 갱신 — 6시간 재검증
-export const revalidate = 21600;
+// 쿼리(base/quote)를 읽어 동적 라우트라 `revalidate` 세그먼트 설정이 적용되지
+// 않는다(Next 16: GET 핸들러는 기본 동적, 요청 객체를 읽으면 정적 캐시 불가).
+// 호출 빈도가 낮아(종목 선택 시 1회) 별도 캐시 없이 둔다 (감사 ⑤ 낮음).
 
 export async function GET(request: NextRequest) {
   const base = request.nextUrl.searchParams.get("base");

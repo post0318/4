@@ -289,13 +289,19 @@ export function DurationPanel({ bonds, fx }: Props) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <div className="mb-1 flex items-baseline justify-between text-xs">
-            <span className="text-zinc-500 dark:text-zinc-400">금리변동</span>
+            <label
+              htmlFor="duration-shock-yield"
+              className="text-zinc-500 dark:text-zinc-400"
+            >
+              금리변동
+            </label>
             <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
               {dy >= 0 ? "+" : ""}
               {fmtNum(dy, 2)} %p
             </span>
           </div>
           <input
+            id="duration-shock-yield"
             type="range"
             min={-3}
             max={3}
@@ -307,15 +313,19 @@ export function DurationPanel({ bonds, fx }: Props) {
         </div>
         <div>
           <div className="mb-1 flex items-baseline justify-between text-xs">
-            <span className="text-zinc-500 dark:text-zinc-400">
+            <label
+              htmlFor="duration-shock-fx"
+              className="text-zinc-500 dark:text-zinc-400"
+            >
               환율변동 (헤알/원)
-            </span>
+            </label>
             <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
               {dfx >= 0 ? "+" : ""}
               {fmtNum(dfx, 1)} %
             </span>
           </div>
           <input
+            id="duration-shock-fx"
             type="range"
             min={-20}
             max={20}

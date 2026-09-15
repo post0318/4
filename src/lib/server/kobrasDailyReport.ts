@@ -11,6 +11,15 @@
  * (블로그 저작권 표시: 저작자 명시·비영리·변경 금지).
  */
 
+/** 숫자 문자 참조 → 문자. BMP 밖(이모지 등)도 처리하고, 범위 밖이면 원문 유지. */
+function codePointOrRaw(code: number, raw: string): string {
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return raw;
+  }
+}
+
 const BLOG_ID = "dari0202";
 const RSS_URL = `https://rss.blog.naver.com/${BLOG_ID}.xml`;
 const UA =
@@ -46,8 +55,8 @@ function decodeEntities(s: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#(?:x3D|X3D);/g, "=")
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, h) => codePointOrRaw(parseInt(h, 16), m))
+    .replace(/&#(\d+);/g, (m, n) => codePointOrRaw(Number(n), m))
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&amp;/g, "&");
 }

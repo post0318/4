@@ -58,6 +58,16 @@ function bondName(maturityDate: string): string {
   return `BNTNF ${m}/${d}/${y.slice(2)}`;
 }
 
+/** HTML 본문에 넣는 사용자 입력(ISIN·메모)은 이스케이프한다 (감사 ⑤ 높음4). */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function buildOrderEmail(data: OrderEmailData): {
   subject: string;
   text: string;
@@ -65,6 +75,7 @@ export function buildOrderEmail(data: OrderEmailData): {
 } {
   const { lines } = data;
   const totalUsd = lines.reduce((s, l) => s + l.usdAmount, 0);
+  const noteText = data.note ? data.note.replace(/\r/g, "") : undefined;
 
   const subject = `${data.subjectPrefix} ${data.orderDate}`;
 
@@ -93,7 +104,7 @@ export function buildOrderEmail(data: OrderEmailData): {
     `USD 송금액 합계: $ ${fmt(totalUsd, 2)}`,
     "",
     FOOTER_NOTE,
-    ...(data.note ? ["", "[메모]", data.note] : []),
+    ...(noteText ? ["", "[메모]", noteText] : []),
   ].join("\n");
 
   // ---- HTML 본문 ----
@@ -110,7 +121,7 @@ export function buildOrderEmail(data: OrderEmailData): {
       return `<tr>
         <td style="${tdc}">${i + 1}</td>
         <td style="${tdc}">매수</td>
-        <td style="${tdc}">${l.isin}${l.isinVerified ? "" : " ⚠"}</td>
+        <td style="${tdc}">${escapeHtml(l.isin)}${l.isinVerified ? "" : " ⚠"}</td>
         <td style="${tdc}">BNTNF<br>${m}/${d}/${y.slice(2)}</td>
         <td style="${tdNum}">${fmt(l.usdAmount, 2)}</td>
         <td style="${tdNum}">${fmtInt(l.quantity)}</td>
@@ -139,8 +150,8 @@ export function buildOrderEmail(data: OrderEmailData): {
   )}</span></p>
   <p style="margin:14px 0 0;font-size:13px">${FOOTER_NOTE}</p>
   ${
-    data.note
-      ? `<p style="margin:12px 0 0"><b>메모</b><br>${data.note.replace(
+    noteText
+      ? `<p style="margin:12px 0 0"><b>메모</b><br>${escapeHtml(noteText).replace(
           /\n/g,
           "<br>"
         )}</p>`

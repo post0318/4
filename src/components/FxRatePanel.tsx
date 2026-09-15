@@ -230,7 +230,9 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         {error
           ? error
           : rates
-            ? `환율 ${fmtTimestamp(
+            ? `환율 ${
+                rates.rateDate ? `ECB 고시일 ${rates.rateDate} · ` : ""
+              }조회 ${fmtTimestamp(
                 rates.asOf
               )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 국채금리 재무부(주간)`
             : "환율을 불러오는 중입니다."}

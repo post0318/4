@@ -226,7 +226,9 @@ function ScenarioCard({
 }
 
 export function RollSwitchComparison({ bonds, fx }: Props) {
-  const now = today();
+  // 오늘은 마운트 시 한 번만 잡는다(렌더마다 today()를 만들면 defaultBondA
+  // useMemo가 매 렌더 재계산됐다).
+  const now = useMemo(() => today(), []);
   const sorted = useMemo(
     () => [...bonds].sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)),
     [bonds]

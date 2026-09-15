@@ -63,8 +63,8 @@ function fmtDate(iso: string): string {
 function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
   return (
     <ul className="space-y-2.5">
-      {items.map((n) => (
-        <li key={n.link} className="text-xs">
+      {items.map((n, i) => (
+        <li key={`${i}-${n.link}`} className="text-xs">
           <a
             href={n.link}
             target="_blank"
@@ -90,8 +90,8 @@ function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
 function NewsList({ items }: { items: NewsItem[] }) {
   return (
     <ul className="space-y-2">
-      {items.map((n) => (
-        <li key={n.link} className="text-xs">
+      {items.map((n, i) => (
+        <li key={`${i}-${n.link}`} className="text-xs">
           <a
             href={n.link}
             target="_blank"

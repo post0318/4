@@ -24,6 +24,14 @@ export async function GET() {
   }
 
   const clean = sanitizeSeries(series.dates, series.values, BOUNDS.ratePct);
+  // 전부 걸러지면 last가 undefined → crossCheck가 NaN 비교로 "mismatch"가 되므로
+  // 명시적으로 실패 처리한다 (감사 ⑤ 낮음).
+  if (clean.values.length === 0) {
+    return NextResponse.json(
+      { error: "기준금리 추이 데이터가 비어 있습니다." },
+      { status: 502 }
+    );
+  }
 
   // 교차검증: 마지막 값이 독립 조회한 최신값과 일치하는지
   const latest = await fetchSelicLatest();

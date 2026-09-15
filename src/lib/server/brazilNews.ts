@@ -7,6 +7,15 @@
 
 import { translateChecked } from "@/lib/server/translate";
 
+/** 숫자 문자 참조 → 문자. BMP 밖(이모지 등)도 처리하고, 범위 밖이면 원문 유지. */
+function codePointOrRaw(code: number, raw: string): string {
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return raw;
+  }
+}
+
 const UA = "Mozilla/5.0 (compatible; brazil-trading/1.0)";
 const GN = (path: string, locale = "hl=pt-BR&gl=BR&ceid=BR:pt-419") =>
   `https://news.google.com/rss/${path}${
@@ -45,7 +54,7 @@ function decode(s: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#(\d+);/g, (m, n) => codePointOrRaw(Number(n), m))
     .replace(/&amp;/g, "&")
     .trim();
 }

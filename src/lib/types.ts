@@ -2,7 +2,10 @@ export interface FxRates {
   usdKrw: number;
   usdBrl: number;
   krwBrl: number;
+  /** 조회 시각 (ISO) */
   asOf: string | null;
+  /** ECB 고시일 "YYYY-MM-DD" (주말·휴일엔 조회일보다 이전) */
+  rateDate?: string | null;
 }
 
 export interface BondItem {

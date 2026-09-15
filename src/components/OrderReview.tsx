@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtInt, fmtNum, groupDigits } from "@/lib/format";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import type { FxRates } from "@/lib/types";
@@ -82,19 +82,65 @@ export function OrderReview({
   const [modalOpen, setModalOpen] = useState(false);
   const [send, setSend] = useState<SendState>({ status: "idle" });
 
-  // 주문 구성(종목·금액·수량)이 바뀌면 확인 체크가 자동으로 풀리도록 시그니처로 관리
+  // 확인 모달 접근성: 열릴 때 취소 버튼에 포커스, Esc로 닫기, Tab 순환, 닫히면
+  // 이전 포커스 복귀.
+  const modalRef = useRef<HTMLDivElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!modalOpen) return;
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    cancelBtnRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setModalOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !modalRef.current) return;
+      const focusables = modalRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      restoreFocusRef.current?.focus();
+    };
+  }, [modalOpen]);
+
+  // 주문 구성(종목·금액·수량)이나 수신자·발송 모드가 바뀌면 확인 체크가 자동으로
+  // 풀리도록 시그니처로 관리(체크 문구가 "수신자 이메일을 확인했습니다"이므로
+  // 수신자 변경도 포함 — 감사 ⑤ 낮음).
   const signature = useMemo(
     () =>
-      JSON.stringify(
-        lines.map((l) => [
+      JSON.stringify({
+        lines: lines.map((l) => [
           l.maturityDate,
           l.usdAmount,
           l.quantity,
           l.orderQuantity,
           l.pu,
-        ])
-      ),
-    [lines]
+        ]),
+        to: to.trim(),
+        cc: cc.trim(),
+        testSend,
+        testTo: testSend ? testTo.trim() : "",
+      }),
+    [lines, to, cc, testSend, testTo]
   );
   const [confirmedSig, setConfirmedSig] = useState<string | null>(null);
   const confirmed = confirmedSig === signature;
@@ -137,19 +183,37 @@ export function OrderReview({
           testTo: testSend && testTo.trim() ? testTo.trim() : undefined,
         }),
       });
-      const data = await res.json();
+      let data: {
+        error?: string;
+        delivered?: boolean;
+        testSend?: boolean;
+        to?: string;
+        cc?: string;
+        subject?: string;
+        preview?: string;
+      };
+      try {
+        data = await res.json();
+      } catch {
+        // 413·HTML 500 등 JSON이 아닌 응답 — 파서 예외 문구 대신 상태코드로 안내
+        setSend({
+          status: "error",
+          message: `서버 응답을 해석할 수 없습니다 (HTTP ${res.status})`,
+        });
+        return;
+      }
       if (!res.ok) {
         setSend({ status: "error", message: data.error ?? "발송 실패" });
         return;
       }
       setSend({
         status: "done",
-        delivered: data.delivered,
+        delivered: !!data.delivered,
         testSend: !!data.testSend,
-        to: data.to,
+        to: data.to ?? "",
         cc: data.cc ?? "",
-        subject: data.subject,
-        preview: data.preview,
+        subject: data.subject ?? "",
+        preview: data.preview ?? "",
       });
       setConfirmedSig(null);
     } catch (e) {
@@ -377,9 +441,23 @@ export function OrderReview({
       )}
 
       {modalOpen && lines.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalOpen(false);
+          }}
+        >
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-review-dialog-title"
+            className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900"
+          >
+            <h3
+              id="order-review-dialog-title"
+              className="text-base font-semibold text-zinc-900 dark:text-zinc-100"
+            >
               {testSend ? "테스트로 발송할까요?" : "이 내용으로 발송할까요?"}
             </h3>
             {testSend ? (
@@ -429,6 +507,7 @@ export function OrderReview({
             </p>
             <div className="mt-4 flex gap-2">
               <button
+                ref={cancelBtnRef}
                 type="button"
                 onClick={() => setModalOpen(false)}
                 className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
