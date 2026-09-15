@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { koKR } from "@clerk/localizations";
+import { AppAuthProvider } from "@/components/auth/AppAuth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +15,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
+  // Clerk 키가 없으면(로컬 초기 상태) 인증 없이 렌더 — 트레이딩·링크 생성만 잠긴다.
+  const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+  const body = (
     <html lang="ko" className="h-full antialiased">
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
@@ -24,7 +30,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           crossOrigin="anonymous"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AppAuthProvider enabled={clerkEnabled}>{children}</AppAuthProvider>
+      </body>
     </html>
+  );
+
+  if (!clerkEnabled) return body;
+  return (
+    <ClerkProvider
+      localization={koKR}
+      // 로그인 팝업의 "가입" 링크 → 우리 가입 신청 폼(회사 이메일 검사)으로
+      waitlistUrl="/?signup=1"
+      afterSignOutUrl="/"
+    >
+      {body}
+    </ClerkProvider>
   );
 }

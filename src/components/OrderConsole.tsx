@@ -17,6 +17,9 @@ import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
 import { ClientViewGuard } from "@/components/ClientViewGuard";
 import type { ShareResolution } from "@/lib/server/shareLink";
+import { UserButton } from "@clerk/nextjs";
+import { isAllowedEmail, useAppAuth } from "@/components/auth/AppAuth";
+import { TradingGate } from "@/components/auth/TradingGate";
 import { BondOrderTable, type BondRow } from "@/components/BondOrderTable";
 import { OrderReview, type PendingLine } from "@/components/OrderReview";
 import {
@@ -36,9 +39,18 @@ import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
 interface OrderConsoleProps {
   /** 서버가 해석한 공유 링크. 링크가 아니면 null. */
   share: ShareResolution | null;
+  /** 트레이딩 탭 가입·사용이 허용되는 회사 이메일 도메인 */
+  allowedDomains: string[];
+  /** `/?signup=1` — 가입 신청 폼을 바로 연다 */
+  openSignup?: boolean;
 }
 
-export function OrderConsole({ share }: OrderConsoleProps) {
+export function OrderConsole({ share, allowedDomains, openSignup = false }: OrderConsoleProps) {
+  // 트레이딩 탭·주문 발송은 승인된 회사 계정만 (감사 ⑤ 치명1). 서버 API 도 같은 기준.
+  const auth = useAppAuth();
+  const tradingUnlocked =
+    auth.enabled && auth.isSignedIn && !!auth.email && isAllowedEmail(auth.email, allowedDomains);
+
   const [fx, setFx] = useState<FxRates | null>(null);
   const [fxLoading, setFxLoading] = useState(true);
   const [fxError, setFxError] = useState<string | null>(null);
@@ -64,7 +76,7 @@ export function OrderConsole({ share }: OrderConsoleProps) {
       : null;
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
-  >(() => (hideTrading ? "cashflow" : "market"));
+  >(() => (hideTrading ? "cashflow" : openSignup ? "trading" : "market"));
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -142,24 +154,32 @@ export function OrderConsole({ share }: OrderConsoleProps) {
       }
     })();
 
-    const loadDefaults = (async () => {
+    void Promise.allSettled([loadFxInitial, loadBonds]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyFxResponse]);
+
+  // 기본 수신자·참조는 로그인(승인 계정) 후에만 조회 — API 가 잠겨 있다.
+  useEffect(() => {
+    if (!tradingUnlocked) return;
+    let cancelled = false;
+    (async () => {
       try {
-        const d: { defaultTo?: string; defaultCc?: string } = await fetch(
-          "/api/send-order"
-        ).then((r) => r.json());
+        const r = await fetch("/api/send-order");
+        if (!r.ok) return;
+        const d: { defaultTo?: string; defaultCc?: string } = await r.json();
         if (!cancelled && d.defaultTo) setDefaultTo(d.defaultTo);
         if (!cancelled && d.defaultCc) setDefaultCc(d.defaultCc);
       } catch {
         /* 기본 수신자 없음 — 무시 */
       }
     })();
-
-    void Promise.allSettled([loadFxInitial, loadBonds, loadDefaults]);
-
     return () => {
       cancelled = true;
     };
-  }, [applyFxResponse]);
+  }, [tradingUnlocked]);
 
   const settlement = useMemo(() => getOrderSettlementDate(today()), []);
   const settlementDate = toISODate(settlement);
@@ -377,10 +397,10 @@ export function OrderConsole({ share }: OrderConsoleProps) {
 
   const TABS = [
     { key: "market" as const, label: "시장정보" },
-    { key: "trading" as const, label: "트레이딩" },
     { key: "cashflow" as const, label: "현금흐름" },
     { key: "simulation" as const, label: "시뮬레이션" },
     { key: "duration" as const, label: "금리/환율 민감도" },
+    { key: "trading" as const, label: "트레이딩" },
   ].filter((t) => !(hideTrading && t.key === "trading"));
 
   return (
@@ -394,7 +414,7 @@ export function OrderConsole({ share }: OrderConsoleProps) {
           {shareProblem}
         </p>
       )}
-      <header className="print:hidden">
+      <header className="flex items-center justify-between print:hidden">
         <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -406,6 +426,13 @@ export function OrderConsole({ share }: OrderConsoleProps) {
           />
           브라질 트레이딩
         </h1>
+        {auth.enabled && auth.isSignedIn && (
+          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="hidden sm:inline">{auth.email}</span>
+            {/* 아바타 클릭 → 계정 관리(비밀번호 변경)·로그아웃 */}
+            <UserButton />
+          </div>
+        )}
       </header>
 
       <Tabs
@@ -427,7 +454,11 @@ export function OrderConsole({ share }: OrderConsoleProps) {
         </>
       )}
 
-      {tab === "trading" && !hideTrading && (
+      {tab === "trading" && !hideTrading && !tradingUnlocked && (
+        <TradingGate allowedDomains={allowedDomains} openSignup={openSignup} />
+      )}
+
+      {tab === "trading" && !hideTrading && tradingUnlocked && (
         <>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-zinc-200/80 bg-white px-3.5 py-2.5 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none">
             <span className="font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">

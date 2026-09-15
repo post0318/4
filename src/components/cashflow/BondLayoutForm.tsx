@@ -31,6 +31,7 @@ import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
 import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
 import { computeMaturitySummary } from "@/lib/cashflow/maturitySummary";
 import { BrazilBondSearchBox } from "@/components/cashflow/BrazilBondSearchBox";
+import { useAppAuth } from "@/components/auth/AppAuth";
 
 function formatAmount(n: number): string {
   return n.toLocaleString("ko-KR", {
@@ -205,6 +206,17 @@ export function BondLayoutForm({
   // 서버에 두고 토큰만 링크에, 회수·만료 가능). 둘 다 서버가 만든다(감사 ⑤ 중10).
   const [linkMethod, setLinkMethod] = useState<"signed" | "token">("signed");
   const [linkBusy, setLinkBusy] = useState(false);
+  // 링크 생성은 승인 계정만(서버 API 도 잠김). 로그인 전이면 팝업을 띄우고,
+  // 로그인이 끝나면 이어서 생성한다.
+  const auth = useAppAuth();
+  const linkPendingRef = useRef(false);
+  const createLinkRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    if (linkPendingRef.current && auth.isSignedIn) {
+      linkPendingRef.current = false;
+      void createLinkRef.current();
+    }
+  }, [auth.isSignedIn]);
 
   const update = <K extends keyof BondLayoutInput>(
     key: K,
@@ -423,6 +435,12 @@ export function BondLayoutForm({
 
   const handleCreateLink = async () => {
     if (linkBusy) return;
+    if (auth.enabled && !auth.isSignedIn) {
+      linkPendingRef.current = true;
+      setLinkStatus("링크 생성은 로그인 후 가능합니다.");
+      auth.openSignIn();
+      return;
+    }
     setLinkBusy(true);
     setLinkStatus("링크 생성 중…");
     try {
@@ -438,7 +456,11 @@ export function BondLayoutForm({
         /* 비JSON 응답 */
       }
       if (!res.ok || !data.url) {
-        setLinkStatus(data.error ?? `링크 생성 실패 (HTTP ${res.status})`);
+        setLinkStatus(
+          res.status === 401
+            ? "링크 생성은 로그인 후 가능합니다."
+            : (data.error ?? `링크 생성 실패 (HTTP ${res.status})`)
+        );
         return;
       }
       const link = data.url;
@@ -518,7 +540,10 @@ export function BondLayoutForm({
             <>
               <button
                 type="button"
-                onClick={handleCreateLink}
+                onClick={() => {
+                  createLinkRef.current = handleCreateLink;
+                  void handleCreateLink();
+                }}
                 disabled={linkBusy}
                 className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >

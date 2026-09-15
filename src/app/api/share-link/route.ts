@@ -7,6 +7,7 @@ import {
   tokenStoreKind,
   type ShareMethod,
 } from "@/lib/server/shareLink";
+import { requireTradingUser } from "@/lib/server/appAuth";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // 링크 생성은 승인된 회사 계정만 — 외부인이 저장소를 채우지 못하게
+  const who = await requireTradingUser();
+  if (!who.ok) return NextResponse.json({ error: who.error }, { status: who.status });
+
   let body: { input?: unknown; client?: unknown; method?: unknown };
   try {
     body = await request.json();

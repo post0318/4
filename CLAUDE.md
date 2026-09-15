@@ -72,6 +72,16 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/app/api/send-order` — 서버 재계산 대조 후 발송. **이메일 전송은 현재
   stub** — `sendEmail()` 어댑터에 Resend 또는 Gmail SMTP 연결하면 됨.
 
+## 로그인 (Clerk)
+
+트레이딩 탭·주문 발송 API·수신자 기본값·공유 링크 생성은 승인된 회사 계정만.
+`src/proxy.ts`(clerkMiddleware) → `src/lib/server/appAuth.ts`의 `requireTradingUser()`
+로 API 잠금, 화면은 `TradingGate`(로그인 팝업·가입 신청)와 `useAppAuth()`
+(`src/components/auth/AppAuth.tsx`, Clerk 키 없으면 비활성 값). Clerk 는 대기자
+(Waitlist) 모드 — 가입 신청 → 관리자가 dashboard.clerk.com 에서 승인. 회사 도메인
+검사는 `ALLOWED_EMAIL_DOMAINS`(기본 hanwha.com)로 가입 폼·서버 양쪽에서. 탭 순서는
+시장정보·현금흐름·시뮬레이션·민감도·트레이딩. 나머지 탭과 조회 API 는 공개.
+
 ## 이메일 발송 (미완)
 
 `src/app/api/send-order/route.ts`의 `sendEmail()`가 `{ delivered: false }`를

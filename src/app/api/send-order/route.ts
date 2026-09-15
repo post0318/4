@@ -16,6 +16,7 @@ import {
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import { BOUNDS } from "@/lib/server/sanity";
+import { requireTradingUser } from "@/lib/server/appAuth";
 
 export const runtime = "nodejs";
 
@@ -99,6 +100,10 @@ async function sendEmail(params: {
 }
 
 export async function POST(request: NextRequest) {
+  // 승인된 회사 계정만 (감사 ⑤ 치명1)
+  const who = await requireTradingUser();
+  if (!who.ok) return NextResponse.json({ error: who.error }, { status: who.status });
+
   let body: SendOrderBody;
   try {
     body = (await request.json()) as SendOrderBody;
@@ -319,5 +324,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  // 수신자 기본값(실제 이메일 주소)도 승인 계정에만 (감사 ⑤ 치명2 후속)
+  const who = await requireTradingUser();
+  if (!who.ok) return NextResponse.json({ error: who.error }, { status: who.status });
   return NextResponse.json({ defaultTo: DEFAULT_TO, defaultCc: DEFAULT_CC });
 }
