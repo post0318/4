@@ -1,3 +1,4 @@
+import { fetchOrNull } from "@/lib/server/fetchWithTimeout";
 const API_BASE = "https://api.frankfurter.dev/v1";
 const API_URL = `${API_BASE}/latest`;
 
@@ -26,8 +27,8 @@ export async function fetchFxRateWithDate(
   if (base === quote) return { rate: 1, rateDate: null };
 
   const url = `${API_URL}?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(quote)}`;
-  const res = await fetch(url);
-  if (!res.ok) return { rate: null, rateDate: null };
+  const res = await fetchOrNull(url);
+  if (!res) return { rate: null, rateDate: null };
 
   const data = (await res.json()) as {
     date?: string;
@@ -60,8 +61,8 @@ export async function fetchFxSeries(
   to: string
 ): Promise<FxSeries | null> {
   const url = `${API_BASE}/${from}..${to}?base=USD&symbols=KRW,BRL`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
+  const res = await fetchOrNull(url);
+  if (!res) return null;
 
   const data = (await res.json()) as {
     rates?: Record<string, { KRW?: number; BRL?: number }>;

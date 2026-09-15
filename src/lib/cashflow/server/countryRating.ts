@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/server/fetchWithTimeout";
 const RATING_LIST_URL = "https://tradingeconomics.com/country-list/rating";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -20,7 +21,7 @@ let cache: { at: number; table: Map<string, CountryRating> } | null = null;
 async function fetchTable(): Promise<Map<string, CountryRating>> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.table;
 
-  const res = await fetch(RATING_LIST_URL, {
+  const res = await fetchWithTimeout(RATING_LIST_URL, {
     headers: { "User-Agent": "Mozilla/5.0" },
   });
   if (!res.ok) throw new Error(`tradingeconomics.com 요청 실패 (${res.status})`);

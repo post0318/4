@@ -1,3 +1,4 @@
+import { fetchWithTimeout, fetchOrNull } from "@/lib/server/fetchWithTimeout";
 /**
  * 한국브라질소사이어티(KOBRAS, https://www.kobras.or.kr/)가 네이버 블로그
  * "글로벌 시대의 다리"(dari0202)에 매일 올리는 「브라질 데일리 리포트」를 가져온다.
@@ -76,11 +77,12 @@ interface RssHit {
 }
 
 async function findLatestReport(): Promise<RssHit | null> {
-  const res = await fetch(RSS_URL, {
-    headers: { "user-agent": UA },
-    next: { revalidate: 3600 },
-  });
-  if (!res.ok) return null;
+  const res = await fetchOrNull(
+    RSS_URL,
+    { headers: { "user-agent": UA }, next: { revalidate: 3600 } },
+    8000
+  );
+  if (!res) return null;
   const xml = await res.text();
   const blocks = xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [];
   for (const b of blocks) {
@@ -171,9 +173,10 @@ export async function fetchKobrasDailyReport(): Promise<KobrasDailyReport | null
   };
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://blog.naver.com/PostView.naver?blogId=${BLOG_ID}&logNo=${hit.logNo}`,
-      { headers: { "user-agent": UA }, next: { revalidate: 3600 } }
+      { headers: { "user-agent": UA }, next: { revalidate: 3600 } },
+      8000
     );
     if (!res.ok) return base;
     const lines = extractLines(await res.text());

@@ -1,3 +1,4 @@
+import { fetchOrNull } from "@/lib/server/fetchWithTimeout";
 const SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados";
 
 export interface RateSeries {
@@ -24,8 +25,8 @@ export async function fetchSelicHistory(
 ): Promise<RateSeries | null> {
   const toBr = (iso: string) => iso.split("-").reverse().join("/");
   const url = `${SGS_URL}?formato=json&dataInicial=${toBr(from)}&dataFinal=${toBr(to)}`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
+  const res = await fetchOrNull(url);
+  if (!res) return null;
 
   const text = await res.text();
   if (!text.trimStart().startsWith("[")) return null;
@@ -60,8 +61,8 @@ export async function fetchSelicHistory(
  */
 export async function fetchSelicLatest(): Promise<number | null> {
   try {
-    const res = await fetch(`${SGS_URL}/ultimos/1?formato=json`);
-    if (!res.ok) return null;
+    const res = await fetchOrNull(`${SGS_URL}/ultimos/1?formato=json`);
+    if (!res) return null;
     const text = await res.text();
     if (!text.trimStart().startsWith("[")) return null;
     const arr = JSON.parse(text) as { valor: string }[];

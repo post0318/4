@@ -1,3 +1,4 @@
+import { fetchOrNull } from "@/lib/server/fetchWithTimeout";
 const API_URL = "https://api.frankfurter.dev/v1/latest";
 
 /**
@@ -13,8 +14,8 @@ export async function fetchFxRate(
   if (base === quote) return 1;
 
   const url = `${API_URL}?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(quote)}`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
+  const res = await fetchOrNull(url);
+  if (!res) return null;
 
   const data = (await res.json()) as { rates?: Record<string, number> };
   const rate = data.rates?.[quote];

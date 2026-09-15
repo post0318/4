@@ -1,4 +1,5 @@
 import { brazilHolidayList } from "@/lib/brazilCalendar";
+import { fetchOrNull } from "@/lib/server/fetchWithTimeout";
 import { inRange } from "@/lib/server/sanity";
 
 /**
@@ -137,8 +138,8 @@ async function focusMedian(
       `&$filter=${encodeURIComponent(
         `Indicador eq '${indicador}' and DataReferencia eq '${dataRef}'`
       )}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
+    const res = await fetchOrNull(url);
+    if (!res) return null;
     const data = (await res.json()) as { value?: { Mediana?: number }[] };
     const v = data.value?.[0]?.Mediana;
     return typeof v === "number" ? v : null;
@@ -161,10 +162,10 @@ async function sgsMonthly(
   refMonthYear: string
 ): Promise<{ atRef: number | null; latest: number | null }> {
   try {
-    const res = await fetch(
+    const res = await fetchOrNull(
       `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${series}/dados/ultimos/18?formato=json`
     );
-    if (!res.ok) return { atRef: null, latest: null };
+    if (!res) return { atRef: null, latest: null };
     const text = await res.text();
     if (!text.trimStart().startsWith("[")) return { atRef: null, latest: null };
     const arr = JSON.parse(text) as SgsRow[];
@@ -196,10 +197,10 @@ async function sidraQuarterlyPct(
   try {
     const [q, y] = refQuarter.split("/");
     const period = `${y}${q.padStart(2, "0")}`; // "2/2026" → "202602"
-    const res = await fetch(
+    const res = await fetchOrNull(
       `https://apisidra.ibge.gov.br/values/t/${table}/n1/1/v/${variable}/p/${period}/c11255/90707`
     );
-    if (!res.ok) return null;
+    if (!res) return null;
     const rows = (await res.json()) as { V?: string }[];
     const v = Number(rows?.[1]?.V);
     return Number.isFinite(v) ? v : null;
@@ -216,18 +217,19 @@ interface IbgeItem {
 async function fetchIbge(from: string, to: string): Promise<AgendaItem[]> {
   let items: IbgeItem[] = [];
   try {
-    const res = await fetch(
+    const res = await fetchOrNull(
       `https://servicodados.ibge.gov.br/api/v3/calendario/?de=${from}&ate=${to}&qtd=200`
     );
-    if (res.ok) items = ((await res.json()) as { items?: IbgeItem[] }).items ?? [];
+    if (res) items = ((await res.json()) as { items?: IbgeItem[] }).items ?? [];
   } catch {
     return [];
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const seen = new Set<string>();
-  const out: AgendaItem[] = [];
 
+  // 1단계: 큐레이션 대상만 골라 중복 제거 (동기).
+  const seen = new Set<string>();
+  const targets: { date: string; c: NonNullable<ReturnType<typeof curatedFor>> }[] = [];
   for (const it of items) {
     const date = brDateToIso(it.data_divulgacao);
     if (!date) continue;
@@ -236,61 +238,60 @@ async function fetchIbge(from: string, to: string): Promise<AgendaItem[]> {
     const key = `${date}|${c.labelKo}`;
     if (seen.has(key)) continue;
     seen.add(key);
-
-    let guidance: number | null = null;
-    if (c.focus) {
-      const ref =
-        c.focus.kind === "month"
-          ? refMonth(date, c.refOffset)
-          : refQuarter(date);
-      guidance = await focusMedian(
-        c.focus.kind === "month"
-          ? "ExpectativaMercadoMensais"
-          : "ExpectativasMercadoTrimestrais",
-        c.focus.indicador,
-        ref
-      );
-    }
-
-    const released = date <= today;
-    const isQuarter = c.focus?.kind === "quarter";
-    const expectedRef = isQuarter ? null : refMonth(date, c.refOffset);
-
-    // 발표치: 월간은 "정확히 해당 참조월"의 SGS 값, 분기는 IBGE SIDRA 참조분기 값.
-    // 직전치(prior)는 월간 SGS 최근 가용값.
-    let atRef: number | null = null;
-    let latest: number | null = null;
-    if (c.sgs != null && expectedRef) {
-      const r = await sgsMonthly(c.sgs, expectedRef);
-      atRef = r.atRef;
-      latest = r.latest;
-    } else if (isQuarter && c.sidra) {
-      atRef = await sidraQuarterlyPct(
-        c.sidra.table,
-        c.sidra.variable,
-        refQuarter(date)
-      );
-    }
-
-    // 무료 검증: 상식 범위를 벗어난 값은 버린다(소스/파싱 오류 방지)
-    const check = (v: number | null) =>
-      v != null && inRange(v, c.bounds) ? v : null;
-    const g = check(guidance);
-    const a = check(atRef);
-    const p = check(latest);
-
-    const fmt = (v: number) => `${v.toFixed(2)}${c.unit}`;
-    out.push({
-      date,
-      titleKo: c.labelKo,
-      category: "경제지표",
-      released,
-      guidance: g != null ? fmt(g) : null,
-      actual: released && a != null ? fmt(a) : null,
-      prior: !released && p != null ? fmt(p) : null,
-    });
+    targets.push({ date, c });
   }
-  return out;
+
+  // 2단계: 지표별 Focus(컨센서스)·SGS/SIDRA(발표치) 조회를 전부 병렬로.
+  // 예전에는 지표마다 순차 await 라 지표 10개면 외부 호출 20회를 줄 세워 기다렸다
+  // (감사 ⑤ 중9). 개별 실패는 각 함수가 null 로 흡수하므로 Promise.all 로 충분.
+  return Promise.all(
+    targets.map(async ({ date, c }): Promise<AgendaItem> => {
+      const released = date <= today;
+      const isQuarter = c.focus?.kind === "quarter";
+      const expectedRef = isQuarter ? null : refMonth(date, c.refOffset);
+
+      const guidanceP: Promise<number | null> = c.focus
+        ? focusMedian(
+            c.focus.kind === "month"
+              ? "ExpectativaMercadoMensais"
+              : "ExpectativasMercadoTrimestrais",
+            c.focus.indicador,
+            c.focus.kind === "month" ? refMonth(date, c.refOffset) : refQuarter(date)
+          )
+        : Promise.resolve(null);
+
+      // 발표치: 월간은 "정확히 해당 참조월"의 SGS 값, 분기는 IBGE SIDRA 참조분기 값.
+      // 직전치(prior)는 월간 SGS 최근 가용값.
+      const actualP: Promise<{ atRef: number | null; latest: number | null }> =
+        c.sgs != null && expectedRef
+          ? sgsMonthly(c.sgs, expectedRef)
+          : isQuarter && c.sidra
+            ? sidraQuarterlyPct(c.sidra.table, c.sidra.variable, refQuarter(date)).then(
+                (atRef) => ({ atRef, latest: null })
+              )
+            : Promise.resolve({ atRef: null, latest: null });
+
+      const [guidance, { atRef, latest }] = await Promise.all([guidanceP, actualP]);
+
+      // 무료 검증: 상식 범위를 벗어난 값은 버린다(소스/파싱 오류 방지)
+      const check = (v: number | null) =>
+        v != null && inRange(v, c.bounds) ? v : null;
+      const g = check(guidance);
+      const a = check(atRef);
+      const p = check(latest);
+
+      const fmt = (v: number) => `${v.toFixed(2)}${c.unit}`;
+      return {
+        date,
+        titleKo: c.labelKo,
+        category: "경제지표",
+        released,
+        guidance: g != null ? fmt(g) : null,
+        actual: released && a != null ? fmt(a) : null,
+        prior: !released && p != null ? fmt(p) : null,
+      };
+    })
+  );
 }
 
 /** 매 10월 첫째 일요일(1차)·마지막 일요일(결선) — 대선 연도는 4년 주기(≡2 mod 4) */

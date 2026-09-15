@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/server/fetchWithTimeout";
 /**
  * 좋은아침뉴스(bomdianews.com.br) — 상파울루 한인신문. 브라질 현지 뉴스를 한국어로
  * 직접 취재·번역해 싣는다. "브라질뉴스" 카테고리 WordPress RSS를 그대로 읽는다
@@ -69,7 +70,7 @@ const RELEVANT =
 
 export async function fetchBomDiaNews(limit = 5): Promise<LocalNewsItem[]> {
   try {
-    const res = await fetch(FEED_URL, {
+    const res = await fetchWithTimeout(FEED_URL, {
       headers: { "user-agent": UA, accept: "application/rss+xml, application/xml" },
       next: { revalidate: 1800 },
     });

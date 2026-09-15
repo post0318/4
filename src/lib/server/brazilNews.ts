@@ -5,6 +5,7 @@
  * 캐시(revalidate)한다.
  */
 
+import { fetchWithTimeout } from "@/lib/server/fetchWithTimeout";
 import { translateChecked } from "@/lib/server/translate";
 
 /** 숫자 문자 참조 → 문자. BMP 밖(이모지 등)도 처리하고, 범위 밖이면 원문 유지. */
@@ -74,7 +75,7 @@ interface RawItem {
 
 async function fetchFeed(url: string, category: string): Promise<RawItem[]> {
   try {
-    const res = await fetch(url, { headers: { "user-agent": UA } });
+    const res = await fetchWithTimeout(url, { headers: { "user-agent": UA } });
     if (!res.ok) return [];
     const xml = await res.text();
     const blocks = xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [];
