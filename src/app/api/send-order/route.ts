@@ -28,24 +28,11 @@ export const runtime = "nodejs";
  * (nodemailer)를 연결하면 된다.
  */
 
-// 기본 수신자/참조. 환경변수(ORDER_EMAIL_TO / ORDER_EMAIL_CC)로 덮어쓸 수 있고,
-// 없으면 아래 운영 기본값을 쓴다. 화면에서 개별 수정 가능.
-const FALLBACK_TO = [
-  "jisook@bancokdb.com.br",
-  "custodykdbbr@gmail.com",
-  "tr@bancokdb.com.br",
-  "aline.c@bancokdb.com.br",
-].join("; ");
-const FALLBACK_CC = [
-  "sungwoo.hong@hanwha.com",
-  "202001126@hanwha.com",
-  "hyejin.kwon@hanwha.com",
-  "hyeonkyong.yun@hanwha.com",
-  "201402457@hanwha.com",
-  "kk9891271@hanwha.com",
-].join("; ");
-const DEFAULT_TO = process.env.ORDER_EMAIL_TO || FALLBACK_TO;
-const DEFAULT_CC = process.env.ORDER_EMAIL_CC || FALLBACK_CC;
+// 기본 수신자/참조는 환경변수(ORDER_EMAIL_TO / ORDER_EMAIL_CC)에서만 읽는다.
+// 실제 주소를 소스에 두지 않는다(감사 ⑤ 치명2 — 저장소·GET 응답으로 노출됐음).
+// 미설정이면 빈 값 → 화면에서 직접 입력해야 발송된다. 여러 명은 ; 로 구분.
+const DEFAULT_TO = process.env.ORDER_EMAIL_TO ?? "";
+const DEFAULT_CC = process.env.ORDER_EMAIL_CC ?? "";
 // 테스트 발송 수신자 — 실제 수신자 대신 개발자 본인 주소로만 보낸다.
 const TEST_TO = process.env.ORDER_EMAIL_TEST_TO || process.env.ORDER_EMAIL_FROM || "";
 // 환경변수는 리터럴 "\n"을 줄바꿈으로 해석한다
