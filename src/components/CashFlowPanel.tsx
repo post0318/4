@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { BondLayoutForm } from "@/components/cashflow/BondLayoutForm";
+import { BondLayoutForm, type CashFlowCalc } from "@/components/cashflow/BondLayoutForm";
+import { computeBondPricing } from "@/lib/cashflow/bondPricing";
 import { CashFlowTable } from "@/components/cashflow/CashFlowTable";
 import { MonthlyCashFlowTable } from "@/components/cashflow/MonthlyCashFlowTable";
 import { ReinvestCashFlowTable } from "@/components/cashflow/ReinvestCashFlowTable";
@@ -72,6 +73,27 @@ export function CashFlowPanel({
 
   const isMonthly = input.distributionType === "월";
   const isReinvest = input.distributionType === "재투자";
+
+  // 매수단가·경과이자·결제금액 (폼의 매수내역 표시용). 한 번만 계산해 폼에 넘긴다.
+  const pricing = useMemo(
+    () =>
+      computeBondPricing({
+        maturityDate: input.maturityDate,
+        couponRate: input.couponRate,
+        couponFrequency: input.couponFrequency,
+        purchaseYield: input.purchaseYield,
+        calcBasis: input.calcBasis,
+        trustContractDate: input.trustContractDate,
+        recentCouponDate: input.recentCouponDate,
+        tradeCurrency: input.tradeCurrency,
+        custodyCurrency: input.custodyCurrency,
+        purchaseFxRate: input.purchaseFxRate,
+        trustInvestmentAmount: input.trustInvestmentAmount,
+        frontFeeRate: input.frontFeeRate,
+        reserveRate: isMonthly ? input.reserveRate : "0",
+      }),
+    [input, isMonthly]
+  );
 
   const reinvestResult = useMemo(
     () =>
@@ -144,11 +166,12 @@ export function CashFlowPanel({
             backFeeRate: input.backFeeRate,
             cashInterestRate: input.cashInterestRate,
             reserveRate: input.reserveRate,
-            taxStatus: input.taxStatus,
             comprehensiveTaxRate: input.incomeTaxRate,
           }),
     [isMonthly, input]
   );
+
+  const calc: CashFlowCalc = { pricing, cashFlowRows, monthlyResult, reinvestResult };
 
   return (
     <div className="cf-print-root">
@@ -157,6 +180,7 @@ export function CashFlowPanel({
           ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
         </p>
         <BondLayoutForm
+          calc={calc}
           value={input}
           onChange={setInput}
           locked={locked}

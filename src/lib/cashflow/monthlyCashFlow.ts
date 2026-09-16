@@ -2,7 +2,6 @@ import {
   CouponFrequency,
   Currency,
   CalcBasis,
-  TaxStatus,
 } from "@/lib/cashflow/bondLayout";
 import {
   FREQUENCY_MONTHS,
@@ -62,7 +61,6 @@ export interface MonthlyCashFlowInputs {
   backFeeRate: string;
   cashInterestRate: string;
   reserveRate: string;
-  taxStatus: TaxStatus;
   /** 은행환산수익률 계산용 종합소득세율(%) */
   comprehensiveTaxRate: string;
 }

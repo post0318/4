@@ -24,10 +24,10 @@ import {
   checkRecentCouponDate,
   getTrustMaturityDate,
 } from "@/lib/cashflow/couponSchedule";
-import { computeBondPricing } from "@/lib/cashflow/bondPricing";
-import { generateFixCashFlow } from "@/lib/cashflow/cashFlowSchedule";
-import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
-import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
+import type { BondPricingResult } from "@/lib/cashflow/bondPricing";
+import type { CashFlowRow } from "@/lib/cashflow/cashFlowSchedule";
+import type { MonthlyCashFlowResult } from "@/lib/cashflow/monthlyCashFlow";
+import type { ReinvestCashFlowResult } from "@/lib/cashflow/reinvestCashFlow";
 import { computeMaturitySummary } from "@/lib/cashflow/maturitySummary";
 import { BrazilBondSearchBox } from "@/components/cashflow/BrazilBondSearchBox";
 import { QuoteFreshnessNote } from "@/components/QuoteFreshnessNote";
@@ -55,7 +55,21 @@ function formatSettlementAmount(n: number, isKrw: boolean): string {
   });
 }
 
+/**
+ * CashFlowPanel 이 한 번 계산한 결과. 예전에는 폼이 요약을 위해 같은 계산을 다시
+ * 돌려 키 입력마다 두 번 계산됐다(감사 ⑤ 낮음 정리).
+ */
+export interface CashFlowCalc {
+  pricing: BondPricingResult | null;
+  /** 반기형일 때만 (월·재투자는 null) */
+  cashFlowRows: CashFlowRow[] | null;
+  monthlyResult: MonthlyCashFlowResult | null;
+  reinvestResult: ReinvestCashFlowResult | null;
+}
+
 interface BondLayoutFormProps {
+  /** 패널이 계산한 결과 (요약·매수단가 표시용) */
+  calc: CashFlowCalc;
   value: BondLayoutInput;
   onChange: Dispatch<SetStateAction<BondLayoutInput>>;
   locked: boolean;
@@ -193,6 +207,7 @@ export function BondLayoutForm({
   onLockedChange,
   lockToggleDisabled = false,
   onReset,
+  calc,
 }: BondLayoutFormProps) {
   // 검색창의 늦은 비동기 반영(신용등급·환율)이 잠금 뒤에 도착해도 덮어쓰지 않도록
   // 최신 잠금 상태를 ref로 본다(fetch 콜백은 옛 렌더의 props를 붙들고 있음).
@@ -208,81 +223,7 @@ export function BondLayoutForm({
     val: BondLayoutInput[K]
   ) => onChange({ ...value, [key]: val });
 
-  const pricing = useMemo(
-    () =>
-      computeBondPricing({
-        maturityDate: value.maturityDate,
-        couponRate: value.couponRate,
-        couponFrequency: value.couponFrequency,
-        purchaseYield: value.purchaseYield,
-        calcBasis: value.calcBasis,
-        trustContractDate: value.trustContractDate,
-        recentCouponDate: value.recentCouponDate,
-        tradeCurrency: value.tradeCurrency,
-        custodyCurrency: value.custodyCurrency,
-        purchaseFxRate: value.purchaseFxRate,
-        trustInvestmentAmount: value.trustInvestmentAmount,
-        frontFeeRate: value.frontFeeRate,
-        reserveRate:
-          value.distributionType === "월" ? value.reserveRate : "0",
-      }),
-    [
-      value.maturityDate,
-      value.couponRate,
-      value.couponFrequency,
-      value.purchaseYield,
-      value.calcBasis,
-      value.trustContractDate,
-      value.recentCouponDate,
-      value.tradeCurrency,
-      value.custodyCurrency,
-      value.purchaseFxRate,
-      value.trustInvestmentAmount,
-      value.frontFeeRate,
-      value.distributionType,
-      value.reserveRate,
-    ]
-  );
-
-  const cashFlowRows = useMemo(
-    () =>
-      generateFixCashFlow({
-        maturityDate: value.maturityDate,
-        couponRate: value.couponRate,
-        couponFrequency: value.couponFrequency,
-        purchaseYield: value.purchaseYield,
-        calcBasis: value.calcBasis,
-        trustContractDate: value.trustContractDate,
-        recentCouponDate: value.recentCouponDate,
-        tradeCurrency: value.tradeCurrency,
-        custodyCurrency: value.custodyCurrency,
-        purchaseFxRate: value.purchaseFxRate,
-        maturityFxRate: value.maturityFxRate,
-        trustInvestmentAmount: value.trustInvestmentAmount,
-        frontFeeRate: value.frontFeeRate,
-        backFeeRate: value.backFeeRate,
-        cashInterestRate: value.cashInterestRate,
-        taxStatus: value.taxStatus,
-      }),
-    [
-      value.maturityDate,
-      value.couponRate,
-      value.couponFrequency,
-      value.purchaseYield,
-      value.calcBasis,
-      value.trustContractDate,
-      value.recentCouponDate,
-      value.tradeCurrency,
-      value.custodyCurrency,
-      value.purchaseFxRate,
-      value.maturityFxRate,
-      value.trustInvestmentAmount,
-      value.frontFeeRate,
-      value.backFeeRate,
-      value.cashInterestRate,
-      value.taxStatus,
-    ]
-  );
+  const { pricing, cashFlowRows, monthlyResult, reinvestResult } = calc;
 
   const maturitySummary = useMemo(
     () =>
@@ -312,104 +253,24 @@ export function BondLayoutForm({
     ]
   );
 
-  const monthlySummary = useMemo(() => {
-    if (value.distributionType !== "월") return null;
-    const r = generateMonthlyCashFlow({
-      maturityDate: value.maturityDate,
-      couponRate: value.couponRate,
-      couponFrequency: value.couponFrequency,
-      purchaseYield: value.purchaseYield,
-      calcBasis: value.calcBasis,
-      trustContractDate: value.trustContractDate,
-      recentCouponDate: value.recentCouponDate,
-      tradeCurrency: value.tradeCurrency,
-      custodyCurrency: value.custodyCurrency,
-      purchaseFxRate: value.purchaseFxRate,
-      maturityFxRate: value.maturityFxRate,
-      trustInvestmentAmount: value.trustInvestmentAmount,
-      frontFeeRate: value.frontFeeRate,
-      backFeeRate: value.backFeeRate,
-      cashInterestRate: value.cashInterestRate,
-      reserveRate: value.reserveRate,
-      taxStatus: value.taxStatus,
-      comprehensiveTaxRate: value.incomeTaxRate,
-    });
-    // 보유현금 마이너스(유보율 부족)면 수익률 결과를 내지 않는다
-    return r && !r.error ? r.summary : null;
-  }, [
-      value.distributionType,
-      value.maturityDate,
-      value.couponRate,
-      value.couponFrequency,
-      value.purchaseYield,
-      value.calcBasis,
-      value.trustContractDate,
-      value.recentCouponDate,
-      value.tradeCurrency,
-      value.custodyCurrency,
-      value.purchaseFxRate,
-      value.maturityFxRate,
-      value.trustInvestmentAmount,
-      value.frontFeeRate,
-      value.backFeeRate,
-      value.cashInterestRate,
-      value.reserveRate,
-      value.taxStatus,
-      value.incomeTaxRate,
-    ]
-  );
+  // 보유현금 마이너스(유보율 부족)면 수익률 결과를 내지 않는다
+  const monthlySummary =
+    monthlyResult && !monthlyResult.error ? monthlyResult.summary : null;
 
   const reinvestSummary = useMemo(() => {
-    if (value.distributionType !== "재투자") return null;
-    const r = generateReinvestCashFlow({
-      maturityDate: value.maturityDate,
-      couponRate: value.couponRate,
-      couponFrequency: value.couponFrequency,
-      purchaseYield: value.purchaseYield,
-      calcBasis: value.calcBasis,
-      trustContractDate: value.trustContractDate,
-      recentCouponDate: value.recentCouponDate,
-      tradeCurrency: value.tradeCurrency,
-      custodyCurrency: value.custodyCurrency,
-      purchaseFxRate: value.purchaseFxRate,
-      maturityFxRate: value.maturityFxRate,
-      trustInvestmentAmount: value.trustInvestmentAmount,
-      frontFeeRate: value.frontFeeRate,
-      backFeeRate: value.backFeeRate,
-      taxStatus: value.taxStatus,
-      comprehensiveTaxRate: value.incomeTaxRate,
-    });
-    if (!r) return null;
+    if (!reinvestResult) return null;
     // 만기환율이 없으면 헤알 쿠폰을 원화로 환산할 수 없다 — 1배로 두면 헤알값이
     // 원화처럼 표시되므로 null로 둔다 (감사 ⑤ 낮음).
     const fx = Number(value.maturityFxRate);
     return {
       investedPrincipal: Number(value.trustInvestmentAmount) || 0,
       totalInterest:
-        Number.isFinite(fx) && fx > 0 ? r.summary.totalCouponBrl * fx : null,
-      postTaxMaturityAmount: r.summary.postTaxMaturityKrw,
-      postTaxYield: r.summary.postTaxYield,
-      bankEquivalentYield: r.summary.bankEquivalentYield,
+        Number.isFinite(fx) && fx > 0 ? reinvestResult.summary.totalCouponBrl * fx : null,
+      postTaxMaturityAmount: reinvestResult.summary.postTaxMaturityKrw,
+      postTaxYield: reinvestResult.summary.postTaxYield,
+      bankEquivalentYield: reinvestResult.summary.bankEquivalentYield,
     };
-  }, [
-    value.distributionType,
-    value.maturityDate,
-    value.couponRate,
-    value.couponFrequency,
-    value.purchaseYield,
-    value.calcBasis,
-    value.trustContractDate,
-    value.recentCouponDate,
-    value.tradeCurrency,
-    value.custodyCurrency,
-    value.purchaseFxRate,
-    value.maturityFxRate,
-    value.trustInvestmentAmount,
-    value.frontFeeRate,
-    value.backFeeRate,
-    value.taxStatus,
-    value.incomeTaxRate,
-  ]);
+  }, [reinvestResult, value.maturityFxRate, value.trustInvestmentAmount]);
 
   // 시세 기준일·노후 경고 — 종목 검색이 목록을 받을 때 채워진다(감사 ⑤ 중3)
   const [quote, setQuote] = useState<QuoteFreshness | null>(null);
