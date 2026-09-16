@@ -449,7 +449,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
               draggable={false}
               className="flag-wave h-4 w-auto shrink-0 select-none"
             />
-            브라질 트레이딩
+            브라질세상
           </button>
         </h1>
         {auth.enabled && auth.isSignedIn && (

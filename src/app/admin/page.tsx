@@ -22,7 +22,7 @@ export default async function AdminPage() {
           href="/"
           className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
         >
-          ← 브라질 트레이딩
+          ← 브라질세상
         </Link>
       </header>
 

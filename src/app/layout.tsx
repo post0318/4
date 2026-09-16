@@ -5,7 +5,7 @@ import { AppAuthProvider } from "@/components/auth/AppAuth";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "브라질 트레이딩",
+  title: "브라질세상",
   description:
     "브라질 환율·기준금리·뉴스·일정과 NTN-F 매수 주문 준비를 한 화면에서 다루는 도구",
   robots: {
