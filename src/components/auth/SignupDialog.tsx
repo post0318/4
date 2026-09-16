@@ -101,7 +101,11 @@ export function SignupDialog({ open, onClose, allowedDomains }: SignupDialogProp
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-2">
             <p id="signup-title" className="font-medium">가입 신청</p>
-            <p className="text-xs text-zinc-500">상품운용팀 담당자만 신청가능합니다.</p>
+            <p className="text-xs leading-relaxed text-zinc-500">
+              회사 이메일({domainsLabel})만 가능하며 관리자 승인이 필요합니다.
+              <br />
+              상품운용팀 소속이 아니면 가입이 불가합니다.
+            </p>
             <input
               ref={inputRef}
               type="email"
