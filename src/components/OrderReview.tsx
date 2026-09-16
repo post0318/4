@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtInt, fmtNum, groupDigits } from "@/lib/format";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
-import type { FxRates } from "@/lib/types";
+import type { FxRates, QuoteFreshness } from "@/lib/types";
+import { QuoteFreshnessNote } from "@/components/QuoteFreshnessNote";
 
 /** 발송 대기 중인 종목 한 줄 (체크됨 + 수량 산출 완료) */
 export interface PendingLine {
@@ -32,6 +33,9 @@ interface OrderReviewProps {
   fx: FxRates | null;
   defaultTo: string;
   defaultCc: string;
+  /** 시세 신선도 — 발송 모달에 기준일·노후 경고 */
+  quote?: QuoteFreshness | null;
+  settlementDate?: string;
   /** 종목별 원화투자금액 합계 ≠ 환전금액 원화금액 — 발송 차단 */
   krwMismatch?: boolean;
   krwMismatchDetail?: { rows: number; exchange: number } | null;
@@ -65,6 +69,8 @@ export function OrderReview({
   fx,
   defaultTo,
   defaultCc,
+  quote = null,
+  settlementDate,
   krwMismatch = false,
   krwMismatchDetail = null,
   usdMismatch = false,
@@ -477,6 +483,9 @@ export function OrderReview({
                 )}
               </>
             )}
+            <div className="mt-2">
+              <QuoteFreshnessNote quote={quote} settlementDate={settlementDate} />
+            </div>
             <ul className="mt-3 space-y-2">
               {lines.map((l) => (
                 <li

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchFxRate } from "@/lib/cashflow/server/fxRate";
+import { fetchFxRate } from "@/lib/server/fxRate";
 
 // 쿼리(base/quote)를 읽어 동적 라우트라 `revalidate` 세그먼트 설정이 적용되지
 // 않는다(Next 16: GET 핸들러는 기본 동적, 요청 객체를 읽으면 정적 캐시 불가).

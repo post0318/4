@@ -22,5 +22,16 @@ export interface BondItem {
 
 export interface BondSearchResponse {
   asOfDate: string;
+  /** 기준일 경과일수 (서버 계산) */
+  ageDays?: number | null;
+  /** 기준일이 10일 넘게 지남 — 주간 갱신 실패 가능성, 화면 경고 */
+  stale?: boolean;
   bonds: BondItem[];
+}
+
+/** 시세 스냅샷 신선도 — 화면 경고용 */
+export interface QuoteFreshness {
+  asOfDate: string | null;
+  ageDays: number | null;
+  stale: boolean;
 }

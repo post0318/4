@@ -1,5 +1,7 @@
 "use client";
 
+import { QuoteFreshnessNote } from "@/components/QuoteFreshnessNote";
+import type { QuoteFreshness } from "@/lib/types";
 import {
   digitsOnly,
   fmtInt,
@@ -34,6 +36,8 @@ export interface BondRow {
 interface BondOrderTableProps {
   rows: BondRow[];
   asOfDate: string | null;
+  /** 시세 신선도 — 표 위에 기준일/노후 경고 */
+  quote: QuoteFreshness | null;
   loading: boolean;
   error: string | null;
   fxReady: boolean;
@@ -88,6 +92,7 @@ function bufferInvalid(buffer: string): boolean {
 export function BondOrderTable({
   rows,
   asOfDate,
+  quote,
   loading,
   error,
   fxReady,
@@ -155,9 +160,13 @@ export function BondOrderTable({
             </span>
           )}
         </div>
-        <span className="text-[11px] text-zinc-400">
-          {asOfDate ? `시세 기준일 ${asOfDate} · 결제일 ${settlementDate}` : ""}
-        </span>
+      </div>
+      {/* 시세 기준일·결제일 — 예전엔 11px 회색 캡션이라 눈에 안 띄었다(감사 ⑤ 중3) */}
+      <div className="mb-3">
+        <QuoteFreshnessNote
+          quote={quote ?? (asOfDate ? { asOfDate, ageDays: null, stale: false } : null)}
+          settlementDate={settlementDate}
+        />
       </div>
 
       {loading && (

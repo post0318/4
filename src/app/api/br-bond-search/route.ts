@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getLatestNtnF } from "@/lib/server/brazilBondData";
 import { getNtnfMeta, ntnfDisplayName } from "@/lib/ntnfMeta";
+import { snapshotFreshness } from "@/lib/server/sanity";
 
 /**
  * 브라질국채(NTN-F) 목록 (요구사항 2).
@@ -34,5 +35,8 @@ export async function GET() {
       };
     });
 
-  return NextResponse.json({ asOfDate, bonds });
+  // 주간 갱신이 실패해도 앱은 옛 금리로 계속 계산하므로, 경과일수·노후 여부를
+  // 같이 내려 화면이 경고를 띄우게 한다(감사 ⑤ 중3).
+  const { ageDays, stale } = snapshotFreshness(asOfDate);
+  return NextResponse.json({ asOfDate, ageDays, stale, bonds });
 }

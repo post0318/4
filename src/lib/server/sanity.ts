@@ -47,3 +47,19 @@ export function isStale(asOfIso: string | null, maxAgeDays: number): boolean {
   if (Number.isNaN(t)) return true;
   return Date.now() - t > maxAgeDays * 86_400_000;
 }
+
+/** 스냅샷을 "오래됨"으로 보는 기준(일). 주간 갱신이므로 한 주기 + 여유. */
+export const SNAPSHOT_STALE_DAYS = 10;
+
+/** 스냅샷 기준일의 경과일수와 노후 여부 (감사 ⑤ 중3) */
+export function snapshotFreshness(asOfIso: string | null): {
+  asOfDate: string | null;
+  ageDays: number | null;
+  stale: boolean;
+} {
+  if (!asOfIso) return { asOfDate: null, ageDays: null, stale: true };
+  const t = new Date(asOfIso).getTime();
+  if (Number.isNaN(t)) return { asOfDate: asOfIso, ageDays: null, stale: true };
+  const ageDays = Math.floor((Date.now() - t) / 86_400_000);
+  return { asOfDate: asOfIso, ageDays, stale: ageDays > SNAPSHOT_STALE_DAYS };
+}

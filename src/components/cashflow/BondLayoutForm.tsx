@@ -9,6 +9,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { normalizeDecimalInput } from "@/lib/format";
 import {
@@ -29,6 +30,8 @@ import { generateMonthlyCashFlow } from "@/lib/cashflow/monthlyCashFlow";
 import { generateReinvestCashFlow } from "@/lib/cashflow/reinvestCashFlow";
 import { computeMaturitySummary } from "@/lib/cashflow/maturitySummary";
 import { BrazilBondSearchBox } from "@/components/cashflow/BrazilBondSearchBox";
+import { QuoteFreshnessNote } from "@/components/QuoteFreshnessNote";
+import type { QuoteFreshness } from "@/lib/types";
 
 function formatAmount(n: number): string {
   return n.toLocaleString("ko-KR", {
@@ -408,6 +411,9 @@ export function BondLayoutForm({
     value.incomeTaxRate,
   ]);
 
+  // 시세 기준일·노후 경고 — 종목 검색이 목록을 받을 때 채워진다(감사 ⑤ 중3)
+  const [quote, setQuote] = useState<QuoteFreshness | null>(null);
+
   // 최근이표일 입력이 자동 계산값과 다르면 경고(계산은 자동값 사용, 감사 ⑤ 중4)
   const recentCoupon = checkRecentCouponDate(
     value.maturityDate,
@@ -446,6 +452,7 @@ export function BondLayoutForm({
             if (lockedRef.current) return;
             onChange((prev) => ({ ...prev, ...fields }));
           }}
+          onQuote={setQuote}
         />
       </div>
 
@@ -521,6 +528,7 @@ export function BondLayoutForm({
               onChange={(e) => update("name", e.target.value)}
               onKeyDown={commitOnEnter}
             />
+            <QuoteFreshnessNote quote={quote} compact />
           </Row>
           <Row label="발행일" editable>
             <input

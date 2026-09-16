@@ -39,7 +39,7 @@ import {
   isValidOrderInputs,
 } from "@/lib/quantity";
 import { truncDecimals } from "@/lib/format";
-import type { BondItem, BondSearchResponse, FxRates } from "@/lib/types";
+import type { BondItem, BondSearchResponse, FxRates, QuoteFreshness } from "@/lib/types";
 
 interface OrderConsoleProps {
   /** 서버가 해석한 공유 링크. 링크가 아니면 null. */
@@ -61,6 +61,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
 
   const [bonds, setBonds] = useState<BondItem[]>([]);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
+  const [quote, setQuote] = useState<QuoteFreshness | null>(null);
   const [bondLoading, setBondLoading] = useState(true);
   const [bondError, setBondError] = useState<string | null>(null);
 
@@ -167,6 +168,11 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
           } else {
             setBonds(d.bonds);
             setAsOfDate(d.asOfDate ?? null);
+            setQuote({
+              asOfDate: d.asOfDate ?? null,
+              ageDays: d.ageDays ?? null,
+              stale: d.stale === true,
+            });
           }
         }
       } catch {
@@ -584,6 +590,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
           <BondOrderTable
             rows={rows}
             asOfDate={asOfDate}
+            quote={quote}
             loading={bondLoading}
             error={bondError}
             fxReady={!!fx}
@@ -604,6 +611,8 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
             fx={effectiveFx}
             defaultTo={defaultTo}
             defaultCc={defaultCc}
+            quote={quote}
+            settlementDate={settlementDate}
             krwMismatch={krwMismatch}
             krwMismatchDetail={
               krwMismatch

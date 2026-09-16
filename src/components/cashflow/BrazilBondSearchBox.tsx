@@ -1,5 +1,6 @@
 "use client";
 
+import type { QuoteFreshness } from "@/lib/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BondLayoutInput, CalcBasis, Currency, TaxStatus } from "@/lib/cashflow/bondLayout";
 
@@ -23,6 +24,8 @@ interface BrazilBondSearchBoxProps {
    * 호출 측이 잠금 상태면 무시하는 등 덮어쓰기 방지를 여기서 한다.
    */
   onUpdate?: (fields: Partial<BondLayoutInput>) => void;
+  /** 시세 기준일·노후 여부 (목록을 받을 때마다) — 폼이 종목명 옆에 표시 */
+  onQuote?: (quote: QuoteFreshness) => void;
   /** true면 마운트 시 만기 최장(2037년 만기 우선) 종목을 자동 반영한다 */
   autoDefault?: boolean;
 }
@@ -51,6 +54,7 @@ export function BrazilBondSearchBox({
   disabled,
   onApply,
   onUpdate,
+  onQuote,
   autoDefault,
 }: BrazilBondSearchBoxProps) {
   const [open, setOpen] = useState(false);
@@ -99,10 +103,11 @@ export function BrazilBondSearchBox({
       setError(null);
       fetch("/api/cashflow/br-bond-search")
         .then((res) => res.json())
-        .then((data: { asOfDate?: string; bonds?: BrazilBondItem[] }) => {
+        .then((data: { asOfDate?: string; ageDays?: number | null; stale?: boolean; bonds?: BrazilBondItem[] }) => {
           const today = new Date().toISOString().slice(0, 10);
           const all = Array.isArray(data.bonds) ? data.bonds : [];
           setAsOfDate(data.asOfDate ?? null);
+          onQuote?.({ asOfDate: data.asOfDate ?? null, ageDays: data.ageDays ?? null, stale: data.stale === true });
           setBonds(all.filter((b) => b.maturityDate >= today));
         })
         .catch(() => setError("조회 중 오류가 발생했습니다."))
@@ -172,8 +177,9 @@ export function BrazilBondSearchBox({
     didAutoRef.current = true;
     fetch("/api/cashflow/br-bond-search")
       .then((res) => res.json())
-      .then((data: { bonds?: BrazilBondItem[] }) => {
+      .then((data: { asOfDate?: string; ageDays?: number | null; stale?: boolean; bonds?: BrazilBondItem[] }) => {
         const today = new Date().toISOString().slice(0, 10);
+        onQuote?.({ asOfDate: data.asOfDate ?? null, ageDays: data.ageDays ?? null, stale: data.stale === true });
         const all = (Array.isArray(data.bonds) ? data.bonds : []).filter(
           (b) => b.maturityDate >= today
         );
