@@ -611,6 +611,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
             fx={effectiveFx}
             defaultTo={defaultTo}
             defaultCc={defaultCc}
+            allowedDomains={allowedDomains}
             quote={quote}
             settlementDate={settlementDate}
             krwMismatch={krwMismatch}

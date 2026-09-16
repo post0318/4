@@ -16,7 +16,11 @@ import {
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import { BOUNDS } from "@/lib/server/sanity";
-import { requireTradingUser } from "@/lib/server/appAuth";
+import {
+  allowedEmailDomains,
+  isAllowedEmail,
+  requireTradingUser,
+} from "@/lib/server/appAuth";
 
 export const runtime = "nodejs";
 
@@ -125,17 +129,34 @@ export async function POST(request: NextRequest) {
   let ccList: string[];
   if (testSend) {
     // 요청에 주소가 있으면 그것, 없으면 환경변수
-    toList = parseRecipients(testTo?.trim() || TEST_TO);
+    const typedTestTo = testTo?.trim();
+    toList = parseRecipients(typedTestTo || TEST_TO);
     ccList = [];
     if (toList.length === 0 || !allValidEmails(toList)) {
       return NextResponse.json(
         {
-          error: testTo?.trim()
+          error: typedTestTo
             ? "테스트 발송 이메일 주소가 올바르지 않습니다."
             : "테스트 발송 주소가 없습니다. 이메일을 입력하거나 환경변수 ORDER_EMAIL_TEST_TO 를 지정하세요.",
         },
         { status: 422 }
       );
+    }
+    // 화면에서 직접 입력한 주소는 회사 도메인(ALLOWED_EMAIL_DOMAINS) 또는 관리자
+    // 목록(ADMIN_EMAILS)으로 제한한다 — 주문 내용(종목·금액·수량)이 외부 주소로
+    // 나가지 않게(감사 ⑤ 높음3). 환경변수 ORDER_EMAIL_TEST_TO 는 서버 설정이라
+    // 그대로 둔다.
+    if (typedTestTo) {
+      const blocked = toList.filter((addr) => !isAllowedEmail(addr));
+      if (blocked.length > 0) {
+        const domains = allowedEmailDomains().map((d) => `@${d}`).join(", ");
+        return NextResponse.json(
+          {
+            error: `테스트 발송은 회사 이메일(${domains}) 또는 관리자 주소로만 보낼 수 있습니다: ${blocked.join(", ")}`,
+          },
+          { status: 403 }
+        );
+      }
     }
   } else {
     // 받는사람·참조는 ; 또는 , 로 여러 명 지정 가능. "이름 <a@b.com>" 형식 허용.

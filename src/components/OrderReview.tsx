@@ -33,6 +33,8 @@ interface OrderReviewProps {
   fx: FxRates | null;
   defaultTo: string;
   defaultCc: string;
+  /** 테스트 발송 허용 도메인 안내용 (실제 차단은 서버) */
+  allowedDomains?: string[];
   /** 시세 신선도 — 발송 모달에 기준일·노후 경고 */
   quote?: QuoteFreshness | null;
   settlementDate?: string;
@@ -69,6 +71,7 @@ export function OrderReview({
   fx,
   defaultTo,
   defaultCc,
+  allowedDomains = [],
   quote = null,
   settlementDate,
   krwMismatch = false,
@@ -376,6 +379,12 @@ export function OrderReview({
             {!testToValid && (
               <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                 이메일 주소 형식이 올바르지 않습니다.
+              </p>
+            )}
+            {allowedDomains.length > 0 && (
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                회사 이메일({allowedDomains.map((d) => `@${d}`).join(", ")}) 또는 관리자
+                주소만 보낼 수 있습니다.
               </p>
             )}
           </div>
