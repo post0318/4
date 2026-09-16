@@ -268,6 +268,7 @@ export function BondLayoutForm({
         Number.isFinite(fx) && fx > 0 ? reinvestResult.summary.totalCouponBrl * fx : null,
       postTaxMaturityAmount: reinvestResult.summary.postTaxMaturityKrw,
       postTaxYield: reinvestResult.summary.postTaxYield,
+      postTaxCagr: reinvestResult.summary.postTaxCagr,
       bankEquivalentYield: reinvestResult.summary.bankEquivalentYield,
     };
   }, [reinvestResult, value.maturityFxRate, value.trustInvestmentAmount]);
@@ -889,6 +890,16 @@ export function BondLayoutForm({
             {summary ? (
               <span className="text-sm text-zinc-900 dark:text-zinc-100">
                 {(summary.postTaxYield * 100).toFixed(2)}%
+                {/* 재투자형은 쿠폰이 신탁 안에서 복리로 굴러가므로 단리 연환산이
+                    연 수익률을 부풀려 보이게 한다. 복리 환산을 함께 적는다
+                    (감사 ⑤ 중5). 반기·월지급형은 쿠폰이 출금돼 신탁을 떠나므로
+                    복리수익률이 정의되지 않아 표시하지 않는다. */}
+                {value.distributionType === "재투자" &&
+                  reinvestSummary?.postTaxCagr != null && (
+                  <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                    (단리 연환산 · 복리 {(reinvestSummary.postTaxCagr * 100).toFixed(2)}%)
+                  </span>
+                )}
               </span>
             ) : (
               <ComputedValue />

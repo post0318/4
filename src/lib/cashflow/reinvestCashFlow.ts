@@ -79,6 +79,15 @@ export interface ReinvestCashFlowSummary {
   postTaxMaturityKrw: number;
   /** 세후수익률 (단리, 365/투자일수) */
   postTaxYield: number;
+  /**
+   * 세후 복리수익률(CAGR) = (만기회수액/원금)^(365/투자일수) − 1.
+   * 재투자형은 쿠폰이 신탁 안에 남아 채권을 다시 사므로 복리가 상품 안에서
+   * 일어난다 → 가정 없이 계산된다. 단리 연환산은 만기 목돈을 연수로 나누는
+   * 방식이라 연 수익률을 부풀려 보이게 해서, 둘을 같이 보여준다(감사 ⑤ 중5).
+   * 반기·월지급형은 쿠폰이 출금돼 신탁을 떠나므로 복리수익률이 정의되지 않는다
+   * (출금한 돈의 운용은 상품 밖의 일) → 그쪽에는 만들지 않는다.
+   */
+  postTaxCagr: number | null;
   bankEquivalentYield: number;
   /** 후취보수 산출: 신탁투자금액 × 요율 ÷ 365 × 투자일수 (만기 회수 시 차감) */
   backFee: {
@@ -256,6 +265,10 @@ export function generateReinvestCashFlow(
       preTaxMaturityKrw,
       postTaxMaturityKrw,
       postTaxYield,
+      postTaxCagr:
+        trustAmount > 0 && investmentDays > 0 && postTaxMaturityKrw > 0
+          ? Math.pow(postTaxMaturityKrw / trustAmount, 365 / investmentDays) - 1
+          : null,
       bankEquivalentYield: postTaxYield / (1 - comprehensiveTaxRate),
       backFee: {
         base: trustAmount,
