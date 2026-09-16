@@ -886,35 +886,27 @@ export function BondLayoutForm({
               <ComputedValue />
             )}
           </Row>
+          {/* 단리 연환산은 기간이 길수록 연 수익률을 부풀려 보이게 하므로 복리
+              환산을 같은 줄에 함께 낸다(감사 ⑤ 중5). 반기·월지급형은 쿠폰이
+              출금돼 신탁을 떠나므로 "출금액을 굴리지 않는다"는 가정이 들어간다
+              — 툴팁으로 안내. */}
           <Row label="세후수익률">
             {summary ? (
               <span className="text-sm text-zinc-900 dark:text-zinc-100">
                 {(summary.postTaxYield * 100).toFixed(2)}%
-                <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                  (단리 연환산)
-                </span>
+                {summary.postTaxCagr != null && (
+                  <span
+                    className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400"
+                    title={
+                      value.distributionType === "재투자"
+                        ? "단리 연환산은 만기 목돈을 투자연수로 나눈 값이라 기간이 길수록 커집니다. 복리는 (만기회수액/원금)^(365/투자일수)−1."
+                        : "복리 환산은 출금한 이자를 다시 굴리지 않는다고 본 값입니다. 출금 이후 운용은 이 상품 밖의 일이라 반영하지 않습니다."
+                    }
+                  >
+                    (단리 연환산 · 복리 {(summary.postTaxCagr * 100).toFixed(2)}%)
+                  </span>
+                )}
               </span>
-            ) : (
-              <ComputedValue />
-            )}
-          </Row>
-          {/* 복리수익률 — 단리 연환산은 기간이 길수록 부풀려 보이므로 함께 낸다
-              (감사 ⑤ 중5). 반기·월지급형은 쿠폰이 출금돼 신탁을 떠나므로
-              "출금액을 굴리지 않는다"는 가정이 들어간다는 것을 함께 적는다. */}
-          <Row label="복리수익률">
-            {summary ? (
-              summary.postTaxCagr != null ? (
-                <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                  {(summary.postTaxCagr * 100).toFixed(2)}%
-                  {value.distributionType !== "재투자" && (
-                    <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                      (출금액 재투자 없음 가정)
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-sm text-zinc-400">-</span>
-              )
             ) : (
               <ComputedValue />
             )}
