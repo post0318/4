@@ -21,6 +21,8 @@ export interface AppAuth {
    * 목록으로 판단. null 이면 아직 확인 전.
    */
   allowed: boolean | null;
+  /** 관리자(ADMIN_EMAILS) 여부 — 계정 메뉴에 「승인 관리」 표시 */
+  isAdmin: boolean;
   /** 서버가 거부한 이유(허용 안 될 때) */
   deniedReason: string | null;
   /** 로그인 팝업 열기 */
@@ -38,6 +40,7 @@ const DISABLED: AppAuth = {
   isSignedIn: false,
   email: null,
   allowed: false,
+  isAdmin: false,
   deniedReason: null,
   openSignIn: () => {},
   openProfile: () => {},
@@ -52,24 +55,26 @@ const Ctx = createContext<AppAuth>(DISABLED);
 function ClerkBridge({ children }: { children: ReactNode }) {
   const clerk = useClerk();
   const { isLoaded, isSignedIn, user } = useUser();
-  const [verdict, setVerdict] = useState<{ allowed: boolean; reason: string | null } | null>(null);
+  const [verdict, setVerdict] = useState<{ allowed: boolean; admin: boolean; reason: string | null } | null>(null);
 
   // 로그인 상태가 바뀔 때마다 서버에 허용 여부를 묻는다.
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
       // 로그아웃 상태: 확인 불필요 — 상태를 명시적으로 초기화
-      const id = setTimeout(() => setVerdict({ allowed: false, reason: null }), 0);
+      const id = setTimeout(() => setVerdict({ allowed: false, admin: false, reason: null }), 0);
       return () => clearTimeout(id);
     }
     let cancelled = false;
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((d: { allowed?: boolean; reason?: string }) => {
-        if (!cancelled) setVerdict({ allowed: d.allowed === true, reason: d.reason ?? null });
+      .then((d: { allowed?: boolean; admin?: boolean; reason?: string }) => {
+        if (!cancelled)
+          setVerdict({ allowed: d.allowed === true, admin: d.admin === true, reason: d.reason ?? null });
       })
       .catch(() => {
-        if (!cancelled) setVerdict({ allowed: false, reason: "허용 여부를 확인하지 못했습니다." });
+        if (!cancelled)
+          setVerdict({ allowed: false, admin: false, reason: "허용 여부를 확인하지 못했습니다." });
       });
     return () => {
       cancelled = true;
@@ -85,6 +90,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       user?.emailAddresses?.[0]?.emailAddress ??
       null,
     allowed: !isSignedIn ? false : verdict ? verdict.allowed : null,
+    isAdmin: !!isSignedIn && verdict?.admin === true,
     deniedReason: verdict?.reason ?? null,
     openSignIn: () => clerk.openSignIn({}),
     openProfile: () => clerk.openUserProfile({}),

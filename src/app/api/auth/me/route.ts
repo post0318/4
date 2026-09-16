@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clerkConfigured, requireTradingUser } from "@/lib/server/appAuth";
+import { clerkConfigured, isAdminEmail, requireTradingUser } from "@/lib/server/appAuth";
 
 export const runtime = "nodejs";
 
@@ -9,16 +9,23 @@ export const runtime = "nodejs";
  */
 export async function GET() {
   if (!clerkConfigured()) {
-    return NextResponse.json({ enabled: false, signedIn: false, allowed: false, email: null });
+    return NextResponse.json({ enabled: false, signedIn: false, allowed: false, admin: false, email: null });
   }
   const who = await requireTradingUser();
   if (who.ok) {
-    return NextResponse.json({ enabled: true, signedIn: true, allowed: true, email: who.email });
+    return NextResponse.json({
+      enabled: true,
+      signedIn: true,
+      allowed: true,
+      admin: isAdminEmail(who.email),
+      email: who.email,
+    });
   }
   return NextResponse.json({
     enabled: true,
     signedIn: who.status !== 401,
     allowed: false,
+    admin: false,
     email: null,
     reason: who.error,
   });

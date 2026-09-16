@@ -40,6 +40,10 @@ export function isAllowedEmail(email: string): boolean {
   return allowedEmailDomains().includes(e.slice(at + 1));
 }
 
+export function isAdminEmail(email: string): boolean {
+  return adminEmails().includes(email.trim().toLowerCase());
+}
+
 export type TradingUserResult =
   | { ok: true; email: string; userId: string }
   | { ok: false; status: 401 | 403 | 503; error: string };
@@ -62,4 +66,14 @@ export async function requireTradingUser(): Promise<TradingUserResult> {
     };
   }
   return { ok: true, email, userId };
+}
+
+/** 계정 승인 관리 — ADMIN_EMAILS 에 있는 계정만 */
+export async function requireAdmin(): Promise<TradingUserResult> {
+  const who = await requireTradingUser();
+  if (!who.ok) return who;
+  if (!isAdminEmail(who.email)) {
+    return { ok: false, status: 403, error: "관리자만 들어올 수 있습니다." };
+  }
+  return who;
 }

@@ -20,6 +20,7 @@ import type { ShareResolution } from "@/lib/server/shareLink";
 import { UserButton } from "@clerk/nextjs";
 import { useAppAuth } from "@/components/auth/AppAuth";
 import { TradingGate } from "@/components/auth/TradingGate";
+import { SignupDialog } from "@/components/auth/SignupDialog";
 import { ShareLinkButton } from "@/components/cashflow/ShareLinkButton";
 import { createDefaultInput } from "@/components/CashFlowPanel";
 import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
@@ -78,7 +79,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       : null;
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
-  >(() => (hideTrading ? "cashflow" : openSignup ? "trading" : "market"));
+  >(() => (hideTrading ? "cashflow" : "market"));
 
   // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
   // 탭 줄의 공유 링크 버튼이 같은 값을 쓴다.
@@ -87,8 +88,13 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     shareInput ? { ...createDefaultInput(), ...shareInput } : createDefaultInput()
   );
   const [cfLocked, setCfLocked] = useState<boolean>(isSharedLink);
-  // 헤더의 "가입 신청" 링크 → 트레이딩 탭의 가입 폼을 바로 연다
-  const [signupRequested, setSignupRequested] = useState(false);
+  // 가입 신청 팝업 (헤더 링크·트레이딩 안내·/?signup=1 에서 연다)
+  const [signupOpen, setSignupOpen] = useState(openSignup);
+  // 트레이딩 탭을 눌렀는데 로그인 전이면 로그인 팝업을 바로 띄운다
+  const changeTab = (k: typeof tab) => {
+    setTab(k);
+    if (k === "trading" && auth.enabled && auth.isLoaded && !auth.isSignedIn) auth.openSignIn();
+  };
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -449,8 +455,22 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
         {auth.enabled && auth.isSignedIn && (
           <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
             <span className="hidden sm:inline">{auth.email}</span>
-            {/* 아바타 클릭 → 계정 관리(비밀번호 변경)·로그아웃 */}
-            <UserButton />
+            {/* 아바타 클릭 → 계정 관리(비밀번호 변경)·로그아웃. 관리자에겐 「승인 관리」 추가 */}
+            <UserButton>
+              {auth.isAdmin && (
+                <UserButton.MenuItems>
+                  <UserButton.Link
+                    label="승인 관리"
+                    href="/admin"
+                    labelIcon={
+                      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <path d="M2 8.5l3.5 3.5L14 3.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    }
+                  />
+                </UserButton.MenuItems>
+              )}
+            </UserButton>
           </div>
         )}
         {auth.enabled && auth.isLoaded && !auth.isSignedIn && !hideTrading && (
@@ -466,10 +486,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
             <span className="text-zinc-300 dark:text-zinc-700">|</span>
             <button
               type="button"
-              onClick={() => {
-                setSignupRequested(true);
-                setTab("trading");
-              }}
+              onClick={() => setSignupOpen(true)}
               className="text-zinc-600 hover:underline dark:text-zinc-400"
             >
               가입 신청
@@ -481,7 +498,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       <Tabs
         tabs={TABS}
         active={tab}
-        onChange={setTab}
+        onChange={changeTab}
         className="print:hidden"
         // 공유 링크 생성은 트레이딩 탭과 같은 줄의 독립 버튼. 고객 화면에선 없음.
         trailing={!isSharedLink && !hideTrading ? <ShareLinkButton value={cfInput} /> : null}
@@ -500,10 +517,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       )}
 
       {tab === "trading" && !hideTrading && !tradingUnlocked && (
-        <TradingGate
-          allowedDomains={allowedDomains}
-          openSignup={openSignup || signupRequested}
-        />
+        <TradingGate onSignup={() => setSignupOpen(true)} />
       )}
 
       {tab === "trading" && !hideTrading && tradingUnlocked && (
@@ -625,6 +639,12 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       {tab === "simulation" && <SimulationPanel bonds={bonds} fx={fx} />}
 
       {tab === "duration" && <DurationPanel bonds={bonds} fx={fx} />}
+
+      <SignupDialog
+        open={signupOpen}
+        onClose={() => setSignupOpen(false)}
+        allowedDomains={allowedDomains}
+      />
     </div>
   );
 }
