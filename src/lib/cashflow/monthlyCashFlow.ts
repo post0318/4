@@ -7,6 +7,7 @@ import {
   FREQUENCY_MONTHS,
   addMonths,
   getInvestmentDays,
+  getTrustMaturityLeadDays,
 } from "@/lib/cashflow/couponSchedule";
 import {
   anbimaCouponFactor,
@@ -63,6 +64,12 @@ export interface MonthlyCashFlowInputs {
   reserveRate: string;
   /** 은행환산수익률 계산용 종합소득세율(%) */
   comprehensiveTaxRate: string;
+  /**
+   * 신탁만기일 수기 지정(YYYY-MM-DD). 비우면 자동(만기일 + 리드타임 11일).
+   * 지정하면 (지정일 − 만기일) 이 리드타임이 되어 투자일수·만기청산 후취보수·
+   * 만기 구간 현금성이자에 모두 반영된다.
+   */
+  trustMaturityDate?: string;
 }
 
 /** 월지급 요약 (반기의 computeMaturitySummary와 같은 필드 이름으로 맞춤) */
@@ -93,7 +100,6 @@ export interface MonthlyCashFlowResult {
   error?: string;
 }
 
-const TRUST_MATURITY_LEAD_DAYS = 11;
 const DEFAULT_COMPREHENSIVE_TAX_RATE = 0.154;
 
 function daysBetween(a: Date, b: Date): number {
@@ -178,7 +184,10 @@ export function generateMonthlyCashFlow(
   if (couponDates.length === 0) return null;
   const firstCoupon = couponDates[0];
   const trustMaturity = new Date(maturity);
-  trustMaturity.setUTCDate(trustMaturity.getUTCDate() + TRUST_MATURITY_LEAD_DAYS);
+  trustMaturity.setUTCDate(
+    trustMaturity.getUTCDate() +
+      getTrustMaturityLeadDays(input.maturityDate, input.trustMaturityDate)
+  );
 
   // ── 이벤트 타임라인 ──
   const events: Event[] = [];
@@ -332,7 +341,7 @@ export function generateMonthlyCashFlow(
     if (ev.kind === "만기상환") {
       // 위에서 held += cashInterest 는 prev~신탁만기일 전 구간을 '원금상환 전
       // held'에 적용한 값이다. 원금상환·마지막 쿠폰은 만기일(1/1)에 들어와
-      // 신탁만기일(만기+11일)까지 신탁 현금으로 남으므로, 그 11일치 현금성이자를
+      // 신탁만기일(만기+리드타임)까지 신탁 현금으로 남으므로, 그 기간 현금성이자를
       // 원금상환액까지 포함해 별도로 반영한다.
       held -= cashInterest;
       const preDays = Math.max(0, daysBetween(prev, maturity));
@@ -392,7 +401,11 @@ export function generateMonthlyCashFlow(
   const totalReceived = rows.reduce((s, r) => s + r.netAmount, 0);
 
   const investmentDays =
-    getInvestmentDays(input.trustContractDate, input.maturityDate) ?? 0;
+    getInvestmentDays(
+      input.trustContractDate,
+      input.maturityDate,
+      input.trustMaturityDate
+    ) ?? 0;
   const postTaxYield =
     investmentDays > 0
       ? ((totalReceived - trustAmount) / trustAmount) * (365 / investmentDays)

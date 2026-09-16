@@ -131,6 +131,8 @@ export function BrazilBondSearchBox({
       custodyCurrency: "KRW" as Currency,
       creditRating: "RF",
       taxStatus: "비과세" as TaxStatus,
+      // 새 종목을 반영하면 이전 종목에 걸어둔 신탁만기일 수기값은 의미가 없다
+      trustMaturityDate: "",
     };
     // 매수금리: buyRate(Taxa Compra = 투자자 매수 금리)를 반영한다. sellRate
     // (Taxa Venda)는 투자자가 되파는(환매) 쪽 금리로 항상 0.12%p 높아 매수 단가

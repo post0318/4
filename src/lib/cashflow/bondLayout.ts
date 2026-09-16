@@ -44,6 +44,11 @@ export interface BondLayoutInput {
   maturityFxRate: string;
 
   trustContractDate: string;
+  /**
+   * 신탁만기일 수기 지정. 비우면 자동(만기일 + 11일). 지정하면 그 차이일이
+   * 리드타임이 되어 투자일수·만기청산 후취보수·만기 현금성이자에 반영된다.
+   */
+  trustMaturityDate: string;
   purchaseYield: string;
 
   trustInvestmentAmount: string;

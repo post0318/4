@@ -1,8 +1,10 @@
 import { CashFlowRow } from "@/lib/cashflow/cashFlowSchedule";
 import { BondPricingResult, roundDown } from "@/lib/cashflow/bondPricing";
-import { getInvestmentDays } from "@/lib/cashflow/couponSchedule";
+import {
+  getInvestmentDays,
+  getTrustMaturityLeadDays,
+} from "@/lib/cashflow/couponSchedule";
 
-const TRUST_MATURITY_LEAD_DAYS = 11;
 const DEFAULT_COMPREHENSIVE_TAX_RATE = 0.154;
 
 export interface MaturitySummaryInputs {
@@ -14,6 +16,12 @@ export interface MaturitySummaryInputs {
   custodyCurrency: string;
   maturityFxRate: string;
   comprehensiveTaxRate: string;
+  /**
+   * 신탁만기일 수기 지정(YYYY-MM-DD). 비우면 자동(만기일 + 리드타임 11일).
+   * 지정하면 (지정일 − 만기일) 이 리드타임이 되어 투자일수·만기청산 후취보수·
+   * 만기 구간 현금성이자에 모두 반영된다.
+   */
+  trustMaturityDate?: string;
 }
 
 export interface MaturitySummary {
@@ -47,7 +55,8 @@ export function computeMaturitySummary(
 ): MaturitySummary | null {
   const investmentDays = getInvestmentDays(
     input.trustContractDate,
-    input.maturityDate
+    input.maturityDate,
+    input.trustMaturityDate
   );
   if (!investmentDays) return null;
 
@@ -79,9 +88,10 @@ export function computeMaturitySummary(
   const shownAccrued = rows[0].principalReturn ? -rows[0].principalReturn : 0;
   const investedPrincipal = roundDown(principal - shownAccrued, 2);
 
-  // 만기청산(11일) 후취보수도 경과이자차감 원금 기준
+  // 만기청산(리드타임) 후취보수도 경과이자차감 원금 기준
   const lastBackFee = roundDown(
-    ((investedPrincipal * (backFeeRate / 100)) / 365) * TRUST_MATURITY_LEAD_DAYS,
+    ((investedPrincipal * (backFeeRate / 100)) / 365) *
+      getTrustMaturityLeadDays(input.maturityDate, input.trustMaturityDate),
     2
   );
 

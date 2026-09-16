@@ -98,20 +98,46 @@ export function checkRecentCouponDate(
   return { auto, valid, effective: auto };
 }
 
-export function getTrustMaturityDate(maturityDate: string): string | null {
-  const maturity = new Date(maturityDate);
-  if (Number.isNaN(maturity.getTime())) return null;
-  return toDateString(addDays(maturity, TRUST_MATURITY_LEAD_DAYS));
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/**
+ * 신탁만기일 리드타임(일). 기본 11일이고, 수기 지정이 있으면
+ * (지정일 − 만기일) 차이일이 리드타임이 된다. 이 값이 투자일수·만기청산
+ * 후취보수·만기 구간 현금성이자에 공통으로 쓰인다.
+ */
+export function getTrustMaturityLeadDays(
+  maturityDate: string,
+  override?: string
+): number {
+  if (override && /^\d{4}-\d{2}-\d{2}$/.test(override)) {
+    const overridden = new Date(override);
+    const maturity = new Date(maturityDate);
+    if (!Number.isNaN(overridden.getTime()) && !Number.isNaN(maturity.getTime())) {
+      return Math.round((overridden.getTime() - maturity.getTime()) / MS_PER_DAY);
+    }
+  }
+  return TRUST_MATURITY_LEAD_DAYS;
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
+/** 신탁만기일 = 만기일 + 리드타임. 수기 지정이 있으면 그 값 자체. */
+export function getTrustMaturityDate(
+  maturityDate: string,
+  override?: string
+): string | null {
+  const maturity = new Date(maturityDate);
+  if (Number.isNaN(maturity.getTime())) return null;
+  return toDateString(
+    addDays(maturity, getTrustMaturityLeadDays(maturityDate, override))
+  );
+}
 
 /** 투자일수 = 신탁만기일 - 신탁계약일 (일) */
 export function getInvestmentDays(
   trustContractDate: string,
-  maturityDate: string
+  maturityDate: string,
+  trustMaturityOverride?: string
 ): number | null {
-  const trustMaturity = getTrustMaturityDate(maturityDate);
+  const trustMaturity = getTrustMaturityDate(maturityDate, trustMaturityOverride);
   if (!trustMaturity) return null;
 
   const contract = new Date(trustContractDate);
@@ -139,7 +165,8 @@ export function getRecentCouponDate(
 export function generateCouponSchedule(
   issueDate: string,
   maturityDate: string,
-  frequency: CouponFrequency
+  frequency: CouponFrequency,
+  trustMaturityOverride?: string
 ): string[] {
   const issue = new Date(issueDate);
   const maturity = new Date(maturityDate);
@@ -156,7 +183,11 @@ export function generateCouponSchedule(
     next = addMonths(next, months);
   }
 
-  dates.push(toDateString(addDays(maturity, TRUST_MATURITY_LEAD_DAYS)));
+  dates.push(
+    toDateString(
+      addDays(maturity, getTrustMaturityLeadDays(maturityDate, trustMaturityOverride))
+    )
+  );
 
   return dates;
 }

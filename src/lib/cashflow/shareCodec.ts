@@ -21,7 +21,7 @@ import type {
  *
  * 형식(v1, big-endian):
  *   u8  version=1
- *   u8  flags   bit0 client, bit1 hasName, bit2 hasRating
+ *   u8  flags   bit0 client, bit1 hasName, bit2 hasRating, bit3 hasTrustMaturity
  *   u16 issued  (2000-01-01 기준 일수, 0xFFFF=없음)
  *   u16 ×4      issueDate, maturityDate, recentCouponDate, trustContractDate
  *   u8  ×7      couponFrequency, taxStatus, calcBasis, tradeCurrency,
@@ -32,6 +32,10 @@ import type {
  *   f64         trustInvestmentAmount (NaN=빈값)
  *   [u8 len + utf8] creditRating (hasRating 일 때)
  *   [u8 len + utf8] name (hasName 일 때 — 기본 "NTN-F 10% 만기일"과 다를 때만)
+ *   u16 trustMaturityDate (hasTrustMaturity 일 때 — 신탁만기일 수기 지정)
+ *
+ * 후행 필드는 flags 비트로 있을 때만 읽으므로, 비트가 꺼진 옛 링크도 그대로
+ * 해석된다(버전 올릴 필요 없음).
  */
 
 export interface ShareMeta {
@@ -135,7 +139,12 @@ export function packShare(payload: SharePayload): Uint8Array {
   const { input, meta } = payload;
   const hasName = !!input.name && input.name !== defaultBondName(input.maturityDate);
   const hasRating = !!input.creditRating;
-  const flags = (meta.client ? 1 : 0) | (hasName ? 2 : 0) | (hasRating ? 4 : 0);
+  const hasTrustMaturity = !!input.trustMaturityDate;
+  const flags =
+    (meta.client ? 1 : 0) |
+    (hasName ? 2 : 0) |
+    (hasRating ? 4 : 0) |
+    (hasTrustMaturity ? 8 : 0);
 
   const head = new ArrayBuffer(4 + 8 + 7 + 14 + 8 + 8);
   const dv = new DataView(head);
@@ -170,6 +179,10 @@ export function packShare(payload: SharePayload): Uint8Array {
   const out: number[] = Array.from(new Uint8Array(head));
   if (hasRating) putStr(out, input.creditRating);
   if (hasName) putStr(out, input.name);
+  if (hasTrustMaturity) {
+    const d = dateToDays(input.trustMaturityDate);
+    out.push((d >> 8) & 0xff, d & 0xff);
+  }
   return Uint8Array.from(out);
 }
 
@@ -200,6 +213,11 @@ export function unpackShare(bytes: Uint8Array): SharePayload | null {
     const creditRating = flags & 4 ? readStr() : "";
     const [issueDate, maturityDate, recentCouponDate, trustContractDate] = dates;
     const name = flags & 2 ? readStr() : defaultBondName(maturityDate);
+    let trustMaturityDate = "";
+    if (flags & 8) {
+      trustMaturityDate = daysToDate((bytes[o] << 8) | bytes[o + 1]);
+      o += 2;
+    }
     if (o !== bytes.byteLength) return null;
 
     const input: BondLayoutInput = {
@@ -208,6 +226,7 @@ export function unpackShare(bytes: Uint8Array): SharePayload | null {
       maturityDate,
       recentCouponDate,
       trustContractDate,
+      trustMaturityDate,
       couponFrequency: fromCode(COUPON_FREQUENCY, codes[0]) ?? "6개월",
       taxStatus: fromCode(TAX_STATUS, codes[1]) ?? "비과세",
       calcBasis: fromCode(CALC_BASIS, codes[2]) ?? "Business/252",

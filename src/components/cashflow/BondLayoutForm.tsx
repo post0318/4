@@ -230,6 +230,7 @@ export function BondLayoutForm({
       pricing && cashFlowRows
         ? computeMaturitySummary(pricing, cashFlowRows, {
             trustContractDate: value.trustContractDate,
+            trustMaturityDate: value.trustMaturityDate,
             maturityDate: value.maturityDate,
             trustInvestmentAmount: value.trustInvestmentAmount,
             backFeeRate: value.backFeeRate,
@@ -243,6 +244,7 @@ export function BondLayoutForm({
       pricing,
       cashFlowRows,
       value.trustContractDate,
+      value.trustMaturityDate,
       value.maturityDate,
       value.trustInvestmentAmount,
       value.backFeeRate,
@@ -770,20 +772,81 @@ export function BondLayoutForm({
               onKeyDown={commitOnEnter}
             />
           </Row>
-          <Row label="신탁만기일">
-            {getTrustMaturityDate(value.maturityDate) ? (
-              <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                {getTrustMaturityDate(value.maturityDate)}
+          {/* 신탁만기일은 기본 자동(만기일 + 리드타임 11일)이고 수기 지정할 수
+              있다. 지정하면 (지정일 − 만기일)이 리드타임이 되어 투자일수·만기청산
+              후취보수·만기 구간 현금성이자에 모두 반영된다. "자동" 배지·복원
+              버튼은 값 칸이 아니라 라벨 옆에 둔다(값 칸에 달력과 나란히 두면
+              폭이 넘친다). */}
+          <Row
+            label={
+              <span className="flex items-center gap-2">
+                신탁만기일
+                {value.trustMaturityDate.trim() !== "" ? (
+                  <button
+                    type="button"
+                    onClick={() => update("trustMaturityDate", "")}
+                    title="수기값을 지우고 자동계산(만기일 + 11일)으로 되돌립니다"
+                    className="shrink-0 rounded border border-zinc-300 px-1.5 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-white print:hidden dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                  >
+                    자동
+                  </button>
+                ) : (
+                  <span
+                    title="자동계산: 만기일 + 11일"
+                    className="shrink-0 text-[11px] font-normal italic text-zinc-400 print:hidden dark:text-zinc-600"
+                  >
+                    자동
+                  </span>
+                )}
               </span>
-            ) : (
-              <ComputedValue />
-            )}
+            }
+            editable
+          >
+            {(() => {
+              const displayed =
+                getTrustMaturityDate(value.maturityDate, value.trustMaturityDate) ?? "";
+              const isOverridden = value.trustMaturityDate.trim() !== "";
+              if (!isOverridden && displayed === "") return <ComputedValue />;
+              // 만기일 이전으로 지정하면 리드타임이 음수가 되어 만기청산
+              // 후취보수도 음수가 된다. 계산은 그대로 두고 눈에 띄게만 알린다.
+              const beforeMaturity =
+                isOverridden && !!value.maturityDate && displayed < value.maturityDate;
+              return (
+                <>
+                  <input
+                    className={
+                      beforeMaturity
+                        ? `${inputClass} border-amber-400 dark:border-amber-600`
+                        : inputClass
+                    }
+                    type="date"
+                    value={displayed}
+                    disabled={locked}
+                    aria-invalid={beforeMaturity}
+                    onChange={(e) =>
+                      update("trustMaturityDate", clampDateYear(e.target.value))
+                    }
+                    onKeyDown={commitOnEnter}
+                  />
+                  {beforeMaturity && (
+                    <p
+                      role="alert"
+                      className="mt-1 text-[11px] leading-snug text-amber-700 print:hidden dark:text-amber-400"
+                    >
+                      만기일({value.maturityDate}) 이전입니다. 만기청산 후취보수가
+                      음수로 잡힙니다.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </Row>
           <Row label="투자일수">
             {(() => {
               const days = getInvestmentDays(
                 value.trustContractDate,
-                value.maturityDate
+                value.maturityDate,
+                value.trustMaturityDate
               );
               return days !== null ? (
                 <span className="text-sm text-zinc-900 dark:text-zinc-100">

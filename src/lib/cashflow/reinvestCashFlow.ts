@@ -64,6 +64,12 @@ export interface ReinvestCashFlowInputs {
   taxStatus: TaxStatus;
   /** 은행환산수익률용 종합소득세율(%) */
   comprehensiveTaxRate: string;
+  /**
+   * 신탁만기일 수기 지정(YYYY-MM-DD). 비우면 자동(만기일 + 리드타임 11일).
+   * 지정하면 (지정일 − 만기일) 이 리드타임이 되어 투자일수·만기청산 후취보수·
+   * 만기 구간 현금성이자에 모두 반영된다.
+   */
+  trustMaturityDate?: string;
 }
 
 export interface ReinvestCashFlowSummary {
@@ -177,7 +183,11 @@ export function generateReinvestCashFlow(
       // 마지막 쿠폰 + 원금상환 + 잔여현금 → 원화 회수 (만기엔 재매수 없음)
       const redemptionBrl = units * FACE;
       const grossBrl = redemptionBrl + couponBrl + cashBrl;
-      const days = getInvestmentDays(input.trustContractDate, input.maturityDate) ?? 0;
+      const days = getInvestmentDays(
+      input.trustContractDate,
+      input.maturityDate,
+      input.trustMaturityDate
+    ) ?? 0;
       const backFee =
         (trustAmount * (backFeeRate / 100) / 365) * days; // KRW, 전 기간 후취보수
       const maturityKrw = roundDown(grossBrl * maturityFx - backFee, 2);
@@ -238,7 +248,11 @@ export function generateReinvestCashFlow(
   const postTaxMaturityKrw = roundDown(preTaxMaturityKrw - taxKrw, 2);
 
   const investmentDays =
-    getInvestmentDays(input.trustContractDate, input.maturityDate) ?? 0;
+    getInvestmentDays(
+      input.trustContractDate,
+      input.maturityDate,
+      input.trustMaturityDate
+    ) ?? 0;
   const backFeeAmount = roundDown(
     (trustAmount * (backFeeRate / 100) / 365) * investmentDays,
     2

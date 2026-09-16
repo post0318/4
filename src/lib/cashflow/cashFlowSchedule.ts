@@ -4,7 +4,11 @@ import {
   CalcBasis,
   TaxStatus,
 } from "@/lib/cashflow/bondLayout";
-import { FREQUENCY_MONTHS, addMonths } from "@/lib/cashflow/couponSchedule";
+import {
+  FREQUENCY_MONTHS,
+  addMonths,
+  getTrustMaturityLeadDays,
+} from "@/lib/cashflow/couponSchedule";
 import {
   anbimaCouponFactor,
   computeBondPricing,
@@ -46,7 +50,6 @@ export interface CashFlowRow {
   principalReturn?: number;
 }
 
-const TRUST_MATURITY_LEAD_DAYS = 11;
 
 export interface CashFlowScheduleInputs {
   maturityDate: string;
@@ -65,6 +68,12 @@ export interface CashFlowScheduleInputs {
   backFeeRate: string;
   cashInterestRate: string;
   taxStatus: TaxStatus;
+  /**
+   * 신탁만기일 수기 지정(YYYY-MM-DD). 비우면 자동(만기일 + 리드타임 11일).
+   * 지정하면 (지정일 − 만기일) 이 리드타임이 되어 투자일수·만기청산 후취보수·
+   * 만기 구간 현금성이자에 모두 반영된다.
+   */
+  trustMaturityDate?: string;
 }
 
 function daysBetween(a: Date, b: Date): number {
@@ -84,6 +93,10 @@ export function generateFixCashFlow(
   if (!isPlausibleYear(maturity) || !isPlausibleYear(contractDate)) return null;
 
   const rate = Number(input.couponRate) / 100;
+  const trustLeadDays = getTrustMaturityLeadDays(
+    input.maturityDate,
+    input.trustMaturityDate
+  );
   const backFeeRate = Number(input.backFeeRate);
   if (Number.isNaN(backFeeRate)) return null;
 
@@ -197,7 +210,7 @@ export function generateFixCashFlow(
     let maturityPayout: number | undefined;
     if (isMaturity) {
       const lastBackFee =
-        (principalBase * (backFeeRate / 100) / 365) * TRUST_MATURITY_LEAD_DAYS;
+        (principalBase * (backFeeRate / 100) / 365) * trustLeadDays;
       maturityPayout = truncByCurrency(
         principal + netAmount + runningCashBalance - lastBackFee
       );
