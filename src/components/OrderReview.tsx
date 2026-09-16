@@ -33,6 +33,8 @@ interface OrderReviewProps {
   fx: FxRates | null;
   defaultTo: string;
   defaultCc: string;
+  /** 환전금액 합계 — 서버가 종목별 합계와 대사한다(감사 ⑤ 중2) */
+  exchangeTotals?: { krwTotal: number; usdTotal: number } | null;
   /** 테스트 발송 허용 도메인 안내용 (실제 차단은 서버) */
   allowedDomains?: string[];
   /** 시세 신선도 — 발송 모달에 기준일·노후 경고 */
@@ -71,6 +73,7 @@ export function OrderReview({
   fx,
   defaultTo,
   defaultCc,
+  exchangeTotals = null,
   allowedDomains = [],
   quote = null,
   settlementDate,
@@ -187,6 +190,7 @@ export function OrderReview({
           to: to.trim(),
           cc: cc.trim() || undefined,
           confirmed: true,
+          exchange: exchangeTotals ?? undefined,
           note: note.trim() || undefined,
           testSend,
           testTo: testSend && testTo.trim() ? testTo.trim() : undefined,

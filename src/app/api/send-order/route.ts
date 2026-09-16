@@ -16,6 +16,8 @@ import {
 import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import { BOUNDS } from "@/lib/server/sanity";
+import { getLatestNtnF } from "@/lib/server/brazilBondData";
+import { truncDecimals } from "@/lib/format";
 import {
   allowedEmailDomains,
   isAllowedEmail,
@@ -31,6 +33,10 @@ const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const inBounds = (v: number, [lo, hi]: readonly [number, number]) =>
   Number.isFinite(v) && v >= lo && v <= hi;
+/** 매수수익률 대조 허용오차(%p). 스냅샷 금리는 0.01%p 단위라 사실상 완전일치 검사. */
+const YIELD_EPSILON = 0.0001;
+/** 달러 합계 대사 허용오차 — 2자리 절사 후 비교(화면과 같은 규칙) */
+const USD_TOTAL_EPSILON = 0.005;
 
 /**
  * 매수 주문 이메일 발송 (요구사항 4·5).
@@ -63,6 +69,8 @@ interface IncomingLine {
   namePt: string;
   maturityDate: string;
   buyYieldPct: number;
+  /** 종목별 원화투자금액 — 환전 원화금액과 합계 대사 */
+  krwAmount: number;
   /** 달러 환전액 (USD 송금액) — 자동값 또는 사용자 수정값 */
   usdAmount: number;
   pu: number;
@@ -80,6 +88,8 @@ interface SendOrderBody {
   to: string;
   cc?: string;
   confirmed: boolean;
+  /** 환전금액 합계 — 종목별 합계와 대사(0 이면 화면과 같이 건너뜀) */
+  exchange?: { krwTotal: number; usdTotal: number };
   note?: string;
   /** 테스트 발송 — 실제 수신자 대신 개발자 주소로만 보낸다 */
   testSend?: boolean;
@@ -115,7 +125,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 본문" }, { status: 400 });
   }
 
-  const { lines, fx, to, cc, confirmed, note, testSend, testTo } = body ?? {};
+  const { lines, fx, to, cc, confirmed, note, testSend, testTo, exchange } =
+    body ?? {};
 
   if (!confirmed) {
     return NextResponse.json(
@@ -213,8 +224,19 @@ export async function POST(request: NextRequest) {
   const settlement = getOrderSettlementDate();
   const settlementDate = toISODate(settlement);
 
+  // 서버가 직접 스냅샷을 열어 만기일→매수수익률(Taxa Compra)을 확인한다. 예전에는
+  // 화면이 보낸 금리로 PU 를 계산한 뒤 같은 화면 값과 비교해 언제나 통과했다
+  // (감사 ⑤ 중2). 묵은 탭·없는 종목·조작된 금리가 모두 여기서 걸린다.
+  const snapshot = getLatestNtnF();
+  const snapshotYield = new Map<string, number>();
+  for (const b of snapshot.items) {
+    if (typeof b.buyRate === "number") snapshotYield.set(b.maturityDate, b.buyRate);
+  }
+
   const resultLines: OrderEmailLine[] = [];
   const mismatches: unknown[] = [];
+  let krwSum = 0;
+  let usdSum = 0;
 
   for (const line of lines) {
     if (!line?.maturityDate || typeof line.buyYieldPct !== "number") {
@@ -229,10 +251,29 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (line.isin != null && (typeof line.isin !== "string" || !ISIN_RE.test(line.isin))) {
+    if (line.isin != null && line.isin !== "" && (typeof line.isin !== "string" || !ISIN_RE.test(line.isin))) {
       return NextResponse.json(
         { error: `ISIN 형식이 올바르지 않습니다: ${String(line.isin)}` },
         { status: 400 }
+      );
+    }
+
+    // 스냅샷에 있는 종목인가 + 화면이 보낸 금리가 스냅샷과 같은가
+    const snapYield = snapshotYield.get(line.maturityDate);
+    if (snapYield === undefined) {
+      return NextResponse.json(
+        {
+          error: `시세 스냅샷에 없는 종목입니다: ${line.nameKo ?? line.maturityDate} (만기 ${line.maturityDate})`,
+        },
+        { status: 422 }
+      );
+    }
+    if (Math.abs(snapYield - line.buyYieldPct) > YIELD_EPSILON) {
+      return NextResponse.json(
+        {
+          error: `매수수익률이 서버 시세와 다릅니다: ${line.nameKo ?? line.maturityDate} (화면 ${line.buyYieldPct}% / 서버 ${snapYield}%, 기준일 ${snapshot.asOfDate}). 새로고침 후 다시 시도하세요.`,
+        },
+        { status: 409 }
       );
     }
 
@@ -284,6 +325,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    krwSum += Number(line.krwAmount) || 0;
+    usdSum += Number(line.usdAmount) || 0;
+
     resultLines.push({
       isin: line.isin,
       isinVerified: line.isinVerified,
@@ -299,6 +343,30 @@ export async function POST(request: NextRequest) {
         error: "서버 재계산 결과가 화면 값과 다릅니다. 새로고침 후 다시 시도하세요.",
         mismatches,
         settlementDate,
+      },
+      { status: 422 }
+    );
+  }
+
+  // 환전금액 합계 대사 (PRD §5). 화면에서만 하던 검사를 서버도 한다 — 직접 POST 로
+  // 우회할 수 없게(감사 ⑤ 중2). 환전금액을 입력하지 않은 경우(0)는 화면과 같이 건너뛴다.
+  const exKrw = Number(exchange?.krwTotal) || 0;
+  const exUsd = Number(exchange?.usdTotal) || 0;
+  if (exKrw > 0 && Math.round(krwSum) !== Math.round(exKrw)) {
+    return NextResponse.json(
+      {
+        error: `종목별 원화투자금액 합계(${Math.round(krwSum).toLocaleString("ko-KR")}원)가 환전 원화금액(${Math.round(exKrw).toLocaleString("ko-KR")}원)과 다릅니다.`,
+      },
+      { status: 422 }
+    );
+  }
+  if (
+    exUsd > 0 &&
+    Math.abs(truncDecimals(usdSum, 2) - truncDecimals(exUsd, 2)) >= USD_TOTAL_EPSILON
+  ) {
+    return NextResponse.json(
+      {
+        error: `종목별 달러금액 합계($${truncDecimals(usdSum, 2)})가 환전 달러금액($${truncDecimals(exUsd, 2)})과 다릅니다.`,
       },
       { status: 422 }
     );
