@@ -17,8 +17,10 @@ import {
 } from "@/lib/ntnfPricing";
 import {
   simulateRollVsSwitch,
+  simulateRollVsSwitchReinvest,
   type RollSwitchInput,
   type RollSwitchLeg,
+  type RollSwitchReinvestLeg,
 } from "@/lib/ntnfSimulation";
 import type { BondItem, FxRates } from "@/lib/types";
 
@@ -368,6 +370,12 @@ export function RollSwitchComparison({ bonds, fx, state, onChange }: Props) {
     () => (input ? simulateRollVsSwitch(input) : null),
     [input]
   );
+  // 재투자 기준(쿠폰으로 같은 종목 추가 매수) — 기본 시뮬레이션과 나란히 보려고
+  // 별도 블록으로 둔다. 정리 여부는 써 보고 판단(2026-09).
+  const reinvest = useMemo(
+    () => (input ? simulateRollVsSwitchReinvest(input) : null),
+    [input]
+  );
 
   if (sorted.length === 0) return null;
 
@@ -600,7 +608,113 @@ export function RollSwitchComparison({ bonds, fx, state, onChange }: Props) {
       )}
       </section>
 
+      {reinvest && (reinvest.rollover || reinvest.switch) && (
+        <ReinvestBlock
+          reinvest={reinvest}
+          baseRollPct={result?.rollover?.totalReturnPct ?? null}
+          baseSwitchPct={result?.switch?.totalReturnPct ?? null}
+        />
+      )}
+
       <CashFlowDisclaimer />
     </>
+  );
+}
+
+/**
+ * 재투자 기준 비교 — 기본 시뮬레이션(쿠폰 명목 합산) 아래에 따로 둔다.
+ * 이표일마다 쿠폰으로 **같은 종목**을 추가 매수해 좌수가 늘어나는 경우를 본다.
+ * 두 방식의 결론이 뒤집힐 수 있어(일찍 갈아탄 쪽이 쿠폰을 더 오래 굴린다)
+ * 나란히 놓고 비교한다.
+ */
+function ReinvestBlock({
+  reinvest,
+  baseRollPct,
+  baseSwitchPct,
+}: {
+  reinvest: { rollover: RollSwitchReinvestLeg | null; switch: RollSwitchReinvestLeg | null };
+  baseRollPct: number | null;
+  baseSwitchPct: number | null;
+}) {
+  const rows: {
+    leg: RollSwitchReinvestLeg | null;
+    base: number | null;
+    label: string;
+  }[] = [
+    { leg: reinvest.rollover, base: baseRollPct, label: "만기상환 후 롤오버" },
+    { leg: reinvest.switch, base: baseSwitchPct, label: "중도매도 후 갈아타기" },
+  ];
+  const win =
+    reinvest.rollover && reinvest.switch
+      ? reinvest.rollover.totalReturnPct >= reinvest.switch.totalReturnPct
+        ? "rollover"
+        : "switch"
+      : null;
+
+  return (
+    <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        재투자 기준{" "}
+        <span className="text-[11px] font-normal text-zinc-400">
+          (쿠폰으로 같은 종목 추가 매수)
+        </span>
+      </h2>
+      <p className="text-[11px] leading-relaxed text-zinc-400">
+        이표일마다 쿠폰과 남은 헤알로 그날 단가에 같은 종목을 정수 좌수만 추가
+        매수하고, 남은 돈은 다음 회차로 넘긴다(현금흐름 탭 재투자형과 같은 규칙).
+        매수금리는 처음 산 금리를 그대로 쓴다. 위 기본 시뮬레이션은 쿠폰을
+        재투자하지 않고 명목 합산하므로, 일찍 갈아탄 쪽의 이점이 여기서만 드러나
+        결론이 뒤집힐 수 있다.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-xs">
+          <thead>
+            <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+              <th className="py-1.5 pr-3 font-medium">전략</th>
+              <th className="py-1.5 pr-3 font-medium">좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)</th>
+              <th className="py-1.5 pr-3 text-right font-medium">총기대수익률</th>
+              <th className="py-1.5 text-right font-medium">기본 대비</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {rows.map(({ leg, base, label }) => (
+              <tr key={label}>
+                <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                  {label}
+                  {leg && win === leg.key && (
+                    <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                      우세
+                    </span>
+                  )}
+                </td>
+                {leg ? (
+                  <>
+                    <td className="py-2 pr-3 tabular-nums text-zinc-600 dark:text-zinc-400">
+                      {fmtInt(leg.unitsStart)} → {fmtInt(leg.unitsBeforeExit)} →{" "}
+                      {fmtInt(leg.unitsAfterExit)} → {fmtInt(leg.unitsEnd)}좌
+                    </td>
+                    <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                      {fmtNum(leg.totalReturnPct, 2)}%
+                    </td>
+                    <td className="py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {base == null
+                        ? "-"
+                        : `${leg.totalReturnPct - base >= 0 ? "+" : ""}${fmtNum(
+                            leg.totalReturnPct - base,
+                            2
+                          )}%p`}
+                    </td>
+                  </>
+                ) : (
+                  <td colSpan={3} className="py-2 text-zinc-400">
+                    계산 조건을 만족하지 않습니다.
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

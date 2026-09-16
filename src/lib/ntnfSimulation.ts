@@ -288,3 +288,160 @@ export function simulateRollVsSwitch(
 
   return { rollover, switch: switchLeg, buyPriceA: puA, units, frontFeeKrw };
 }
+
+// ───────────────────────────────────────────────────────────────────
+// 재투자 기준 비교 (현금흐름 탭 재투자형과 같은 규칙)
+//  · 이표일마다 쿠폰 + 남은 헤알로 그날 단가에 **같은 종목**을 정수 좌수만 추가
+//    매수하고, 남은 돈은 다음 회차로 이월한다.
+//  · 매수금리는 처음 산 금리를 그대로 유지한다(현금흐름 탭과 동일).
+//  · 만기일 쿠폰은 재매수하지 않고 원금상환과 함께 회수한다.
+// 쿠폰을 명목 합산하는 기본 시뮬레이션과 달리, 일찍 받은 쿠폰이 더 오래 굴러
+// 좌수가 늘어난다 — 갈아타기처럼 먼저 옮겨 타는 쪽이 유리해질 수 있다.
+// ───────────────────────────────────────────────────────────────────
+
+export interface RollSwitchReinvestLeg {
+  key: "rollover" | "switch";
+  label: string;
+  exitDate: string;
+  endDate: string;
+  /** 최초 매수 좌수 */
+  unitsStart: number;
+  /** A 쿠폰 재투자까지 끝낸, 청산 직전 좌수 */
+  unitsBeforeExit: number;
+  /** 청산 대금으로 B 를 산 직후 좌수 */
+  unitsAfterExit: number;
+  /** B 쿠폰 재투자까지 끝낸 만기 좌수 */
+  unitsEnd: number;
+  /** 총 기대수익률 (%) — 분모는 기본 시뮬레이션과 같은 신탁투자원금 */
+  totalReturnPct: number;
+}
+
+export interface RollSwitchReinvestResult {
+  rollover: RollSwitchReinvestLeg | null;
+  switch: RollSwitchReinvestLeg | null;
+}
+
+/** (from, to] 이표일마다 쿠폰+잔여현금으로 같은 종목을 정수 좌수 추가 매수 */
+function reinvestPhase(
+  units: number,
+  cashBrl: number,
+  from: Date,
+  to: Date,
+  maturityIso: string,
+  yieldPct: number
+): { units: number; cashBrl: number } {
+  const mat = parseIsoDate(maturityIso);
+  for (const c of couponDatesBetween(from, to)) {
+    cashBrl += units * COUPON;
+    // 만기 쿠폰은 재매수하지 않는다(원금상환과 함께 회수)
+    if (mat && c.getTime() === mat.getTime()) continue;
+    const pu = computeNtnfPu(maturityIso, yieldPct, c);
+    if (pu == null || pu <= 0) continue;
+    const bought = Math.floor(cashBrl / pu);
+    if (bought > 0) {
+      cashBrl -= bought * pu;
+      units += bought;
+    }
+  }
+  return { units, cashBrl };
+}
+
+export function simulateRollVsSwitchReinvest(
+  input: RollSwitchInput
+): RollSwitchReinvestResult | null {
+  const buy = input.buyDate ? parseIsoDate(input.buyDate) : today();
+  if (!buy) return null;
+  const settle = getOrderSettlementDate(buy);
+  const matA = parseIsoDate(input.bondA.maturity);
+  const matB = parseIsoDate(input.bondB.maturity);
+  const sell = parseIsoDate(input.sellDate);
+  if (!matA || !matB || !sell) return null;
+
+  const puA =
+    input.overrideBuyPriceA != null && input.overrideBuyPriceA > 0
+      ? input.overrideBuyPriceA
+      : computeNtnfPu(input.bondA.maturity, input.bondA.buyYieldPct, settle);
+  if (puA == null || puA <= 0) return null;
+  const fx = input.fxKrwPerBrl;
+  if (!(fx > 0)) return null;
+
+  const frontFeeKrw = Math.trunc(
+    input.principalKrw * (input.frontFeeInitialPct / 100)
+  );
+  const availableBrl = (input.principalKrw - frontFeeKrw) / fx;
+  const units = Math.floor(availableBrl / puA);
+  if (units <= 0) return null;
+  const carryBrl0 = availableBrl - units * puA;
+  const investBrl = input.principalKrw / fx;
+
+  const leg = (
+    key: "rollover" | "switch",
+    label: string,
+    exitDate: Date,
+    exitPriceA: number,
+    frontFeePct: number
+  ): RollSwitchReinvestLeg | null => {
+    if (!(matB > exitDate)) return null;
+    const settleExit = getOrderSettlementDate(exitDate);
+    const puB = computeNtnfPu(input.bondB.maturity, input.buyYieldB, settleExit);
+    if (puB == null || puB <= 0) return null;
+
+    // ① A 구간 — A 쿠폰으로 A 를 더 산다
+    const a = reinvestPhase(
+      units,
+      carryBrl0,
+      settle,
+      settleExit,
+      input.bondA.maturity,
+      input.bondA.buyYieldPct
+    );
+    // ② 청산 → B 매수 (남은 헤알도 함께 투입)
+    const proceeds = a.units * exitPriceA * (1 - frontFeePct / 100) + a.cashBrl;
+    const unitsAfterExit = Math.floor(proceeds / puB);
+    if (unitsAfterExit <= 0) return null;
+    // ③ B 구간 — B 쿠폰으로 B 를 더 산다
+    const b = reinvestPhase(
+      unitsAfterExit,
+      proceeds - unitsAfterExit * puB,
+      settleExit,
+      matB,
+      input.bondB.maturity,
+      input.buyYieldB
+    );
+    const finalBrl = b.units * FACE + b.cashBrl;
+
+    return {
+      key,
+      label,
+      exitDate: toISODate(exitDate),
+      endDate: toISODate(matB),
+      unitsStart: units,
+      unitsBeforeExit: a.units,
+      unitsAfterExit,
+      unitsEnd: b.units,
+      totalReturnPct: (finalBrl / investBrl - 1) * 100,
+    };
+  };
+
+  const rollover = leg(
+    "rollover",
+    "만기상환 후 롤오버",
+    matA,
+    FACE,
+    input.frontFeeRollPct
+  );
+  const sellPriceA =
+    input.overrideSellPriceA != null && input.overrideSellPriceA > 0
+      ? input.overrideSellPriceA
+      : computeNtnfPu(
+          input.bondA.maturity,
+          input.sellYieldA,
+          getOrderSettlementDate(sell)
+        );
+  const switchLeg =
+    sell > settle && sell < matA && sellPriceA != null
+      ? leg("switch", "중도매도 후 갈아타기", sell, sellPriceA, input.frontFeeSwitchPct)
+      : null;
+
+  return { rollover, switch: switchLeg };
+}
