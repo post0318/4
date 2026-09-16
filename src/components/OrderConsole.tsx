@@ -427,16 +427,24 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
         </p>
       )}
       <header className="flex items-center justify-between print:hidden">
-        <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={BRAZIL_FLAG_DATA_URI}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="flag-wave h-4 w-auto shrink-0 select-none"
-          />
-          브라질 트레이딩
+        <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          {/* 제목 클릭 → 시장정보(첫 화면) 탭으로. 고객 화면(트레이딩 숨김)에선 현금흐름으로 */}
+          <button
+            type="button"
+            onClick={() => setTab(hideTrading ? "cashflow" : "market")}
+            className="flex items-center gap-2 rounded-md outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-label="처음 화면으로"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={BRAZIL_FLAG_DATA_URI}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="flag-wave h-4 w-auto shrink-0 select-none"
+            />
+            브라질 트레이딩
+          </button>
         </h1>
         {auth.enabled && auth.isSignedIn && (
           <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
