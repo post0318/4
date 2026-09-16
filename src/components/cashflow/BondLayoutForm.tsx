@@ -150,7 +150,7 @@ function Row({
   blank = false,
   strong = false,
 }: {
-  label: string;
+  label: ReactNode;
   children: ReactNode;
   editable?: boolean;
   blank?: boolean;
@@ -275,6 +275,8 @@ export function BondLayoutForm({
 
   // 시세 기준일·노후 경고 — 종목 검색이 목록을 받을 때 채워진다(감사 ⑤ 중3)
   const [quote, setQuote] = useState<QuoteFreshness | null>(null);
+  // 세후수익률 표시 기준: 끄면 단리 연환산, 켜면 복리(CAGR) (감사 ⑤ 중5)
+  const [compoundBasis, setCompoundBasis] = useState(false);
 
   // 최근이표일 입력이 자동 계산값과 다르면 경고(계산은 자동값 사용, 감사 ⑤ 중4)
   const recentCoupon = checkRecentCouponDate(
@@ -886,27 +888,49 @@ export function BondLayoutForm({
               <ComputedValue />
             )}
           </Row>
-          {/* 단리 연환산은 기간이 길수록 연 수익률을 부풀려 보이게 하므로 복리
-              환산을 같은 줄에 함께 낸다(감사 ⑤ 중5). 반기·월지급형은 쿠폰이
-              출금돼 신탁을 떠나므로 "출금액을 굴리지 않는다"는 가정이 들어간다
-              — 툴팁으로 안내. */}
-          <Row label="세후수익률">
-            {summary ? (
-              <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                {(summary.postTaxYield * 100).toFixed(2)}%
-                {summary.postTaxCagr != null && (
-                  <span
-                    className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400"
-                    title={
-                      value.distributionType === "재투자"
-                        ? "단리 연환산은 만기 목돈을 투자연수로 나눈 값이라 기간이 길수록 커집니다. 복리는 (만기회수액/원금)^(365/투자일수)−1."
-                        : "복리 환산은 출금한 이자를 다시 굴리지 않는다고 본 값입니다. 출금 이후 운용은 이 상품 밖의 일이라 반영하지 않습니다."
-                    }
-                  >
-                    (단리 연환산 · 복리 {(summary.postTaxCagr * 100).toFixed(2)}%)
-                  </span>
-                )}
+          {/* 단리 연환산은 기간이 길수록 연 수익률을 부풀려 보이게 한다. 라벨 옆
+              「복리기준」을 켜면 복리(CAGR)로 바꿔 보여준다(감사 ⑤ 중5).
+              반기·월지급형은 쿠폰이 출금돼 신탁을 떠나므로 복리값에
+              "(재투자없음)"을 붙인다 — 재투자형은 신탁 안에서 복리가 일어나
+              가정이 필요 없으므로 붙이지 않는다. */}
+          <Row
+            label={
+              <span className="inline-flex items-center gap-2">
+                세후수익률
+                <label
+                  className="inline-flex cursor-pointer items-center gap-1 text-xs font-normal text-zinc-500 print:hidden dark:text-zinc-400"
+                  title="복리(CAGR) = (총수령액/원금)^(365/투자일수) − 1"
+                >
+                  <input
+                    type="checkbox"
+                    checked={compoundBasis}
+                    onChange={(e) => setCompoundBasis(e.target.checked)}
+                    className="h-3 w-3 rounded border-zinc-300 dark:border-zinc-600"
+                  />
+                  복리기준
+                </label>
               </span>
+            }
+          >
+            {summary ? (
+              compoundBasis ? (
+                summary.postTaxCagr != null ? (
+                  <span className="text-sm text-zinc-900 dark:text-zinc-100">
+                    {(summary.postTaxCagr * 100).toFixed(2)}%
+                    {value.distributionType !== "재투자" && (
+                      <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                        (재투자없음)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-sm text-zinc-400">-</span>
+                )
+              ) : (
+                <span className="text-sm text-zinc-900 dark:text-zinc-100">
+                  {(summary.postTaxYield * 100).toFixed(2)}%
+                </span>
+              )
             ) : (
               <ComputedValue />
             )}
