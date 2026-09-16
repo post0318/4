@@ -68,20 +68,42 @@ function cleanSummary(raw: string, maxLen = 140): string {
 const RELEVANT =
   /금리|기준금리|Selic|셀릭|Copom|코팜|헤알|환율|외환|국채|채권|국가?부채|공공부채|재정|적자|흑자|세제|세금|조세|증세|감세|IBS|CBS|심플레스|물가|인플레|디플레|중앙은행|통화정책|증시|주가|Ibovespa|보베스파|경제성장|경기|GDP|성장률|실업|고용|일자리|인건비|임금|노동개혁|6\s*[×xX]\s*1|소비자\s*신뢰|소비심리|소비자신뢰지수|소비지출|민간소비|소매판매|산업생산|기업신뢰|경기신뢰|FGV|무역|교역|수출|수입|관세|외국인\s*투자|신용등급|국가\s*신용|S&P|피치|무디스|Fitch|Moody|룰라\s*정부|하원|상원|연방대법원|STF|대선|탄핵|재정개혁|연금개혁|세제개편|예산안|Petrobras|페트로브라스|Vale|철광석|유가|국제유가|경제부|재무부/i;
 
-export async function fetchBomDiaNews(limit = 5): Promise<LocalNewsItem[]> {
+/**
+ * 워드프레스 피드는 한 번에 최근 10건만 준다. 그 10건은 대부분 생활·문화
+ * 기사라 허용목록을 통과하는 글이 1~2건뿐인 경우가 많았다(사용자 지적).
+ * `?paged=` 로 뒤 페이지까지 받아 후보를 넓힌 뒤 거른다.
+ */
+const FEED_PAGES = 3;
+
+async function fetchFeedPage(page: number): Promise<string | null> {
   try {
-    const res = await fetchWithTimeout(FEED_URL, {
+    const url = page === 1 ? FEED_URL : `${FEED_URL}?paged=${page}`;
+    const res = await fetchWithTimeout(url, {
       headers: { "user-agent": UA, accept: "application/rss+xml, application/xml" },
       next: { revalidate: 1800 },
     });
-    if (!res.ok) return [];
-    const xml = await res.text();
+    return res.ok ? await res.text() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchBomDiaNews(limit = 5): Promise<LocalNewsItem[]> {
+  try {
+    // 페이지는 서로 독립이라 병렬로 받는다(한 페이지가 실패해도 나머지로 진행).
+    const pages = await Promise.all(
+      Array.from({ length: FEED_PAGES }, (_, i) => fetchFeedPage(i + 1))
+    );
+    const xml = pages.filter((x): x is string => !!x).join("");
+    if (!xml) return [];
     const blocks = xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [];
     const all: LocalNewsItem[] = [];
+    const seen = new Set<string>();
     for (const b of blocks) {
       const title = tag("title", b);
       const link = tag("link", b);
-      if (!title || !link) continue;
+      if (!title || !link || seen.has(link)) continue;
+      seen.add(link);
       const pub = tag("pubDate", b);
       const d = pub ? new Date(pub) : null;
       all.push({
@@ -98,6 +120,7 @@ export async function fetchBomDiaNews(limit = 5): Promise<LocalNewsItem[]> {
     // 국채·환율 판단에 관련된 글만 남긴다(최신순). 관련 글이 없으면 빈 배열.
     return all
       .filter((it) => RELEVANT.test(it.title) || RELEVANT.test(it.summary))
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
       .slice(0, limit);
   } catch {
     return [];

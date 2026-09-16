@@ -113,7 +113,14 @@ export function getTrustMaturityLeadDays(
     const overridden = new Date(override);
     const maturity = new Date(maturityDate);
     if (!Number.isNaN(overridden.getTime()) && !Number.isNaN(maturity.getTime())) {
-      return Math.round((overridden.getTime() - maturity.getTime()) / MS_PER_DAY);
+      const lead = Math.round(
+        (overridden.getTime() - maturity.getTime()) / MS_PER_DAY
+      );
+      // 신탁만기일은 자산만기일보다 이를 수 없다 — 이 상품은 중도상환이 없어
+      // 채권 원금을 받기 전에 신탁을 청산할 수 없다. 음수 리드타임이 들어오면
+      // 보수기간이 거꾸로 잡히므로 자동값으로 되돌린다(화면에서도 입력 차단).
+      if (lead < 0) return TRUST_MATURITY_LEAD_DAYS;
+      return lead;
     }
   }
   return TRUST_MATURITY_LEAD_DAYS;

@@ -807,37 +807,30 @@ export function BondLayoutForm({
                 getTrustMaturityDate(value.maturityDate, value.trustMaturityDate) ?? "";
               const isOverridden = value.trustMaturityDate.trim() !== "";
               if (!isOverridden && displayed === "") return <ComputedValue />;
-              // 만기일 이전으로 지정하면 리드타임이 음수가 되어 만기청산
-              // 후취보수도 음수가 된다. 계산은 그대로 두고 눈에 띄게만 알린다.
-              const beforeMaturity =
-                isOverridden && !!value.maturityDate && displayed < value.maturityDate;
+              // 신탁만기일은 자산만기일보다 이를 수 없다(중도상환 없는 상품).
+              // 달력에서 만기일 이전을 고를 수 없게 막고, 직접 타이핑으로
+              // 들어와도 저장하지 않는다.
               return (
-                <>
-                  <input
-                    className={
-                      beforeMaturity
-                        ? `${inputClass} border-amber-400 dark:border-amber-600`
-                        : inputClass
+                <input
+                  className={inputClass}
+                  type="date"
+                  value={displayed}
+                  min={value.maturityDate || undefined}
+                  disabled={locked}
+                  title="자산만기일 이후로만 지정할 수 있습니다"
+                  onChange={(e) => {
+                    const typed = clampDateYear(e.target.value);
+                    if (
+                      typed &&
+                      value.maturityDate &&
+                      typed < value.maturityDate
+                    ) {
+                      return;
                     }
-                    type="date"
-                    value={displayed}
-                    disabled={locked}
-                    aria-invalid={beforeMaturity}
-                    onChange={(e) =>
-                      update("trustMaturityDate", clampDateYear(e.target.value))
-                    }
-                    onKeyDown={commitOnEnter}
-                  />
-                  {beforeMaturity && (
-                    <p
-                      role="alert"
-                      className="mt-1 text-[11px] leading-snug text-amber-700 print:hidden dark:text-amber-400"
-                    >
-                      만기일({value.maturityDate}) 이전입니다. 만기청산 후취보수가
-                      음수로 잡힙니다.
-                    </p>
-                  )}
-                </>
+                    update("trustMaturityDate", typed);
+                  }}
+                  onKeyDown={commitOnEnter}
+                />
               );
             })()}
           </Row>

@@ -1,5 +1,11 @@
 import { fetchOrNull } from "@/lib/server/fetchWithTimeout";
 const SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados";
+/**
+ * BCB SGS 는 7년치 일간 시계열을 처음 부를 때 25초까지 걸린다(측정). 공통 6초
+ * 타임아웃으로는 잘려서 502 가 나고, 그 응답이 12시간 캐시에 박혀 화면의
+ * 기준금리가 하루 종일 "-" 로 보였다. 이 소스만 넉넉히 준다.
+ */
+const BCB_TIMEOUT_MS = 30000;
 
 export interface RateSeries {
   /** ISO 날짜, 오름차순 */
@@ -25,7 +31,7 @@ export async function fetchSelicHistory(
 ): Promise<RateSeries | null> {
   const toBr = (iso: string) => iso.split("-").reverse().join("/");
   const url = `${SGS_URL}?formato=json&dataInicial=${toBr(from)}&dataFinal=${toBr(to)}`;
-  const res = await fetchOrNull(url);
+  const res = await fetchOrNull(url, {}, BCB_TIMEOUT_MS);
   if (!res) return null;
 
   const text = await res.text();
@@ -59,15 +65,23 @@ export async function fetchSelicHistory(
  * 교차검증용: SGS 432(Meta Selic)의 최신 1개 값을 독립적으로 조회한다.
  * 시계열 파싱 결과의 마지막 값과 대조해 회귀 오류를 잡는다.
  */
-export async function fetchSelicLatest(): Promise<number | null> {
+export async function fetchSelicLatest(): Promise<{
+  value: number;
+  date: string | null;
+} | null> {
   try {
-    const res = await fetchOrNull(`${SGS_URL}/ultimos/1?formato=json`);
+    const res = await fetchOrNull(
+      `${SGS_URL}/ultimos/1?formato=json`,
+      {},
+      BCB_TIMEOUT_MS
+    );
     if (!res) return null;
     const text = await res.text();
     if (!text.trimStart().startsWith("[")) return null;
-    const arr = JSON.parse(text) as { valor: string }[];
+    const arr = JSON.parse(text) as { data?: string; valor: string }[];
     const v = Number(arr[0]?.valor);
-    return Number.isFinite(v) ? v : null;
+    if (!Number.isFinite(v)) return null;
+    return { value: v, date: arr[0]?.data ? brToIso(arr[0].data) : null };
   } catch {
     return null;
   }
