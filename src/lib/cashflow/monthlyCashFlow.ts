@@ -75,6 +75,14 @@ export interface MonthlyCashFlowSummary {
   postTaxMaturityAmount: number;
   /** 세후수익률 = (투자자 총수령 − 신탁투자금액) / 신탁투자금액 × 365/투자일수 */
   postTaxYield: number;
+  /**
+   * 세후 복리수익률(CAGR) = (총수령액/원금)^(365/투자일수) − 1.
+   * 단리 연환산은 기간이 길수록 연 수익률을 부풀려 보이게 하므로 함께 낸다
+   * (감사 ⑤ 중5). 쿠폰을 출금하는 방식(반기·월지급)에서는 "출금한 돈을 굴리지
+   * 않는다"는 가정이 들어간다 — 출금 이후 운용은 상품 밖의 일이라 화면에 그
+   * 가정을 함께 적는다.
+   */
+  postTaxCagr: number | null;
   bankEquivalentYield: number;
 }
 
@@ -400,6 +408,10 @@ export function generateMonthlyCashFlow(
     totalInterest: totalBondCoupon + totalCashInterest,
     postTaxMaturityAmount,
     postTaxYield,
+    postTaxCagr:
+      trustAmount > 0 && investmentDays > 0 && totalReceived > 0
+        ? Math.pow(totalReceived / trustAmount, 365 / investmentDays) - 1
+        : null,
     bankEquivalentYield: postTaxYield / (1 - comprehensiveTaxRate),
   };
 

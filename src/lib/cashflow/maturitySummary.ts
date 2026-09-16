@@ -28,6 +28,14 @@ export interface MaturitySummary {
   totalInterest: number;
   postTaxMaturityAmount: number;
   postTaxYield: number;
+  /**
+   * 세후 복리수익률(CAGR) = (총수령액/원금)^(365/투자일수) − 1.
+   * 단리 연환산은 기간이 길수록 연 수익률을 부풀려 보이게 하므로 함께 낸다
+   * (감사 ⑤ 중5). 쿠폰을 출금하는 방식(반기·월지급)에서는 "출금한 돈을 굴리지
+   * 않는다"는 가정이 들어간다 — 출금 이후 운용은 상품 밖의 일이라 화면에 그
+   * 가정을 함께 적는다.
+   */
+  postTaxCagr: number | null;
   bankEquivalentYield: number;
 }
 
@@ -104,6 +112,10 @@ export function computeMaturitySummary(
     totalInterest,
     postTaxMaturityAmount,
     postTaxYield,
+    postTaxCagr:
+      principal > 0 && investmentDays > 0 && totalReceived > 0
+        ? Math.pow(totalReceived / principal, 365 / investmentDays) - 1
+        : null,
     bankEquivalentYield,
   };
 }
