@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { InitialAuthState } from "@/lib/server/appAuth";
 import { useClerk, useUser } from "@clerk/nextjs";
 
 /**
@@ -52,19 +60,36 @@ const DISABLED: AppAuth = {
 
 const Ctx = createContext<AppAuth>(DISABLED);
 
-function ClerkBridge({ children }: { children: ReactNode }) {
+function ClerkBridge({
+  initial,
+  children,
+}: {
+  initial: InitialAuthState | null;
+  children: ReactNode;
+}) {
   const clerk = useClerk();
   const { isLoaded, isSignedIn, user } = useUser();
-  const [verdict, setVerdict] = useState<{ allowed: boolean; admin: boolean; reason: string | null } | null>(null);
+  // 서버(layout)가 이미 판정해 내려준 값으로 시작한다 — 첫 화면에서 /api/auth/me
+  // 왕복이 사라진다. 로그인·로그아웃으로 사용자가 바뀔 때만 다시 묻는다.
+  const [verdict, setVerdict] = useState<{
+    allowed: boolean;
+    admin: boolean;
+    reason: string | null;
+  } | null>(
+    initial
+      ? { allowed: initial.allowed, admin: initial.admin, reason: initial.reason }
+      : null
+  );
+  const lastCheckedRef = useRef<string | null>(initial?.userId ?? null);
 
-  // 로그인 상태가 바뀔 때마다 서버에 허용 여부를 묻는다.
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn) {
-      // 로그아웃 상태: 확인 불필요 — 상태를 명시적으로 초기화
-      const id = setTimeout(() => setVerdict({ allowed: false, admin: false, reason: null }), 0);
-      return () => clearTimeout(id);
-    }
+    const uid = isSignedIn ? (user?.id ?? null) : null;
+    // 서버가 본 사용자와 같으면 다시 물을 필요가 없다.
+    if (lastCheckedRef.current === uid) return;
+    lastCheckedRef.current = uid;
+    // 로그아웃이면 아래 파생값(allowed)이 false 가 되므로 추가 조회 불필요.
+    if (!uid) return;
     let cancelled = false;
     fetch("/api/auth/me")
       .then((r) => r.json())
@@ -113,13 +138,16 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 
 export function AppAuthProvider({
   enabled,
+  initial = null,
   children,
 }: {
   enabled: boolean;
+  /** 서버 렌더링 시점의 판정 (layout 에서 내려준다) */
+  initial?: InitialAuthState | null;
   children: ReactNode;
 }) {
   if (!enabled) return <Ctx.Provider value={DISABLED}>{children}</Ctx.Provider>;
-  return <ClerkBridge>{children}</ClerkBridge>;
+  return <ClerkBridge initial={initial}>{children}</ClerkBridge>;
 }
 
 export function useAppAuth(): AppAuth {

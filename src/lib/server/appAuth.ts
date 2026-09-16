@@ -44,6 +44,33 @@ export function isAdminEmail(email: string): boolean {
   return adminEmails().includes(email.trim().toLowerCase());
 }
 
+/**
+ * userId → 이메일 캐시.
+ *
+ * `currentUser()` 는 Clerk Backend API(GET /v1/users/{id})를 네트워크로 부른다.
+ * 보호된 요청마다 왕복이 한 번씩 붙어 체감 지연이 컸다(사용자 지적). 세션 검증
+ * (`auth()`)은 토큰 서명만 보므로 빠르고, 이메일은 거의 바뀌지 않으므로 짧게
+ * 캐시한다. 세션이 끊기거나 차단되면 `auth()` 단계에서 막히므로 캐시가
+ * 권한을 늘려주지는 않는다.
+ */
+const EMAIL_TTL_MS = 5 * 60 * 1000;
+const emailCache = new Map<string, { email: string; at: number }>();
+
+async function emailOf(userId: string): Promise<string> {
+  const hit = emailCache.get(userId);
+  if (hit && Date.now() - hit.at < EMAIL_TTL_MS) return hit.email;
+
+  const user = await currentUser();
+  const email =
+    user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? "";
+  if (email) {
+    // 캐시가 무한정 자라지 않게 — 사내 인원 규모라 상한이 넉넉하다.
+    if (emailCache.size > 200) emailCache.clear();
+    emailCache.set(userId, { email, at: Date.now() });
+  }
+  return email;
+}
+
 export type TradingUserResult =
   | { ok: true; email: string; userId: string }
   | { ok: false; status: 401 | 403 | 503; error: string };
@@ -55,9 +82,7 @@ export async function requireTradingUser(): Promise<TradingUserResult> {
   const { userId } = await auth();
   if (!userId) return { ok: false, status: 401, error: "로그인이 필요합니다." };
 
-  const user = await currentUser();
-  const email =
-    user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? "";
+  const email = await emailOf(userId);
   if (!email || !isAllowedEmail(email)) {
     return {
       ok: false,
@@ -76,4 +101,37 @@ export async function requireAdmin(): Promise<TradingUserResult> {
     return { ok: false, status: 403, error: "관리자만 들어올 수 있습니다." };
   }
   return who;
+}
+
+/** 서버 렌더링 시점의 인증 상태 — 화면이 /api/auth/me 를 다시 부르지 않게 한다. */
+export interface InitialAuthState {
+  userId: string | null;
+  signedIn: boolean;
+  allowed: boolean;
+  admin: boolean;
+  email: string | null;
+  reason: string | null;
+}
+
+export async function resolveAuthState(): Promise<InitialAuthState> {
+  const who = await requireTradingUser();
+  if (who.ok) {
+    return {
+      userId: who.userId,
+      signedIn: true,
+      allowed: true,
+      admin: isAdminEmail(who.email),
+      email: who.email,
+      reason: null,
+    };
+  }
+  // 401 은 로그인 안 함, 403 은 로그인했지만 허용 도메인/관리자 아님
+  return {
+    userId: null,
+    signedIn: who.status === 403,
+    allowed: false,
+    admin: false,
+    email: null,
+    reason: who.status === 401 ? null : who.error,
+  };
 }
