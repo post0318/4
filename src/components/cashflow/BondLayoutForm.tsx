@@ -58,6 +58,8 @@ interface BondLayoutFormProps {
   locked: boolean;
   onLockedChange: (locked: boolean) => void;
   lockToggleDisabled?: boolean;
+  /** 「초기화」 — 입력값을 기본값으로, 잠금 해제 (공유 링크 화면에선 없음) */
+  onReset?: () => void;
 }
 
 const CALC_BASIS_OPTIONS: CalcBasis[] = [
@@ -187,6 +189,7 @@ export function BondLayoutForm({
   locked,
   onLockedChange,
   lockToggleDisabled = false,
+  onReset,
 }: BondLayoutFormProps) {
   // 검색창의 늦은 비동기 반영(신용등급·환율)이 잠금 뒤에 도착해도 덮어쓰지 않도록
   // 최신 잠금 상태를 ref로 본다(fetch 콜백은 옛 렌더의 props를 붙들고 있음).
@@ -491,6 +494,15 @@ export function BondLayoutForm({
               }
             >
               {locked ? "🔒 편입자산정보 잠김 (해제)" : "🔓 편입자산정보 잠금"}
+            </button>
+          )}
+          {!lockToggleDisabled && onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex w-fit items-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              초기화
             </button>
           )}
         </div>

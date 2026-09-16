@@ -162,6 +162,10 @@ export function CashFlowPanel({
           locked={locked}
           onLockedChange={setLocked}
           lockToggleDisabled={isSharedLink}
+          onReset={() => {
+            setInput(createDefaultInput());
+            setLocked(false);
+          }}
         />
         {isReinvest ? (
           <ReinvestCashFlowTable
