@@ -73,6 +73,31 @@ export function getCouponPeriod(
   return { previousCouponDate, nextCouponDate, periodsRemaining };
 }
 
+/**
+ * 최근이표일 입력 검증 (감사 ⑤ 중4).
+ * 최근이표일은 만기일에서 이자지급주기만큼 거슬러 올라온 격자 위에서, 결제일
+ * 직전의 날짜 하나로 정해진다. 입력값이 그 자동값과 다르면(결제일 이후·격자 밖·
+ * 회차 건너뜀) 경과이자와 쿠폰 회차가 조용히 틀어지므로 계산에는 자동값을 쓴다.
+ *  - auto: 자동 계산값 (만기·계약일이 없으면 null)
+ *  - valid: 입력이 비었거나 자동값과 같으면 true
+ *  - effective: 계산에 쓸 값
+ */
+export function checkRecentCouponDate(
+  maturityDate: string,
+  frequency: CouponFrequency,
+  trustContractDate: string,
+  input: string
+): { auto: string | null; valid: boolean; effective: string | null } {
+  const maturity = new Date(maturityDate);
+  const settlement = getSettlementDate(trustContractDate);
+  if (!isPlausibleYear(maturity) || !settlement) {
+    return { auto: null, valid: true, effective: input || null };
+  }
+  const auto = toDateString(getCouponPeriod(maturity, frequency, settlement).previousCouponDate);
+  const valid = !input || input === auto;
+  return { auto, valid, effective: auto };
+}
+
 export function getTrustMaturityDate(maturityDate: string): string | null {
   const maturity = new Date(maturityDate);
   if (Number.isNaN(maturity.getTime())) return null;

@@ -353,14 +353,15 @@ export function computeBondPricing(
   const isBrazil = input.calcBasis === "Business/252";
   const redemptionBasis = isBrazil ? 1000 : input.tradeCurrency === "KRW" ? 10000 : 100;
 
+  // 최근이표일: 자동 계산값(만기 격자에서 결제일 직전)만 쓴다. 입력값이 다르면
+  // 경과이자·쿠폰 회차가 틀어지므로 무시하고 자동값으로(감사 ⑤ 중4). 화면은
+  // checkRecentCouponDate 로 같은 판정을 해 경고를 띄운다.
   const recentCouponInput = input.recentCouponDate
     ? new Date(input.recentCouponDate)
     : null;
   if (recentCouponInput && !isPlausibleYear(recentCouponInput)) return null;
-  const recentCoupon =
-    recentCouponInput ??
-    getCouponPeriod(maturity, input.couponFrequency, settlement)
-      .previousCouponDate;
+  const recentCoupon = getCouponPeriod(maturity, input.couponFrequency, settlement)
+    .previousCouponDate;
 
   const basis = BASIS_INDEX[input.calcBasis];
   const accrualFrac = yearFrac(recentCoupon, settlement, basis);

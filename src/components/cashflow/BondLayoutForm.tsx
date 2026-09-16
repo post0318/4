@@ -20,8 +20,7 @@ import {
 } from "@/lib/cashflow/bondLayout";
 import {
   getInvestmentDays,
-  getRecentCouponDate,
-  getSettlementDate,
+  checkRecentCouponDate,
   getTrustMaturityDate,
 } from "@/lib/cashflow/couponSchedule";
 import { computeBondPricing } from "@/lib/cashflow/bondPricing";
@@ -406,6 +405,14 @@ export function BondLayoutForm({
     value.incomeTaxRate,
   ]);
 
+  // 최근이표일 입력이 자동 계산값과 다르면 경고(계산은 자동값 사용, 감사 ⑤ 중4)
+  const recentCoupon = checkRecentCouponDate(
+    value.maturityDate,
+    value.couponFrequency,
+    value.trustContractDate,
+    value.recentCouponDate
+  );
+
   const summary =
     value.distributionType === "월"
       ? monthlySummary
@@ -559,23 +566,36 @@ export function BondLayoutForm({
           </Row>
           <Row label="최근이표일" editable>
             <input
-              className={inputClass}
-              type="date"
-              value={
-                value.recentCouponDate ||
-                getRecentCouponDate(
-                  value.maturityDate,
-                  value.couponFrequency,
-                  getSettlementDate(value.trustContractDate) ?? undefined
-                ) ||
-                ""
+              className={
+                recentCoupon.valid
+                  ? inputClass
+                  : `${inputClass} border-red-400 focus:border-red-500 dark:border-red-700`
               }
+              type="date"
+              value={value.recentCouponDate || recentCoupon.auto || ""}
               disabled={locked}
+              aria-invalid={!recentCoupon.valid}
               onChange={(e) =>
                 update("recentCouponDate", clampDateYear(e.target.value))
               }
               onKeyDown={commitOnEnter}
             />
+            {!recentCoupon.valid && recentCoupon.auto && (
+              <p
+                role="alert"
+                className="mt-1 text-[11px] leading-snug text-red-600 print:hidden dark:text-red-400"
+              >
+                결제일 직전 이표일({recentCoupon.auto})과 다릅니다. 계산에는 자동값을
+                씁니다.{" "}
+                <button
+                  type="button"
+                  onClick={() => update("recentCouponDate", "")}
+                  className="underline"
+                >
+                  자동값 적용
+                </button>
+              </p>
+            )}
           </Row>
           <Row label="날짜계산 기준" editable>
             <select
