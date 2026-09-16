@@ -87,6 +87,8 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     shareInput ? { ...createDefaultInput(), ...shareInput } : createDefaultInput()
   );
   const [cfLocked, setCfLocked] = useState<boolean>(isSharedLink);
+  // 헤더의 "가입 신청" 링크 → 트레이딩 탭의 가입 폼을 바로 연다
+  const [signupRequested, setSignupRequested] = useState(false);
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -443,6 +445,29 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
             <UserButton />
           </div>
         )}
+        {auth.enabled && auth.isLoaded && !auth.isSignedIn && !hideTrading && (
+          // 처음 오는 사람이 헤매지 않도록 트레이딩 탭 위에 로그인·가입 링크
+          <div className="flex items-center gap-3 text-sm">
+            <button
+              type="button"
+              onClick={auth.openSignIn}
+              className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              로그인
+            </button>
+            <span className="text-zinc-300 dark:text-zinc-700">|</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSignupRequested(true);
+                setTab("trading");
+              }}
+              className="text-zinc-600 hover:underline dark:text-zinc-400"
+            >
+              가입 신청
+            </button>
+          </div>
+        )}
       </header>
 
       <Tabs
@@ -467,7 +492,10 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       )}
 
       {tab === "trading" && !hideTrading && !tradingUnlocked && (
-        <TradingGate allowedDomains={allowedDomains} openSignup={openSignup} />
+        <TradingGate
+          allowedDomains={allowedDomains}
+          openSignup={openSignup || signupRequested}
+        />
       )}
 
       {tab === "trading" && !hideTrading && tradingUnlocked && (
