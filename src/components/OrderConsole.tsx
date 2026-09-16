@@ -81,7 +81,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       : null;
   const [tab, setTab] = useState<
     "market" | "trading" | "cashflow" | "simulation" | "duration"
-  >(() => (hideTrading ? "cashflow" : "market"));
+  >("cashflow"); // 첫 화면은 현금흐름 (고객 공유 링크도 동일)
 
   // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
   // 탭 줄의 공유 링크 버튼이 같은 값을 쓴다.
@@ -444,10 +444,10 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       )}
       <header className="flex items-center justify-between print:hidden">
         <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          {/* 제목 클릭 → 시장정보(첫 화면) 탭으로. 고객 화면(트레이딩 숨김)에선 현금흐름으로 */}
+          {/* 제목 클릭 → 첫 화면(현금흐름) 탭으로 */}
           <button
             type="button"
-            onClick={() => setTab(hideTrading ? "cashflow" : "market")}
+            onClick={() => setTab("cashflow")}
             className="flex items-center gap-2 rounded-md outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
             aria-label="처음 화면으로"
           >
