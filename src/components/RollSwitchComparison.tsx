@@ -1,6 +1,6 @@
 "use client";
 
-import { type FocusEvent, useMemo, useState } from "react";
+import { type Dispatch, type FocusEvent, type SetStateAction, useMemo } from "react";
 import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
 import {
   digitsOnly,
@@ -22,9 +22,27 @@ import {
 } from "@/lib/ntnfSimulation";
 import type { BondItem, FxRates } from "@/lib/types";
 
+/** 시뮬레이션 입력값 — OrderConsole 이 보유해 탭을 옮겨도 유지된다(감사 ⑤ 중7) */
+export interface SimulationState {
+  principalKrw: string;
+  aKey: string;
+  bKey: string;
+  aYield: string;
+  bYield: string;
+  buyDate: string;
+  sellYield: string;
+  sellDate: string;
+  fxRate: string;
+  trustFee: string;
+  buyPriceA: string;
+  sellPriceA: string;
+}
+
 interface Props {
   bonds: BondItem[];
   fx: FxRates | null;
+  state: SimulationState;
+  onChange: Dispatch<SetStateAction<SimulationState>>;
 }
 
 const box =
@@ -47,6 +65,25 @@ function defaultSellDate(from: Date): string {
   const d = new Date(from);
   d.setUTCFullYear(d.getUTCFullYear() + 1);
   return toISODate(d);
+}
+
+/** 기본 입력값 (오늘 기준). 초기화 버튼도 이것으로 되돌린다. */
+export function createSimulationState(): SimulationState {
+  const n = today();
+  return {
+    principalKrw: DEFAULT_PRINCIPAL_KRW,
+    aKey: "",
+    bKey: "",
+    aYield: "",
+    bYield: "",
+    buyDate: toISODate(n),
+    sellYield: "",
+    sellDate: defaultSellDate(n),
+    fxRate: "",
+    trustFee: DEFAULT_TRUST_FEE,
+    buyPriceA: "",
+    sellPriceA: "",
+  };
 }
 
 /**
@@ -225,7 +262,7 @@ function ScenarioCard({
   );
 }
 
-export function RollSwitchComparison({ bonds, fx }: Props) {
+export function RollSwitchComparison({ bonds, fx, state, onChange }: Props) {
   // 오늘은 마운트 시 한 번만 잡는다(렌더마다 today()를 만들면 defaultBondA
   // useMemo가 매 렌더 재계산됐다).
   const now = useMemo(() => today(), []);
@@ -234,35 +271,30 @@ export function RollSwitchComparison({ bonds, fx }: Props) {
     [bonds]
   );
 
-  const [principalKrw, setPrincipalKrw] = useState(DEFAULT_PRINCIPAL_KRW);
-  const [aKey, setAKey] = useState("");
-  const [bKey, setBKey] = useState("");
-  const [aYield, setAYield] = useState("");
-  const [bYield, setBYield] = useState("");
-  const [buyDate, setBuyDate] = useState(toISODate(now));
-  const [sellYield, setSellYield] = useState("");
-  const [sellDate, setSellDate] = useState(() => defaultSellDate(now));
-  const [fxRate, setFxRate] = useState("");
-  const [trustFee, setTrustFee] = useState(DEFAULT_TRUST_FEE);
-  const [buyPriceA, setBuyPriceA] = useState("");
-  const [sellPriceA, setSellPriceA] = useState("");
+  // 입력값은 상위(OrderConsole)가 보유 — 탭을 옮겨도 유지. 화면 구성은 그대로.
+  const {
+    principalKrw, aKey, bKey, aYield, bYield, buyDate,
+    sellYield, sellDate, fxRate, trustFee, buyPriceA, sellPriceA,
+  } = state;
+  const set =
+    <K extends keyof SimulationState>(key: K) =>
+    (v: SimulationState[K]) =>
+      onChange((prev) => ({ ...prev, [key]: v }));
+  const setPrincipalKrw = set("principalKrw");
+  const setAKey = set("aKey");
+  const setBKey = set("bKey");
+  const setAYield = set("aYield");
+  const setBYield = set("bYield");
+  const setBuyDate = set("buyDate");
+  const setSellYield = set("sellYield");
+  const setSellDate = set("sellDate");
+  const setFxRate = set("fxRate");
+  const setTrustFee = set("trustFee");
+  const setBuyPriceA = set("buyPriceA");
+  const setSellPriceA = set("sellPriceA");
 
   /** 모든 입력을 기본 세팅으로 되돌린다 */
-  const reset = () => {
-    const n = today();
-    setPrincipalKrw(DEFAULT_PRINCIPAL_KRW);
-    setAKey("");
-    setBKey("");
-    setAYield("");
-    setBYield("");
-    setBuyDate(toISODate(n));
-    setSellYield("");
-    setSellDate(defaultSellDate(n));
-    setFxRate("");
-    setTrustFee(DEFAULT_TRUST_FEE);
-    setBuyPriceA("");
-    setSellPriceA("");
-  };
+  const reset = () => onChange(createSimulationState());
 
   // 기본 보유종목(A) = 만기가 오늘로부터 3년 이상 남은 첫 종목(≈2029물). 최단물
   // (27년 등)은 만기가 곧이라 중도매도 후 갈아탈 구간이 거의 없어 기본값에서 뺀다.

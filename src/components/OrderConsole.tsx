@@ -11,7 +11,8 @@ import {
   type ExchangeState,
 } from "@/components/CurrencyExchange";
 import { SimulationPanel } from "@/components/SimulationPanel";
-import { DurationPanel } from "@/components/DurationPanel";
+import { createSimulationState } from "@/components/RollSwitchComparison";
+import { DurationPanel, createDurationState } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
 import { CashFlowPanel } from "@/components/CashFlowPanel";
@@ -88,6 +89,9 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     shareInput ? { ...createDefaultInput(), ...shareInput } : createDefaultInput()
   );
   const [cfLocked, setCfLocked] = useState<boolean>(isSharedLink);
+  // 시뮬레이션·민감도 입력값도 여기서 보유 — 탭을 옮겨도 유지(감사 ⑤ 중7)
+  const [simState, setSimState] = useState(createSimulationState);
+  const [durState, setDurState] = useState(createDurationState);
   // 가입 신청 팝업 (헤더 링크·트레이딩 안내·/?signup=1 에서 연다)
   const [signupOpen, setSignupOpen] = useState(openSignup);
   // 트레이딩 탭을 눌렀는데 로그인 전이면 로그인 팝업을 바로 띄운다
@@ -636,9 +640,13 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
         />
       )}
 
-      {tab === "simulation" && <SimulationPanel bonds={bonds} fx={fx} />}
+      {tab === "simulation" && (
+        <SimulationPanel bonds={bonds} fx={fx} state={simState} onChange={setSimState} />
+      )}
 
-      {tab === "duration" && <DurationPanel bonds={bonds} fx={fx} />}
+      {tab === "duration" && (
+        <DurationPanel bonds={bonds} fx={fx} state={durState} onChange={setDurState} />
+      )}
 
       <SignupDialog
         open={signupOpen}

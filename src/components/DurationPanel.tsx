@@ -1,15 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, useMemo } from "react";
 import { fmtNum } from "@/lib/format";
 import { bondRisk, shockReturn } from "@/lib/ntnfDuration";
 import { today } from "@/lib/ntnfPricing";
 import { holdToMaturityBrl } from "@/lib/ntnfSimulation";
 import type { BondItem, FxRates } from "@/lib/types";
 
+/** 민감도 입력값 — OrderConsole 이 보유해 탭을 옮겨도 유지된다(감사 ⑤ 중7) */
+export interface DurationState {
+  /** 금리변동 %p */
+  dy: number;
+  /** 환율변동 % */
+  dfx: number;
+  /** 쿠폰 재투자형 */
+  reinvest: boolean;
+}
+export function createDurationState(): DurationState {
+  return { dy: 1, dfx: 0, reinvest: false };
+}
+
 interface Props {
   bonds: BondItem[];
   fx: FxRates | null;
+  state: DurationState;
+  onChange: Dispatch<SetStateAction<DurationState>>;
 }
 
 function signColor(v: number) {
@@ -204,10 +219,13 @@ function FragmentVals({
   );
 }
 
-export function DurationPanel({ bonds, fx }: Props) {
-  const [dy, setDy] = useState(1); // 금리변동 %p
-  const [dfx, setDfx] = useState(0); // 환율변동 %
-  const [reinvest, setReinvest] = useState(false); // 쿠폰 재투자형
+export function DurationPanel({ bonds, fx, state, onChange }: Props) {
+  // 입력값은 상위(OrderConsole)가 보유 — 탭을 옮겨도 유지. 화면 구성은 그대로.
+  const { dy, dfx, reinvest } = state;
+  const setDy = (v: number) => onChange((p) => ({ ...p, dy: v }));
+  const setDfx = (v: number) => onChange((p) => ({ ...p, dfx: v }));
+  const setReinvest = (v: boolean) => onChange((p) => ({ ...p, reinvest: v }));
+  const reset = () => onChange(createDurationState());
 
   // 잔존만기 1년 미만은 듀레이션·시나리오 의미가 없어 제외 (한국 날짜 오늘+1년)
   const cutoff = useMemo(() => {
@@ -282,9 +300,19 @@ export function DurationPanel({ bonds, fx }: Props) {
   return (
     <div className="space-y-4">
     <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        금리/환율 민감도
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          금리/환율 민감도
+        </h2>
+        {/* 시뮬레이션 탭과 같은 초기화 버튼 — 슬라이더·재투자 체크를 기본값으로 */}
+        <button
+          type="button"
+          onClick={reset}
+          className="shrink-0 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          초기화
+        </button>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
