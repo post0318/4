@@ -42,10 +42,9 @@ import type { BondItem, FxRates } from "@/lib/types";
  * 시뮬레이션이 아예 뜨지 않아서다 — 가져올 것은 화면이 아니라 **로직**이라는
  * 결론(2026-09-17). 화면 구성은 「시뮬레이션 원본」 탭 그대로 4열 × 4행이다.
  *
- * 원본에 없던 헤알화환율·후취보수·현금성이율은 엔진이 반드시 요구하는 값이라
- * 격자 아래 줄에 덧붙였다. 표면이율(10%)·이자지급주기(6개월)·계산기준
- * (Business/252)·종합소득세율(15.4%)·과세여부(비과세)·롤오버 선취보수(0%)는
- * 브라질 국채에서 달라지지 않아 입력으로 두지 않는다.
+ * 표면이율(10%)·이자지급주기(6개월)·계산기준(Business/252)·종합소득세율
+ * (15.4%)·과세여부(비과세)·롤오버 선취보수(0%)·현금성이율(0%)은 브라질 국채에서
+ * 달라지지 않아 입력으로 두지 않는다.
  */
 
 interface Props {
@@ -88,22 +87,18 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * 화면 배치 — 4열 × 4행. `null`은 사용자가 지정한 빈칸이다.
- * 1·2열이 보유종목(A), 3·4열이 갈아탈 종목(B) 쪽으로 묶인다.
+ * 1·2열이 보유종목(A), 3·4열이 갈아탈 종목(B) 쪽으로 묶인다. 2행의 날짜는
+ * 각 종목을 사는 날이다 — A 는 최초투자시점, B 는 중도매도 시점에 산다.
  * 배치를 바꿀 때는 이 배열만 손대면 된다.
  */
 const SLOT_ORDER = [
-  "principal", "buyDate",   "sellDate", "trustFee",
-  "bondA",     null,        "bondB",    null,
-  "aYield",    "buyPriceA", "bYield",   "buyPriceB",
+  "principal", "trustFee",   "backFee", "fxRate",
+  "bondA",     "buyDate",    "bondB",   "sellDate",
+  "aYield",    "buyPriceA",  "bYield",  "buyPriceB",
   "sellYield", "sellPriceA", null,      null,
 ] as const;
 
-/** 위 격자에 자리가 없지만 엔진이 요구하는 공통 조건 */
-const EXTRA_ORDER = ["fxRate", "backFee", "cashRate"] as const;
-
-type SlotKey =
-  | Exclude<(typeof SLOT_ORDER)[number], null>
-  | (typeof EXTRA_ORDER)[number];
+type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
 
 export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   const sorted = useMemo(
@@ -195,7 +190,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
       // 갈아타기 선취보수는 원본과 같이 「신탁보수 선취」를 그대로 쓴다
       switchFrontFeePct: num(state.trustFee),
       backFeePct: num(state.backFee),
-      cashInterestPct: num(state.cashRate),
+      // 신탁 보유현금에는 이자를 붙이지 않는다(0%)
+      cashInterestPct: 0,
       comprehensiveTaxPct: COMPREHENSIVE_TAX_PCT,
       taxStatus: NTNF_TAX_STATUS,
       // 원본과 같이 단일환율 — 매수시점과 만기예상을 같게 본다
@@ -210,7 +206,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   }, [
     bondA, bondB, principalKrw, contractDate, fxRate,
     aYieldEff, bYieldEff, sellYieldEff,
-    state.trustFee, state.backFee, state.cashRate,
+    state.trustFee, state.backFee,
     state.sellDate,
   ]);
 
@@ -426,17 +422,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         />
       </Field>
     ),
-    cashRate: (
-      <Field label="현금성이율 (%, 연)">
-        <input
-          className={numInput}
-          inputMode="decimal"
-          value={state.cashRate}
-          onFocus={focusSelect}
-          onChange={(e) => set("cashRate")(clean(e.target.value))}
-        />
-      </Field>
-    ),
   };
 
   if (sorted.length === 0) return null;
@@ -507,19 +492,16 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           ))}
         </div>
 
-        <div className="grid gap-3 border-t border-zinc-100 pt-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-800">
-          {EXTRA_ORDER.map((k) => (
-            <div key={k}>{slots[k]}</div>
-          ))}
-        </div>
-
         {input && hold ? (
           <p className="text-[11px] leading-relaxed text-zinc-400">
             {contractDate} 투자 · 신탁원금 {fmtInt(principalKrw)}원 (선취{" "}
             {fmtNum(num(state.trustFee), 2)}%) → A {fmtInt((hold.legs[0]?.pricing.faceValue ?? 0) / NTNF_FACE)}
             좌 매수 · 매수단가 R${puBuyA != null ? fmtNum(puBuyA, 2) : "-"} · 환율{" "}
             {fmtNum(fxRate, 2)}원/헤알. <b>현금흐름 탭과 같은 엔진</b>이라 후취보수·
-            현금성이자·세금·경과이자의 원금 차감이 그대로 반영된다.
+            세금·경과이자의 원금 차감이 그대로 반영된다. 고정 전제 — 표면이율 10% ·
+            이자지급 6개월 · Business/252 · <b>비과세</b> ·{" "}
+            <b>현금성이율 0%</b>(보유현금에 이자를 붙이지 않는다) ·{" "}
+            <b>롤오버 선취보수 0%</b>(같은 신탁이 이어져 다시 떼지 않는다).
           </p>
         ) : (
           <p className="text-[11px] text-zinc-400">

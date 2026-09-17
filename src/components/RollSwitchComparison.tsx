@@ -38,8 +38,6 @@ export interface SimulationState {
   trustFee: string;
   /** 후취 신탁보수(%, 연) — 새 시뮬레이션 탭에서만 쓴다 */
   backFee: string;
-  /** 현금성이율(%, 연) — 새 시뮬레이션 탭에서만 쓴다 */
-  cashRate: string;
   buyPriceA: string;
   sellPriceA: string;
   /** B 매수가격(R$) 수기 지정 — 새 시뮬레이션 탭에서만 쓴다 */
@@ -90,7 +88,6 @@ export function createSimulationState(): SimulationState {
     fxRate: "",
     trustFee: DEFAULT_TRUST_FEE,
     backFee: "0.5",
-    cashRate: "0",
     buyPriceA: "",
     sellPriceA: "",
     buyPriceB: "",
