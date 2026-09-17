@@ -60,14 +60,16 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
   · `breakEvenReinvestPct` — 중도해지금을 남은 기간 연 몇 %로 굴려야
     만기보유와 같아지는가. **화면에는 내렸다**(오너 지시, 2026-09-17 —
     "억지로 재투자를 안하는데 재투자를 가정하는게 더 이상하다"). 함수는 남겨둔다.
-- `src/lib/ntnfSimulation.ts` — **옛 시뮬레이션 엔진**(「시뮬레이션 원본」 탭 전용).
-  채권 거래만 봐서 후취보수·세금·경과이자가 빠져 현금흐름 탭과 숫자가 어긋난다.
-  새 탭 검증이 끝나면 `RollSwitchComparisonOriginal` 과 함께 걷어낸다.
-  `holdToMaturityBrl` 은 `DurationPanel` 이 계속 쓴다
+- `src/lib/ntnfSimulation.ts` — `holdToMaturityBrl` 하나만 남았다(「금리/환율
+  민감도」 탭 전용). 옛 롤오버·갈아타기 계산과 「시뮬레이션 원본」 탭은
+  2026-09-17 에 삭제했다 — 채권 거래만 봐서 후취보수·세금·경과이자가 빠져
+  현금흐름 탭과 숫자가 어긋났다
+- `src/lib/simulationState.ts` — 시뮬레이션 탭 입력값 정의(`SimulationState`,
+  `createSimulationState`). `OrderConsole` 이 보유하고 sessionStorage 에 남긴다
 - `src/lib/ntnfDuration.ts` — PU 공식 수치미분으로 수정듀레이션·컨벡시티·DV01,
   금리·환율 쇼크 시 가격/원화가치 변동. `DurationPanel`
-- 탭: 시장정보 · 현금흐름 · 시뮬레이션 · 시뮬레이션 원본 · 금리/환율 민감도 ·
-  트레이딩 (`OrderConsole`, 기본 탭은 현금흐름)
+- 탭: 시장정보 · 현금흐름 · 시뮬레이션 · 금리/환율 민감도 · 트레이딩
+  (`OrderConsole`, 기본 탭은 현금흐름)
 - `src/components/TrustStrategyPanel.tsx` — 시뮬레이션 탭. 입력을 **자기가**
   받는다(현금흐름 탭을 참조하지 않는다 — 그 탭이 비어 있으면 아예 안 뜨던 문제).
   입력 격자는 4열 × 4행으로 오너가 지정한 배치다:

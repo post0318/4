@@ -14,11 +14,10 @@ import { TrustStrategyPanel } from "@/components/TrustStrategyPanel";
 import {
   createSimulationState,
   type SimulationState,
-} from "@/components/RollSwitchComparison";
+} from "@/lib/simulationState";
 
 /** 시뮬레이션 입력 보관 키 (탭 단위) */
 const SIM_STATE_KEY = "ntnf.simulation.v1";
-import { RollSwitchComparisonOriginal } from "@/components/RollSwitchComparisonOriginal";
 import { DurationPanel, createDurationState } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
@@ -91,7 +90,6 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     | "trading"
     | "cashflow"
     | "simulation"
-    | "simulation-orig"
     | "duration"
   >("cashflow"); // 첫 화면은 현금흐름 (고객 공유 링크도 동일)
 
@@ -467,7 +465,6 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     { key: "cashflow" as const, label: "현금흐름" },
     { key: "simulation" as const, label: "시뮬레이션" },
     // 현금흐름 기반으로 다시 만들기 전 계산을 보존한 사본. 같은 입력을 공유한다.
-    { key: "simulation-orig" as const, label: "시뮬레이션 원본" },
     { key: "duration" as const, label: "금리/환율 민감도" },
     { key: "trading" as const, label: "트레이딩" },
   ].filter((t) => !(hideTrading && t.key === "trading"));
@@ -694,15 +691,6 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
 
       {tab === "simulation" && (
         <TrustStrategyPanel
-          bonds={bonds}
-          fx={fx}
-          state={simState}
-          onChange={setSimState}
-        />
-      )}
-
-      {tab === "simulation-orig" && (
-        <RollSwitchComparisonOriginal
           bonds={bonds}
           fx={fx}
           state={simState}

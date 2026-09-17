@@ -32,7 +32,7 @@ import type { CalcBasis, CouponFrequency, TaxStatus } from "@/lib/cashflow/bondL
 import {
   createSimulationState,
   type SimulationState,
-} from "@/components/RollSwitchComparison";
+} from "@/lib/simulationState";
 import type { BondItem, FxRates } from "@/lib/types";
 
 /**
