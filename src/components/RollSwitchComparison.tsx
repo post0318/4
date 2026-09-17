@@ -36,6 +36,10 @@ export interface SimulationState {
   sellDate: string;
   fxRate: string;
   trustFee: string;
+  /** 롤오버 선취보수(%) — 새 시뮬레이션 탭에서만 쓴다 */
+  rollFee: string;
+  /** 갈아타기 선취보수(%) — 새 시뮬레이션 탭에서만 쓴다 */
+  switchFee: string;
   buyPriceA: string;
   sellPriceA: string;
 }
@@ -83,6 +87,8 @@ export function createSimulationState(): SimulationState {
     sellDate: defaultSellDate(n),
     fxRate: "",
     trustFee: DEFAULT_TRUST_FEE,
+    rollFee: "0",
+    switchFee: DEFAULT_TRUST_FEE,
     buyPriceA: "",
     sellPriceA: "",
   };

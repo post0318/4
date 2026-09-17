@@ -10,7 +10,7 @@ import {
   EMPTY_EXCHANGE,
   type ExchangeState,
 } from "@/components/CurrencyExchange";
-import { SimulationPanel } from "@/components/SimulationPanel";
+import { TrustStrategyPanel } from "@/components/TrustStrategyPanel";
 import { createSimulationState } from "@/components/RollSwitchComparison";
 import { RollSwitchComparisonOriginal } from "@/components/RollSwitchComparisonOriginal";
 import { DurationPanel, createDurationState } from "@/components/DurationPanel";
@@ -660,7 +660,12 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       )}
 
       {tab === "simulation" && (
-        <SimulationPanel bonds={bonds} fx={fx} state={simState} onChange={setSimState} />
+        <TrustStrategyPanel
+          bonds={bonds}
+          cashflow={cfInput}
+          state={simState}
+          onChange={setSimState}
+        />
       )}
 
       {tab === "simulation-orig" && (
