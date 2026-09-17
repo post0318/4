@@ -21,10 +21,8 @@ import { getSettlementDate } from "@/lib/cashflow/couponSchedule";
 import {
   simulateEarlyTermination,
   simulateHold,
-  simulateReinvestHold,
   simulateReinvestRollover,
   simulateReinvestSwitch,
-  simulateReinvestTermination,
   simulateRollover,
   simulateSwitch,
   type TrustSimInput,
@@ -499,18 +497,17 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
     )[0];
   }, [hold, roll, swi, term]);
 
-  // 재투자 기준 — 쿠폰으로 같은 종목을 더 사서 좌수를 불린다.
-  // 좌수 증가는 현금흐름 탭 재투자형을 그대로 따른다(오너 지시, 2026-09-17).
-  const reHold = useMemo(() => (input ? simulateReinvestHold(input) : null), [input]);
+  /**
+   * 재투자 기준 — 쿠폰으로 같은 종목을 더 사서 좌수를 불린다.
+   * 좌수 증가는 현금흐름 탭 재투자형을 그대로 따른다(오너 지시, 2026-09-17).
+   * 화면에는 **롤오버·갈아타기만** 둔다(오너 지시) — 재투자 여부가 갈리는
+   * 지점이 두 전략의 비교라서다. 엔진에는 만기보유·중도해지 재투자도 있다.
+   */
   const reRoll = useMemo(
     () => (input ? simulateReinvestRollover(input) : null),
     [input]
   );
   const reSwi = useMemo(() => (input ? simulateReinvestSwitch(input) : null), [input]);
-  const reTerm = useMemo(
-    () => (input ? simulateReinvestTermination(input) : null),
-    [input]
-  );
 
   const rollCard = useMemo(
     () => cardMetrics("rollover", "만기상환 후 롤오버", roll, fxRate, contractDate),
@@ -907,7 +904,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         </div>
 
         {/* 재투자 기준 — 반기지급형과 나란히 본다 */}
-        {(reHold || reRoll || reSwi || reTerm) && (
+        {(reRoll || reSwi) && (
           <div className="mt-2 space-y-2 overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
             <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
               재투자 기준{" "}
@@ -929,10 +926,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {(
                   [
-                    ["만기보유", reHold, hold],
                     ["롤오버", reRoll, roll],
                     ["갈아타기", reSwi, swi],
-                    ["중도해지", reTerm, term],
                   ] as const
                 ).map(([label, r, base]) => (
                   <tr key={label}>
