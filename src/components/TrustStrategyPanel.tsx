@@ -785,21 +785,13 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </div>
         ))}
 
-        {input && hold ? (
-          <p className="text-[11px] leading-relaxed text-zinc-400">
-            {contractDate} 투자 · 신탁원금 {fmtInt(principalKrw)}원 (선취{" "}
-            {fmtNum(num(state.trustFee), 2)}%) → A {fmtInt((hold.legs[0]?.pricing.faceValue ?? 0) / NTNF_FACE)}
-            좌 매수 · 매수단가 R${puBuyA != null ? fmtNum(puBuyA, 2) : "-"} · 환율{" "}
-            {fmtNum(fxRate, 2)}원/헤알. <b>현금흐름 탭과 같은 엔진</b>이라 후취보수·
-            세금·경과이자의 원금 차감이 그대로 반영된다. 고정 전제 — 표면이율 10% ·
-            이자지급 6개월 · Business/252 · <b>비과세</b> ·{" "}
-            <b>현금성이율 0%</b>(보유현금에 이자를 붙이지 않는다) ·{" "}
-            <b>롤오버 선취보수 0%</b>(같은 신탁이 이어져 다시 떼지 않는다).{" "}
-          <b>매도시 헤알화환율</b>이 결과를 바꾸는 것은 <b>중도해지</b>다 —
-          원화로 회수하고 끝나기 때문이다. 갈아타기는 같은 날 팔고 사므로 환전이
-          상쇄되고, 롤오버는 만기상환 헤알을 그대로 B 에 넣어 환전 자체가 없다.
-          </p>
-        ) : (
+        {/*
+          입력 요약·고정 전제 설명줄은 오너 지시로 걷어냈다(2026-09-17 —
+          "불필요한 주석 삭제"). 고정 전제(표면이율 10% · 이자지급 6개월 ·
+          Business/252 · 비과세 · 현금성이율 0% · 롤오버 선취보수 0%)와 환율
+          적용 규칙은 CLAUDE.md 와 이 파일 상단 주석에 남아 있다.
+        */}
+        {!input && (
           <p className="text-[11px] text-zinc-400">
             보유종목 · 신탁투자원금 · 헤알화환율을 채우면 계산된다.
           </p>
