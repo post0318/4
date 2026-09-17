@@ -337,7 +337,20 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
     (v: SimulationState[K]) =>
       onChange((prev) => ({ ...prev, [key]: v }));
 
-  const bondA = sorted.find((b) => b.maturityDate === state.aKey) ?? sorted[0];
+  /**
+   * 보유종목(A) 기본값 = 2029년 만기물(오너 지정, 2026-09-17). 최단물(27년)은
+   * 만기가 곧이라 중도매도 후 갈아탈 구간이 거의 없어 비교가 무의미하다.
+   * 2029물이 없으면 그다음으로 만기가 이른 종목.
+   */
+  const defaultBondA = useMemo(
+    () =>
+      sorted.find((b) => b.maturityDate.startsWith("2029")) ??
+      sorted.find((b) => b.maturityDate >= "2029") ??
+      sorted[0],
+    [sorted]
+  );
+  const bondA =
+    sorted.find((b) => b.maturityDate === state.aKey) ?? defaultBondA;
   const bondB =
     sorted.find((b) => b.maturityDate === state.bKey) ??
     sorted.find((b) => bondA && b.maturityDate > bondA.maturityDate);

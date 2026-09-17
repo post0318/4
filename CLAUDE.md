@@ -37,13 +37,43 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
   절사 배분, 잔동은 최대 종목 가산). 절사는 `format.ts`의 `truncDecimals`(부동소수
   표현오차 보정)
 - `src/lib/orderEmail.ts` — 주문 이메일 제목/본문 생성
-- `src/lib/ntnfSimulation.ts` — 신탁투자원금 기준 롤오버 vs 갈아타기 비교
-  (`simulateRollVsSwitch`). 좌수는 현금흐름 탭 로직대로 (원금−선취)÷환율÷PU 절사,
-  총기대수익률 = 증분효과 + 이자효과 + 잔돈. 쿠폰 재투자 없음, 단일환율.
-  `SimulationPanel`(→`RollSwitchComparison`). `holdToMaturityBrl`은 `DurationPanel`용
+- `src/lib/cashflow/trustSimulation.ts` — **현재 시뮬레이션 탭의 엔진**.
+  현금흐름 탭과 같은 `computeBondPricing` + `generateFixCashFlow` +
+  `computeMaturitySummary` 를 구간(leg)마다 돌려 네 전략을 비교한다:
+  만기보유 · 롤오버(A 만기상환 → B) · 갈아타기(A 중도매도 → B) · 중도해지.
+  후취보수·세금·경과이자의 원금 차감이 현금흐름 탭과 한 규칙으로 맞는다.
+  `simulateHold` 결과는 현금흐름 탭 숫자와 정확히 일치해야 한다(회귀 기준).
+  · `TrustLeg.rolloverKrw` = 마지막 회차 지급액(재투자 가능한 돈),
+    `paidOutKrw` = 도중 이미 지급된 쿠폰. **재투자는 rolloverKrw 만** 넣는다 —
+    반기지급형이라 중간 쿠폰은 신탁에 없다. 총수령액에는 paidOutKrw 를 더한다.
+  · 중도청산은 `cashFlowSchedule.ts` 의 `earlyExit` 입력으로 처리한다.
+    현금흐름 탭은 이 입력을 넣지 않아 결과가 그대로다(고객용 만기보유 자료).
+  · `breakEvenReinvestPct` — 중도해지금을 남은 기간 연 몇 %로 굴려야
+    만기보유와 같아지는가.
+- `src/lib/ntnfSimulation.ts` — **옛 시뮬레이션 엔진**(「시뮬레이션 원본」 탭 전용).
+  채권 거래만 봐서 후취보수·세금·경과이자가 빠져 현금흐름 탭과 숫자가 어긋난다.
+  새 탭 검증이 끝나면 `RollSwitchComparisonOriginal` 과 함께 걷어낸다.
+  `holdToMaturityBrl` 은 `DurationPanel` 이 계속 쓴다
 - `src/lib/ntnfDuration.ts` — PU 공식 수치미분으로 수정듀레이션·컨벡시티·DV01,
   금리·환율 쇼크 시 가격/원화가치 변동. `DurationPanel`
-- 탭: 시장정보 · 트레이딩 · 현금흐름 · 시뮬레이션 · 듀레이션 (`OrderConsole`)
+- 탭: 시장정보 · 현금흐름 · 시뮬레이션 · 시뮬레이션 원본 · 금리/환율 민감도 ·
+  트레이딩 (`OrderConsole`, 기본 탭은 현금흐름)
+- `src/components/TrustStrategyPanel.tsx` — 시뮬레이션 탭. 입력을 **자기가**
+  받는다(현금흐름 탭을 참조하지 않는다 — 그 탭이 비어 있으면 아예 안 뜨던 문제).
+  입력 격자는 4열 × 4행으로 오너가 지정한 배치다:
+  1행 신탁투자원금·신탁보수 선취·후취 신탁보수·헤알화환율 (아래는 점선 구분),
+  2행 보유종목A·최초투자시점·갈아탈종목B·중도매도 시점,
+  3행 A 매수수익률·A 매수가격·B 매수수익률·B 매수가격,
+  4행 A 중도매도수익률·A 매도가격.
+  매수가격·매도가격(R$)을 직접 넣으면 `impliedYieldFromBrazilPrice` 로 그 단가를
+  내는 수익률을 역산해 엔진에 넣는다(엔진이 수익률만 받기 때문).
+  고정값이라 입력에 두지 않는 것: 표면이율 10% · 이자지급 6개월 ·
+  Business/252 · 종합소득세율 15.4% · 과세여부 비과세 · 롤오버 선취보수 0% ·
+  현금성이율 0%. 화면 설명줄에 그대로 적어둔다.
+  **전략 카드가 이 탭의 핵심 화면**(오너 지시) — 좌수 증가 · 기간 막대 ·
+  총 기대수익률 · 4항 분해(만기효과A + 만기효과B + 증분효과 + 이자효과, 합이
+  총수익률과 일치) · A 청산단가/B 매수가격/기간. 증분효과가 잔차라 후취보수·
+  세금까지 떠안는다
 - `src/components/CurrencyExchange.tsx` — 환전금액(원화금액÷고시환율=달러금액).
   제어 컴포넌트, 원화금액이 종목별 원화투자금액 합계·달러 배분의 기준
 - `src/app/api/fx-rates` — USD/KRW·USD/BRL 조회, KRW/BRL 파생
