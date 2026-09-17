@@ -891,13 +891,30 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         */}
         {rows.some((x) => x.r && x.r.legs.length > 1) && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[11px]">
+            {/*
+              오너 질문 — "회수가 110인데 31년은 투입은 왜 101밖에?".
+              반기지급형이라 보유 중 쿠폰은 그때그때 고객에게 나간다. 다음 구간에
+              넣을 수 있는 돈은 「종료 시 수령」뿐이고, 「중간 쿠폰」은 이미 받은
+              돈이라 전략 총수령액에는 더해지지만 재투자되지는 않는다.
+            */}
+            <p className="mb-1.5 text-[11px] text-zinc-400">
+              다음 구간의 「투입 원금」은 앞 구간의 <b>「종료 시 수령」</b>이다 —
+              보유 중 받은 「중간 쿠폰」은 그때그때 지급돼 신탁에 남지 않으므로
+              재투자되지 않는다(반기지급형). 합계 = 중간 쿠폰 + 종료 시 수령.
+            </p>
+            <table className="w-full min-w-[860px] table-fixed text-[11px]">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  <th className="py-1.5 pr-3 font-medium">구간 내역</th>
-                  <th className="py-1.5 pr-3 font-medium">종목 · 기간</th>
-                  <th className="py-1.5 pr-3 text-right font-medium">투입 원금</th>
-                  <th className="py-1.5 text-right font-medium">회수</th>
+                  <th className="w-[14%] py-1.5 pr-3 font-medium">구간 내역</th>
+                  <th className="w-[30%] py-1.5 pr-3 font-medium">종목 · 기간</th>
+                  <th className="w-[14%] py-1.5 pr-3 text-right font-medium">투입 원금</th>
+                  <th className="w-[14%] py-1.5 pr-3 text-right font-medium">
+                    중간 쿠폰
+                  </th>
+                  <th className="w-[14%] py-1.5 pr-3 text-right font-medium">
+                    종료 시 수령
+                  </th>
+                  <th className="w-[14%] py-1.5 text-right font-medium">합계</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -920,6 +937,14 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                         </td>
                         <td className="py-1.5 pr-3 text-right tabular-nums">
                           {fmtInt(l.principalKrw)}원
+                        </td>
+                        {/* 보유 중 이미 지급돼 나간 쿠폰 — 신탁에 없으므로 다음 구간에 못 넣는다 */}
+                        <td className="py-1.5 pr-3 text-right tabular-nums text-zinc-500">
+                          {fmtInt(l.paidOutKrw)}원
+                        </td>
+                        {/* 이 금액이 다음 줄의 「투입 원금」이 된다 */}
+                        <td className="py-1.5 pr-3 text-right font-medium tabular-nums">
+                          {fmtInt(l.rolloverKrw)}원
                         </td>
                         <td className="py-1.5 text-right tabular-nums">
                           {fmtInt(l.recoveredKrw)}원
