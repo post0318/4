@@ -798,11 +798,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </p>
         )}
 
-        {/*
-          여기부터가 결과다 — 입력부(옅은 배경)와 실선으로 가른다
-          (오너 지시, 2026-09-17 "전략부터를 구분하자").
-        */}
-        <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         {/* 전략 카드 — 시뮬레이션의 핵심 화면. 원본 구성 그대로 */}
         <div className="grid gap-3 sm:grid-cols-2">
           <ScenarioCard
@@ -827,8 +822,13 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           />
         </div>
 
-        {/* 전략 카드와 눈으로 갈리게 표를 박스에 넣는다(오너 지시, 2026-09-17) */}
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+        {/*
+          입력부와 전략 카드까지가 한 덩어리고, 4전략 비교표부터 따로 뗀다
+          (오너 지시, 2026-09-17 — "입력부랑 전략카드는 같이",
+          "4전략 비교표를 박스 구분"). 테두리 박스 자체가 구분이라 선은 따로
+          두지 않고 위쪽 여백만 준다.
+        */}
+        <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
           {/*
             table-fixed — 전략 열만 넓게(두 줄이라 접힌다), 나머지 여섯 열은
             같은 너비로 나눈다(오너 지시, 2026-09-17). 22% + 13%×6 = 100%.
@@ -895,67 +895,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           「복리 최고」 = 복리(연) 열 최고값, 이 엔진은 쿠폰을 재투자하지 않는다 —
           셋 다 CLAUDE.md 에 남겨둔다.
         */}
-        {rows.some((x) => x.r && x.r.legs.length > 1) && (
-          <div className="overflow-x-auto">
-            {/*
-              오너 질문 — "회수가 110인데 31년은 투입은 왜 101밖에?",
-              "야기 그러면 회수는 101 107이잖아".
-              구간 전체 수령액(합계) 열이 다음 구간 원금과 어긋나 보여 혼란을
-              만들었다. 그 열을 빼고 「종료 시 회수」만 둔다 — 구간이 끝날 때
-              실제로 손에 들어오는 돈이고 그대로 다음 구간 원금이 된다.
-              전략 총수령액은 위 4전략 표가 이미 보여준다.
-            */}
-            <table className="w-full min-w-[820px] table-fixed text-[11px]">
-              <thead>
-                <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  <th className="w-[14%] py-1.5 pr-3 font-medium">구간 내역</th>
-                  <th className="w-[40%] py-1.5 pr-3 font-medium">종목 · 기간</th>
-                  <th className="w-[15%] py-1.5 pr-3 text-right font-medium">투입 원금</th>
-                  <th className="w-[15%] py-1.5 pr-3 text-right font-medium">
-                    기지급이자
-                  </th>
-                  <th className="w-[16%] py-1.5 text-right font-medium">
-                    종료 시 회수
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {rows
-                  .filter((x) => x.r && x.r.legs.length > 1)
-                  .flatMap(({ label, r }) =>
-                    r!.legs.map((l, i) => (
-                      <tr key={`${label}-${i}`}>
-                        <td className="py-1.5 pr-3 text-zinc-500">
-                          {i === 0 ? label : ""}
-                        </td>
-                        <td className="py-1.5 pr-3 text-zinc-600 dark:text-zinc-400">
-                          {l.bondMaturity} · {l.contractDate} → {l.endDate}
-                          {l.exitPrice != null && (
-                            <span className="text-zinc-400">
-                              {" "}
-                              (매도 R${fmtNum(l.exitPrice, 2)})
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-1.5 pr-3 text-right tabular-nums">
-                          {fmtInt(l.principalKrw)}원
-                        </td>
-                        {/* 보유 중 이미 지급된 이자 — 신탁에 없으므로 다음 구간에 못 넣는다 */}
-                        <td className="py-1.5 pr-3 text-right tabular-nums text-zinc-500">
-                          {fmtInt(l.paidOutKrw)}원
-                        </td>
-                        {/* 이 금액이 다음 줄의 「투입 원금」이 된다 */}
-                        <td className="py-1.5 text-right font-medium tabular-nums">
-                          {fmtInt(l.rolloverKrw)}원
-                        </td>
-                      </tr>
-                    ))
-                  )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        </div>
       </section>
 
       <CashFlowDisclaimer />
