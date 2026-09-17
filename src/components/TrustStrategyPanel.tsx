@@ -508,6 +508,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
     [input]
   );
   const reSwi = useMemo(() => (input ? simulateReinvestSwitch(input) : null), [input]);
+  /** 재투자 기준에서 총수익률이 높은 쪽 (원본 탭과 같은 「우세」 표시) */
+  const reWin = useMemo(() => {
+    if (!reRoll || !reSwi) return null;
+    return reRoll.totalReturnPct >= reSwi.totalReturnPct ? "롤오버" : "갈아타기";
+  }, [reRoll, reSwi]);
 
   const rollCard = useMemo(
     () => cardMetrics("rollover", "만기상환 후 롤오버", roll, fxRate, contractDate),
@@ -915,12 +920,14 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             <table className="w-full min-w-[760px] table-fixed text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  <th className="w-[22%] py-1.5 pr-3 font-medium">전략</th>
-                  <th className="w-[20%] py-1.5 pr-3 font-medium">좌수 (최초 → 종료)</th>
+                  <th className="w-[16%] py-1.5 pr-3 font-medium">전략</th>
+                  <th className="w-[30%] py-1.5 pr-3 font-medium">
+                    좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
+                  </th>
                   <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                  <th className="w-[13%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                  <th className="w-[13%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                  <th className="w-[16%] py-1.5 text-right font-medium">반기지급 대비</th>
+                  <th className="w-[12%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                  <th className="w-[12%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                  <th className="w-[14%] py-1.5 text-right font-medium">반기지급 대비</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -931,13 +938,27 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                   ] as const
                 ).map(([label, r, base]) => (
                   <tr key={label}>
-                    <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">{label}</td>
+                    <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                      {label}
+                      {reWin === label && (
+                        <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                          우세
+                        </span>
+                      )}
+                    </td>
                     {r ? (
                       <>
+                        {/* 원본 탭과 같은 4단계 표기 — 최초 → 청산직전 → 갈아탄직후 → 만기 */}
                         <td className="py-2 pr-3 tabular-nums text-zinc-600 dark:text-zinc-400">
-                          {r.legs
-                            .map((l) => `${fmtInt(l.startUnits)}→${fmtInt(l.endUnits)}`)
-                            .join(" / ")}
+                          {[
+                            r.legs[0]?.startUnits,
+                            r.legs[0]?.endUnits,
+                            r.legs[1]?.startUnits,
+                            r.legs[1]?.endUnits,
+                          ]
+                            .filter((u): u is number => u != null)
+                            .map((u) => fmtInt(u))
+                            .join(" → ")}
                           좌
                         </td>
                         <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
