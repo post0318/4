@@ -7,11 +7,13 @@ import {
 import {
   FREQUENCY_MONTHS,
   addMonths,
+  getSettlementDate,
   getTrustMaturityLeadDays,
 } from "@/lib/cashflow/couponSchedule";
 import {
   anbimaCouponFactor,
   computeBondPricing,
+  computeBrazilDirtyPrice,
   roundDown,
 } from "@/lib/cashflow/bondPricing";
 import { isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
@@ -43,6 +45,14 @@ export interface CashFlowRow {
    */
   maturityPayout?: number;
   /**
+   * 중도청산 회차에 한해, 그날 회수하는 총액 — 청산대금 + 세후 쿠폰·현금이자
+   * + 반환 보유현금 − 청산 시점까지의 후취보수. 만기와 달리 신탁만기일
+   * 리드타임(11일)은 붙지 않는다(2026-09-17 결정).
+   */
+  exitPayout?: number;
+  /** 중도청산 단가 (거래통화, per 좌) — 표시용 */
+  exitPrice?: number;
+  /**
    * 첫 이표 회차에 되돌려받는, 매수 시 선지급한 경과이자(음수). "원금" 열에
    * 괄호로 표시하는 용도의 표시값이다(월지급표의 원금 차감분과 동일 취급).
    * 이미 interest/netAmount 에 반영돼 있으므로 요약·수익률 계산에는 쓰지 않는다.
@@ -50,6 +60,18 @@ export interface CashFlowRow {
   principalReturn?: number;
 }
 
+
+/**
+ * 중도청산(갈아타기·중도해지) 입력. 넣으면 만기까지 가지 않고 이 날짜에 멈춰
+ * 그 시점 매도수익률로 평가한 단가로 회수한다. 시뮬레이션 전용이며 현금흐름
+ * 탭은 넣지 않는다(고객용 만기보유 자료라 성격이 흐려진다 — 2026-09-17 결정).
+ */
+export interface EarlyExitInput {
+  /** 중도청산일 "YYYY-MM-DD" */
+  date: string;
+  /** 청산 시점 매도수익률 (연 %) — 이 금리로 그날 단가를 구해 평가한다 */
+  sellYieldPct: number;
+}
 
 export interface CashFlowScheduleInputs {
   maturityDate: string;
@@ -68,6 +90,8 @@ export interface CashFlowScheduleInputs {
   backFeeRate: string;
   cashInterestRate: string;
   taxStatus: TaxStatus;
+  /** 중도청산 — 없으면 만기보유(현금흐름 탭 기본 동작, 결과 불변) */
+  earlyExit?: EarlyExitInput;
   /**
    * 신탁만기일 수기 지정(YYYY-MM-DD). 비우면 자동(만기일 + 리드타임 11일).
    * 지정하면 (지정일 − 만기일) 이 리드타임이 되어 투자일수·만기청산 후취보수·
@@ -75,6 +99,9 @@ export interface CashFlowScheduleInputs {
    */
   trustMaturityDate?: string;
 }
+
+/** 브라질 국채 1좌 액면 (ANBIMA 관행) */
+const FACE_PER_UNIT = 1000;
 
 function daysBetween(a: Date, b: Date): number {
   const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -124,6 +151,19 @@ export function generateFixCashFlow(
   }
   if (dates.length === 0) return null;
 
+  // 중도청산: 청산 결제일까지의 이표만 받고, 그 뒤 청산 회차를 덧붙인다.
+  const exitSettle = input.earlyExit
+    ? getSettlementDate(input.earlyExit.date)
+    : null;
+  if (input.earlyExit && !exitSettle) return null;
+  if (exitSettle) {
+    if (toTime(exitSettle) <= toTime(new Date(pricing.settlementDate))) return null; // 매수 결제일 이전
+    if (toTime(exitSettle) >= toTime(maturity)) return null; // 만기 이후면 만기보유
+  }
+  const scheduleDates = exitSettle
+    ? dates.filter((d) => toTime(d) <= toTime(exitSettle))
+    : dates;
+
   // 브라질 국채(Business/252)는 표면금리를 단순 나눗셈이 아니라 복리로 환산한
   // 반기 실효쿠폰을 지급한다(연 10% → 반기 4.880885%, ANBIMA 6자리).
   const couponAmount = roundDown(
@@ -153,7 +193,7 @@ export function generateFixCashFlow(
   // 만기까지 불변이다. 월 지급 단계에서는 부분지급 잔액이 회차마다 합산된다.
   const runningCashBalance = pricing.cashBalance;
 
-  dates.forEach((date, index) => {
+  scheduleDates.forEach((date, index) => {
     const isMaturity = toTime(date) === toTime(maturity);
     const principal = truncByCurrency(isMaturity ? pricing.faceValue * maturityFxRate : 0);
     const interest = truncByCurrency(couponAmount);
@@ -247,6 +287,59 @@ export function generateFixCashFlow(
     // 첫 이표 회차에서 경과이자를 돌려받았으므로 다음 회차부터 후취보수 기준 원금을 줄인다
     if (index === 0) principalBase -= preOwnedInterest;
   });
+
+  if (exitSettle && input.earlyExit) {
+    // 중도청산 회차 — 직전 이표일(없으면 신탁계약일)부터 청산 결제일까지.
+    // 후취보수는 청산일까지만, 리드타임은 붙이지 않는다.
+    // 청산단가 — 매수단가와 같은 ANBIMA 식으로 구한다(현금흐름 탭과 동일 함수)
+    const exitPu = computeBrazilDirtyPrice(
+      exitSettle,
+      maturity,
+      rate,
+      Number(input.earlyExit.sellYieldPct) / 100,
+      FACE_PER_UNIT,
+      input.couponFrequency
+    );
+    if (exitPu == null || exitPu <= 0) return null;
+
+    const stubDays = daysBetween(periodStart, exitSettle);
+    const cashInterest = truncByCurrency(
+      (runningCashBalance * (cashInterestRate / 100) / 365) * stubDays
+    );
+    const backFeeThisPeriod =
+      (principalBase * (backFeeRate / 100) / 365) * stubDays;
+    const availableBackFee = carryBackFeeResidual + backFeeThisPeriod;
+    const totalDeduction = carryFrontFee + availableBackFee;
+
+    // 청산대금 = 보유 액면 ÷ 1,000 × 청산단가 (거래통화) → 수탁통화 환산
+    const unitsHeld = pricing.faceValue / FACE_PER_UNIT;
+    const proceeds = truncByCurrency(unitsHeld * exitPu * maturityFxRate);
+
+    // 청산대금에 섞인 경과이자는 채권이자 성격이라 과세여부를 따른다.
+    // 보유 구간 현금이자는 언제나 과세(CASH_INTEREST_TAX_RATE).
+    const cashTaxBase = Math.max(0, cashInterest - totalDeduction);
+    const incomeTaxRaw = cashTaxBase * CASH_INTEREST_TAX_RATE;
+    const incomeTax = isKrw
+      ? roundDown(incomeTaxRaw, -1)
+      : roundDown(incomeTaxRaw, 2);
+    const netAmount = truncByCurrency(
+      cashInterest - backFeeThisPeriod - incomeTax
+    );
+
+    rows.push({
+      date: exitSettle.toISOString().slice(0, 10),
+      principal: proceeds,
+      cashBalance: truncByCurrency(runningCashBalance),
+      interest: 0,
+      cashInterest,
+      taxableIncome: cashInterest,
+      taxBase: truncByCurrency(cashTaxBase),
+      incomeTax,
+      netAmount,
+      exitPrice: exitPu,
+      exitPayout: truncByCurrency(proceeds + netAmount + runningCashBalance),
+    });
+  }
 
   return rows;
 }
