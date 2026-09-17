@@ -218,6 +218,44 @@ export function BondLayoutForm({
   // 매수시점환율 포커스 시점 값 — blur 때 실제로 바뀐 경우에만 만기환율을 동기화.
   const purchaseFxAtFocusRef = useRef<string>("");
 
+  // 환율 자동 채움. 예전에는 종목 검색창이 종목 선택 뒤 비동기로 받아 콜백으로
+  // 넘겨줬는데, 그 콜백에 걸린 마운트·선택순번 가드에 막히면 조용히 누락됐다
+  // (사용자 지적 2026-09-17: 종목·금리는 채워지는데 환율만 빈칸).
+  // 여기서 직접 조회하면 비어 있을 때마다 스스로 채우고, 실패해도 다음 기회에
+  // 다시 시도한다. 사용자가 이미 입력한 값은 건드리지 않는다.
+  const needFx =
+    value.tradeCurrency !== value.custodyCurrency &&
+    !!value.maturityDate &&
+    value.purchaseFxRate.trim() === "" &&
+    !locked &&
+    !lockToggleDisabled;
+  const fxFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!needFx || fxFetchedRef.current) return;
+    fxFetchedRef.current = true;
+    let cancelled = false;
+    fetch(
+      `/api/cashflow/fx-rate?base=${value.tradeCurrency}&quote=${value.custodyCurrency}`
+    )
+      .then((r) => r.json())
+      .then((d: { rate?: number | null }) => {
+        if (cancelled || typeof d.rate !== "number") return;
+        const rate = String(d.rate);
+        onChange((prev) =>
+          // 그 사이 사용자가 직접 넣었으면 덮어쓰지 않는다
+          prev.purchaseFxRate.trim() === ""
+            ? { ...prev, purchaseFxRate: rate, maturityFxRate: rate }
+            : prev
+        );
+      })
+      .catch(() => {
+        fxFetchedRef.current = false; // 실패 시 재시도 허용
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needFx, value.tradeCurrency, value.custodyCurrency, onChange]);
+
   const update = <K extends keyof BondLayoutInput>(
     key: K,
     val: BondLayoutInput[K]

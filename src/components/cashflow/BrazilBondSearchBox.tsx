@@ -158,19 +158,8 @@ export function BrazilBondSearchBox({
       })
       .catch(() => {});
 
-    // 거래통화(BRL)와 수탁통화(KRW)가 달라 환율을 직접 입력해야 하는데,
-    // ECB 기준 무료 공개 API(Frankfurter.dev)로 현재 환율을 조회해 매수/만기
-    // 환율의 기본값으로 채워 넣는다(investing.com은 봇 차단으로 서버에서
-    // 조회 불가). 사용자가 필요하면 직접 수정할 수 있다.
-    fetch("/api/cashflow/fx-rate?base=BRL&quote=KRW")
-      .then((res) => res.json())
-      .then((data: { rate?: number | null }) => {
-        if (typeof data.rate === "number") {
-          const rate = String(data.rate);
-          applyLater({ purchaseFxRate: rate, maturityFxRate: rate });
-        }
-      })
-      .catch(() => {});
+    // 환율은 폼(BondLayoutForm)이 직접 조회해 채운다 — 여기서 비동기 콜백으로
+    // 넘기면 마운트·선택순번 가드에 막혀 조용히 누락될 수 있었다.
   };
 
   // 현금흐름 진입 시 기본 종목: 2037년 만기(없으면 최장만기)를 자동 반영
