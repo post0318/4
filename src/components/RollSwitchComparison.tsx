@@ -22,6 +22,7 @@ import {
   type RollSwitchLeg,
   type RollSwitchReinvestLeg,
 } from "@/lib/ntnfSimulation";
+import type { TaxStatus } from "@/lib/cashflow/bondLayout";
 import type { BondItem, FxRates } from "@/lib/types";
 
 /** 시뮬레이션 입력값 — OrderConsole 이 보유해 탭을 옮겨도 유지된다(감사 ⑤ 중7) */
@@ -38,10 +39,16 @@ export interface SimulationState {
   trustFee: string;
   /** 롤오버 선취보수(%) — 새 시뮬레이션 탭에서만 쓴다 */
   rollFee: string;
-  /** 갈아타기 선취보수(%) — 새 시뮬레이션 탭에서만 쓴다 */
-  switchFee: string;
+  /** 후취 신탁보수(%, 연) — 새 시뮬레이션 탭에서만 쓴다 */
+  backFee: string;
+  /** 현금성이율(%, 연) — 새 시뮬레이션 탭에서만 쓴다 */
+  cashRate: string;
+  /** 과세여부 — 새 시뮬레이션 탭에서만 쓴다 */
+  taxStatus: TaxStatus;
   buyPriceA: string;
   sellPriceA: string;
+  /** B 매수가격(R$) 수기 지정 — 새 시뮬레이션 탭에서만 쓴다 */
+  buyPriceB: string;
 }
 
 interface Props {
@@ -88,9 +95,12 @@ export function createSimulationState(): SimulationState {
     fxRate: "",
     trustFee: DEFAULT_TRUST_FEE,
     rollFee: "0",
-    switchFee: DEFAULT_TRUST_FEE,
+    backFee: "0.5",
+    cashRate: "0",
+    taxStatus: "비과세",
     buyPriceA: "",
     sellPriceA: "",
+    buyPriceB: "",
   };
 }
 

@@ -11,7 +11,10 @@ import {
   computeMaturitySummary,
   type MaturitySummary,
 } from "@/lib/cashflow/maturitySummary";
-import { getInvestmentDays } from "@/lib/cashflow/couponSchedule";
+import {
+  getInvestmentDays,
+  getTrustMaturityDate,
+} from "@/lib/cashflow/couponSchedule";
 import type { CalcBasis, CouponFrequency, TaxStatus } from "@/lib/cashflow/bondLayout";
 
 /**
@@ -203,6 +206,10 @@ function wrap(input: TrustSimInput, legs: TrustLeg[]): TrustStrategyResult | nul
   const total = last.recoveredKrw;
   const days =
     getInvestmentDays(input.contractDate, last.bondMaturity) ?? 0;
+  // 종료일은 채권 만기일이 아니라 **신탁만기일**(만기 + 리드타임 11일)이다.
+  // 투자일수를 신탁만기까지 세면서 종료일만 채권 만기로 찍으면 두 칸이 서로
+  // 다른 날을 가리킨다.
+  const trustMaturity = getTrustMaturityDate(last.bondMaturity);
   const ret = total / input.principalKrw - 1;
   return {
     legs,
@@ -213,7 +220,7 @@ function wrap(input: TrustSimInput, legs: TrustLeg[]): TrustStrategyResult | nul
         ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
         : null,
     days,
-    endDate: last.endDate,
+    endDate: trustMaturity ?? last.endDate,
   };
 }
 
@@ -259,21 +266,8 @@ export function simulateRollover(
   );
   if (!legB) return null;
 
-  // 전체 기간은 최초 계약일 ~ B 신탁만기일
-  const days = getInvestmentDays(input.contractDate, input.bondB.maturityDate) ?? 0;
-  const total = legB.recoveredKrw;
-  const ret = total / input.principalKrw - 1;
-  return {
-    legs: [legA, legB],
-    totalReceivedKrw: total,
-    totalReturnPct: ret * 100,
-    cagrPct:
-      days > 0 && total > 0
-        ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
-        : null,
-    days,
-    endDate: legB.endDate,
-  };
+  // 전체 기간은 최초 계약일 ~ B 신탁만기일 — wrap 이 그렇게 센다
+  return wrap(input, [legA, legB]);
 }
 
 /**
@@ -313,19 +307,7 @@ export function simulateSwitch(
   );
   if (!legB) return null;
 
-  const days = getInvestmentDays(input.contractDate, input.bondB.maturityDate) ?? 0;
-  const total = legB.recoveredKrw;
-  return {
-    legs: [legA, legB],
-    totalReceivedKrw: total,
-    totalReturnPct: (total / input.principalKrw - 1) * 100,
-    cagrPct:
-      days > 0 && total > 0
-        ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
-        : null,
-    days,
-    endDate: legB.endDate,
-  };
+  return wrap(input, [legA, legB]);
 }
 
 /** 두 날짜 사이 일수 (YYYY-MM-DD) */

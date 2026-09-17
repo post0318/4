@@ -662,7 +662,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
       {tab === "simulation" && (
         <TrustStrategyPanel
           bonds={bonds}
-          cashflow={cfInput}
+          fx={fx}
           state={simState}
           onChange={setSimState}
         />

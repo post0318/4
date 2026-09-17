@@ -1,9 +1,23 @@
 "use client";
 
-import { type Dispatch, type FocusEvent, type SetStateAction, useMemo } from "react";
+import {
+  type Dispatch,
+  type FocusEvent,
+  type ReactNode,
+  type SetStateAction,
+  useMemo,
+} from "react";
 import { CashFlowDisclaimer } from "@/components/cashflow/CashFlowDisclaimer";
-import { fmtInt, fmtNum, normalizeDecimalInput } from "@/lib/format";
-import { toISODate, today } from "@/lib/ntnfPricing";
+import {
+  digitsOnly,
+  fmtInt,
+  fmtNum,
+  groupDigits,
+  normalizeDecimalInput,
+} from "@/lib/format";
+import { parseIsoDate, toISODate, today } from "@/lib/ntnfPricing";
+import { impliedYieldFromBrazilPrice } from "@/lib/cashflow/bondPricing";
+import { getSettlementDate } from "@/lib/cashflow/couponSchedule";
 import {
   breakEvenReinvestPct,
   simulateEarlyTermination,
@@ -13,31 +27,39 @@ import {
   type TrustSimInput,
   type TrustStrategyResult,
 } from "@/lib/cashflow/trustSimulation";
-import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
+import type { CalcBasis, CouponFrequency, TaxStatus } from "@/lib/cashflow/bondLayout";
 import {
   createSimulationState,
   type SimulationState,
 } from "@/components/RollSwitchComparison";
-import type { BondItem } from "@/lib/types";
+import type { BondItem, FxRates } from "@/lib/types";
 
 /**
- * 시뮬레이션 탭 — **현금흐름 탭과 같은 엔진**으로 네 전략을 비교한다.
+ * 시뮬레이션 탭 — **현금흐름 탭과 같은 엔진**(`trustSimulation`)으로 네 전략을
+ * 비교한다.
  *
- * 신탁 조건(원금·보수율·현금성이율·과세여부·세율·환율·표면이율·이자지급주기·
- * 신탁계약일)은 현금흐름 탭 입력을 그대로 가져온다. 여기서 따로 받으면 두 탭이
- * 어긋나기 때문이다(2026-09-17 결정). 이 탭에서는 전략에만 필요한 값
- * (보유종목·갈아탈 종목·각 수익률·청산 시점·청산 수수료)만 받는다.
+ * 입력은 이 탭이 직접 받는다. 현금흐름 탭 입력을 참조하면 그 탭을 채우기 전에는
+ * 시뮬레이션이 아예 뜨지 않아서다 — 가져올 것은 화면이 아니라 **로직**이라는
+ * 결론(2026-09-17). 화면 구성은 「시뮬레이션 원본」 탭 그대로 4열 × 4행이다.
  *
- * 정리 전 계산은 「시뮬레이션 원본」 탭에 보존돼 있다.
+ * 원본에 없던 후취보수·현금성이율·과세여부는 엔진이 반드시 요구하는 값이라
+ * 마지막 행에 덧붙였다. 표면이율(10%)·이자지급주기(6개월)·계산기준
+ * (Business/252)·종합소득세율(15.4%)은 NTN-F 고정값이라 입력으로 두지 않는다.
  */
 
 interface Props {
   bonds: BondItem[];
-  /** 현금흐름 탭 입력 — 신탁 조건의 단일 출처 */
-  cashflow: BondLayoutInput;
+  fx: FxRates | null;
   state: SimulationState;
   onChange: Dispatch<SetStateAction<SimulationState>>;
 }
+
+/** NTN-F 고정 제원 — 종목을 바꿔도 달라지지 않는다 */
+const NTNF_COUPON_PCT = 10;
+const NTNF_FREQUENCY: CouponFrequency = "6개월";
+const NTNF_BASIS: CalcBasis = "Business/252";
+const NTNF_FACE = 1000;
+const COMPREHENSIVE_TAX_PCT = 15.4;
 
 const box =
   "w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100";
@@ -50,27 +72,37 @@ const num = (s: string, fallback = 0) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+    <label className="block">
+      <span className="mb-1 block text-xs text-zinc-500 dark:text-zinc-400">
         {label}
-        {hint && <span className="text-zinc-400"> {hint}</span>}
       </span>
       {children}
     </label>
   );
 }
 
-export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) {
+/**
+ * 화면 배치 — 4열 × 4행. `null`은 사용자가 지정한 빈칸이다.
+ * 1·2열이 보유종목(A), 3·4열이 갈아탈 종목(B) 쪽으로 묶인다.
+ * 배치를 바꿀 때는 이 배열만 손대면 된다.
+ */
+const SLOT_ORDER = [
+  "principal", "buyDate",   "sellDate", "trustFee",
+  "bondA",     null,        "bondB",    null,
+  "aYield",    "buyPriceA", "bYield",   "buyPriceB",
+  "sellYield", "sellPriceA", null,      null,
+] as const;
+
+/** 위 격자에 자리가 없지만 엔진이 요구하는 공통 조건 */
+const EXTRA_ORDER = ["fxRate", "rollFee", "backFee", "cashRate", "taxStatus"] as const;
+
+type SlotKey =
+  | Exclude<(typeof SLOT_ORDER)[number], null>
+  | (typeof EXTRA_ORDER)[number];
+
+export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   const sorted = useMemo(
     () => [...bonds].sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)),
     [bonds]
@@ -85,50 +117,97 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
     sorted.find((b) => b.maturityDate === state.bKey) ??
     sorted.find((b) => bondA && b.maturityDate > bondA.maturityDate);
 
-  const contractDate = cashflow.trustContractDate || toISODate(today());
-  const principalKrw = num(cashflow.trustInvestmentAmount);
-  const purchaseFx = num(cashflow.purchaseFxRate);
-  const maturityFx = num(cashflow.maturityFxRate, purchaseFx);
+  const contractDate = state.buyDate || toISODate(today());
+  const principalKrw = num(state.principalKrw);
+  const liveFx = fx?.krwBrl ?? null;
+  const fxRate = state.fxRate !== "" ? num(state.fxRate) : (liveFx ?? 0);
+
+  /** 단가(R$)를 직접 넣었으면 그 단가를 내는 수익률로 역산해 엔진에 넣는다 */
+  const yieldFromPrice = (
+    settleFrom: string,
+    maturityDate: string | undefined,
+    price: string
+  ): number | null => {
+    const p = num(price, NaN);
+    if (!Number.isFinite(p) || p <= 0 || !maturityDate) return null;
+    const settle = getSettlementDate(settleFrom);
+    const mat = parseIsoDate(maturityDate);
+    if (!settle || !mat) return null;
+    const y = impliedYieldFromBrazilPrice(
+      settle,
+      mat,
+      NTNF_COUPON_PCT / 100,
+      p,
+      NTNF_FACE,
+      NTNF_FREQUENCY
+    );
+    return y == null ? null : y * 100;
+  };
+
+  const aYieldEff = useMemo(() => {
+    const fromPrice = yieldFromPrice(contractDate, bondA?.maturityDate, state.buyPriceA);
+    if (fromPrice != null) return fromPrice;
+    if (state.aYield !== "") return num(state.aYield, NaN);
+    return bondA?.buyYieldPct ?? NaN;
+     
+  }, [contractDate, bondA?.maturityDate, state.buyPriceA, state.aYield, bondA?.buyYieldPct]);
+
+  /**
+   * B 매수가격의 기준일 — 갈아타기면 중도매도 시점, 아니면 롤오버 시점(A 만기).
+   * 두 전략이 B를 사는 날이 달라 한 칸으로는 둘 다 못 맞춘다. 중도매도 시점을
+   * 넣었으면 갈아타기를 보고 있다고 보고 그쪽에 맞춘다.
+   */
+  const bBuyFrom = state.sellDate || bondA?.maturityDate || contractDate;
+
+  const bYieldEff = useMemo(() => {
+    const fromPrice = yieldFromPrice(bBuyFrom, bondB?.maturityDate, state.buyPriceB);
+    if (fromPrice != null) return fromPrice;
+    if (state.bYield !== "") return num(state.bYield, NaN);
+    return bondB?.buyYieldPct ?? NaN;
+     
+  }, [bBuyFrom, bondB?.maturityDate, state.buyPriceB, state.bYield, bondB?.buyYieldPct]);
+
+  const sellYieldEff = useMemo(() => {
+    const fromPrice = yieldFromPrice(state.sellDate, bondA?.maturityDate, state.sellPriceA);
+    if (fromPrice != null) return fromPrice;
+    if (state.sellYield !== "") return num(state.sellYield, NaN);
+    return aYieldEff;
+     
+  }, [state.sellDate, bondA?.maturityDate, state.sellPriceA, state.sellYield, aYieldEff]);
 
   const input: TrustSimInput | null = useMemo(() => {
-    if (!bondA || !(principalKrw > 0) || !(purchaseFx > 0)) return null;
-    const aY = state.aYield !== "" ? num(state.aYield) : (bondA.buyYieldPct ?? NaN);
-    if (!Number.isFinite(aY)) return null;
-    const bY =
-      state.bYield !== ""
-        ? num(state.bYield)
-        : (bondB?.buyYieldPct ?? NaN);
+    if (!bondA || !(principalKrw > 0) || !(fxRate > 0)) return null;
+    if (!Number.isFinite(aYieldEff)) return null;
     return {
       principalKrw,
       contractDate,
-      bondA: { maturityDate: bondA.maturityDate, purchaseYieldPct: aY },
+      bondA: { maturityDate: bondA.maturityDate, purchaseYieldPct: aYieldEff },
       bondB:
-        bondB && Number.isFinite(bY)
-          ? { maturityDate: bondB.maturityDate, purchaseYieldPct: bY }
+        bondB && Number.isFinite(bYieldEff)
+          ? { maturityDate: bondB.maturityDate, purchaseYieldPct: bYieldEff }
           : undefined,
-      frontFeePct: num(cashflow.frontFeeRate),
+      frontFeePct: num(state.trustFee),
       rolloverFrontFeePct: num(state.rollFee),
-      switchFrontFeePct: num(state.switchFee),
-      backFeePct: num(cashflow.backFeeRate),
-      cashInterestPct: num(cashflow.cashInterestRate),
-      comprehensiveTaxPct: num(cashflow.incomeTaxRate, 15.4),
-      taxStatus: cashflow.taxStatus,
-      purchaseFxRate: purchaseFx,
-      maturityFxRate: maturityFx > 0 ? maturityFx : purchaseFx,
-      couponRatePct: num(cashflow.couponRate, 10),
-      couponFrequency: cashflow.couponFrequency,
-      calcBasis: cashflow.calcBasis,
+      // 갈아타기 선취보수는 원본과 같이 「신탁보수 선취」를 그대로 쓴다
+      switchFrontFeePct: num(state.trustFee),
+      backFeePct: num(state.backFee),
+      cashInterestPct: num(state.cashRate),
+      comprehensiveTaxPct: COMPREHENSIVE_TAX_PCT,
+      taxStatus: state.taxStatus,
+      // 원본과 같이 단일환율 — 매수시점과 만기예상을 같게 본다
+      purchaseFxRate: fxRate,
+      maturityFxRate: fxRate,
+      couponRatePct: NTNF_COUPON_PCT,
+      couponFrequency: NTNF_FREQUENCY,
+      calcBasis: NTNF_BASIS,
       exitDate: state.sellDate || undefined,
-      exitSellYieldPct:
-        state.sellYield !== "" ? num(state.sellYield) : Number.isFinite(aY) ? aY : undefined,
+      exitSellYieldPct: Number.isFinite(sellYieldEff) ? sellYieldEff : undefined,
     };
   }, [
-    bondA, bondB, principalKrw, contractDate, purchaseFx, maturityFx,
-    cashflow.frontFeeRate, cashflow.backFeeRate, cashflow.cashInterestRate,
-    cashflow.incomeTaxRate, cashflow.taxStatus, cashflow.couponRate,
-    cashflow.couponFrequency, cashflow.calcBasis,
-    state.aYield, state.bYield, state.sellDate, state.sellYield,
-    state.rollFee, state.switchFee,
+    bondA, bondB, principalKrw, contractDate, fxRate,
+    aYieldEff, bYieldEff, sellYieldEff,
+    state.trustFee, state.rollFee, state.backFee, state.cashRate,
+    state.taxStatus, state.sellDate,
   ]);
 
   const hold = useMemo(() => (input ? simulateHold(input) : null), [input]);
@@ -138,11 +217,12 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
     () => (input ? simulateEarlyTermination(input) : null),
     [input]
   );
-  // 참고 표시용 단가 — 원본 탭처럼 회색 자리값으로 보여준다
+
+  // 입력칸 자리값으로 보여줄 엔진 계산 단가
   const puBuyA = hold?.legs[0]?.pricing.dirtyPrice ?? null;
   const puSellA = swi?.legs[0]?.exitPrice ?? term?.legs[0]?.exitPrice ?? null;
   const puBuyB =
-    roll?.legs[1]?.pricing.dirtyPrice ?? swi?.legs[1]?.pricing.dirtyPrice ?? null;
+    swi?.legs[1]?.pricing.dirtyPrice ?? roll?.legs[1]?.pricing.dirtyPrice ?? null;
 
   const breakEven = useMemo(
     () => (term && hold ? breakEvenReinvestPct(term, hold) : null),
@@ -161,6 +241,222 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
       (a[1]!.cagrPct ?? -Infinity) >= (b[1]!.cagrPct ?? -Infinity) ? a : b
     )[0];
   }, [hold, roll, swi]);
+
+  const slots: Record<SlotKey, ReactNode> = {
+    bondA: (
+      <Field label="보유종목 (A)">
+        <select
+          className={box}
+          value={bondA?.maturityDate ?? ""}
+          onChange={(e) => {
+            set("aKey")(e.target.value);
+            onChange((prev) => ({
+              ...prev,
+              aYield: "",
+              buyPriceA: "",
+              sellPriceA: "",
+            }));
+          }}
+        >
+          {sorted.map((b) => (
+            <option key={b.maturityDate} value={b.maturityDate}>
+              {b.nameKo}
+            </option>
+          ))}
+        </select>
+      </Field>
+    ),
+    buyDate: (
+      <Field label="최초투자시점">
+        <input
+          className={box}
+          type="date"
+          value={state.buyDate}
+          max={bondA?.maturityDate}
+          onChange={(e) => set("buyDate")(e.target.value)}
+        />
+      </Field>
+    ),
+    aYield: (
+      <Field label="A 매수수익률 (%)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          value={state.aYield !== "" ? state.aYield : (bondA?.buyYieldPct?.toString() ?? "")}
+          onFocus={focusSelect}
+          onChange={(e) => set("aYield")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    buyPriceA: (
+      <Field label="A 매수가격 (R$, 선택)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          placeholder={puBuyA != null ? fmtNum(puBuyA, 2) : "자동"}
+          value={state.buyPriceA}
+          onFocus={focusSelect}
+          onChange={(e) => set("buyPriceA")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    principal: (
+      <Field label="신탁투자원금 (원)">
+        <input
+          className={numInput}
+          inputMode="numeric"
+          value={groupDigits(state.principalKrw)}
+          onFocus={focusSelect}
+          onChange={(e) => set("principalKrw")(digitsOnly(e.target.value))}
+        />
+      </Field>
+    ),
+    sellDate: (
+      <Field label="중도매도 시점">
+        <input
+          className={box}
+          type="date"
+          value={state.sellDate}
+          min={state.buyDate || toISODate(today())}
+          max={bondA?.maturityDate}
+          onChange={(e) => set("sellDate")(e.target.value)}
+        />
+      </Field>
+    ),
+    sellYield: (
+      <Field label="A 중도매도수익률 (%)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          placeholder={Number.isFinite(aYieldEff) ? fmtNum(aYieldEff, 2) : ""}
+          value={state.sellYield}
+          onFocus={focusSelect}
+          onChange={(e) => set("sellYield")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    sellPriceA: (
+      <Field label="A 매도가격 (R$, 선택)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          placeholder={puSellA != null ? fmtNum(puSellA, 2) : "자동"}
+          value={state.sellPriceA}
+          onFocus={focusSelect}
+          onChange={(e) => set("sellPriceA")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    bondB: (
+      <Field label="갈아탈 종목 (B)">
+        <select
+          className={box}
+          value={bondB?.maturityDate ?? ""}
+          onChange={(e) => {
+            set("bKey")(e.target.value);
+            onChange((prev) => ({ ...prev, bYield: "", buyPriceB: "" }));
+          }}
+        >
+          {sorted.map((b) => (
+            <option key={b.maturityDate} value={b.maturityDate}>
+              {b.nameKo}
+            </option>
+          ))}
+        </select>
+      </Field>
+    ),
+    bYield: (
+      <Field label="B 매수수익률 (%)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          value={state.bYield !== "" ? state.bYield : (bondB?.buyYieldPct?.toString() ?? "")}
+          onFocus={focusSelect}
+          onChange={(e) => set("bYield")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    buyPriceB: (
+      <Field label="B 매수가격 (R$, 선택)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          placeholder={puBuyB != null ? fmtNum(puBuyB, 2) : "자동"}
+          value={state.buyPriceB}
+          onFocus={focusSelect}
+          onChange={(e) => set("buyPriceB")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    trustFee: (
+      <Field label="신탁보수 선취 (%)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          value={state.trustFee}
+          onFocus={focusSelect}
+          onChange={(e) => set("trustFee")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    fxRate: (
+      <Field label="헤알화환율 (원/헤알)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          placeholder={liveFx ? fmtNum(liveFx, 2) : ""}
+          value={state.fxRate}
+          onFocus={focusSelect}
+          onChange={(e) => set("fxRate")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    rollFee: (
+      <Field label="롤오버 선취보수 (%)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          value={state.rollFee}
+          onFocus={focusSelect}
+          onChange={(e) => set("rollFee")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    backFee: (
+      <Field label="후취 신탁보수 (%, 연)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          value={state.backFee}
+          onFocus={focusSelect}
+          onChange={(e) => set("backFee")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    cashRate: (
+      <Field label="현금성이율 (%, 연)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          value={state.cashRate}
+          onFocus={focusSelect}
+          onChange={(e) => set("cashRate")(clean(e.target.value))}
+        />
+      </Field>
+    ),
+    taxStatus: (
+      <Field label="과세여부">
+        <select
+          className={box}
+          value={state.taxStatus}
+          onChange={(e) => set("taxStatus")(e.target.value as TaxStatus)}
+        >
+          <option value="비과세">비과세</option>
+          <option value="일반과세">일반과세</option>
+        </select>
+      </Field>
+    ),
+  };
 
   if (sorted.length === 0) return null;
 
@@ -186,20 +482,20 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
     {
       key: "switch",
       label: "갈아타기",
-      note: "A 중도청산 → B 매수",
+      note: "A 중도매도 → B 매수",
       r: swi,
       unavailable: !state.sellDate
-        ? "중도청산 시점을 입력하세요."
+        ? "중도매도 시점을 입력하세요."
         : bondA && state.sellDate >= bondA.maturityDate
-          ? "청산 시점이 A 만기 이후입니다."
+          ? "중도매도 시점이 A 만기 이후입니다."
           : undefined,
     },
     {
       key: "term",
       label: "중도해지",
-      note: "A 중도청산으로 종료",
+      note: "A 중도매도로 종료",
       r: term,
-      unavailable: !state.sellDate ? "중도청산 시점을 입력하세요." : undefined,
+      unavailable: !state.sellDate ? "중도매도 시점을 입력하세요." : undefined,
     },
   ];
 
@@ -222,129 +518,33 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
           </button>
         </div>
 
-        <p className="text-[11px] leading-relaxed text-zinc-400">
-          현금흐름 탭과 같은 엔진으로 계산한다 — 후취보수·현금성이자·세금·환율·
-          경과이자의 원금 차감이 그대로 반영된다. 원금 {fmtInt(principalKrw)}원 ·
-          선취 {fmtNum(num(cashflow.frontFeeRate), 2)}% · 후취{" "}
-          {fmtNum(num(cashflow.backFeeRate), 2)}% · 현금성{" "}
-          {fmtNum(num(cashflow.cashInterestRate), 2)}% · {cashflow.taxStatus} ·
-          환율 매수 {fmtNum(purchaseFx, 2)} / 만기 {fmtNum(maturityFx, 2)} ·
-          계약일 {contractDate} 은 <b>현금흐름 탭 설정</b>을 따른다.
-        </p>
-
-        {/* 원본 탭과 같은 4열 배치 — 행마다 (종목/시점) · 수익률 · 단가 · 보수 */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="보유종목 (A)">
-            <select
-              className={box}
-              value={bondA?.maturityDate ?? ""}
-              onChange={(e) => set("aKey")(e.target.value)}
-            >
-              {sorted.map((b) => (
-                <option key={b.maturityDate} value={b.maturityDate}>
-                  {b.nameKo}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="A 매수수익률 (%)" hint="비우면 시세">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              placeholder={bondA?.buyYieldPct != null ? fmtNum(bondA.buyYieldPct, 2) : "자동"}
-              value={state.aYield}
-              onFocus={focusSelect}
-              onChange={(e) => set("aYield")(clean(e.target.value))}
-            />
-          </Field>
-          <Field label="A 매수가격 (R$)" hint="계산값">
-            <input
-              className={`${numInput} text-zinc-400`}
-              readOnly
-              value={puBuyA != null ? fmtNum(puBuyA, 2) : ""}
-              placeholder="자동계산"
-            />
-          </Field>
-          <Field label="롤오버 선취보수 (%)">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              value={state.rollFee}
-              onFocus={focusSelect}
-              onChange={(e) => set("rollFee")(clean(e.target.value))}
-            />
-          </Field>
-
-          <Field label="중도청산 시점" hint="갈아타기·중도해지">
-            <input
-              className={box}
-              type="date"
-              value={state.sellDate}
-              max={bondA?.maturityDate}
-              onChange={(e) => set("sellDate")(e.target.value)}
-            />
-          </Field>
-          <Field label="A 매도수익률 (%)" hint="비우면 매수와 동일">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              placeholder={state.aYield || (bondA?.buyYieldPct != null ? fmtNum(bondA.buyYieldPct, 2) : "자동")}
-              value={state.sellYield}
-              onFocus={focusSelect}
-              onChange={(e) => set("sellYield")(clean(e.target.value))}
-            />
-          </Field>
-          <Field label="A 매도가격 (R$)" hint="계산값">
-            <input
-              className={`${numInput} text-zinc-400`}
-              readOnly
-              value={puSellA != null ? fmtNum(puSellA, 2) : ""}
-              placeholder="자동계산"
-            />
-          </Field>
-          <Field label="갈아타기 선취보수 (%)">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              value={state.switchFee}
-              onFocus={focusSelect}
-              onChange={(e) => set("switchFee")(clean(e.target.value))}
-            />
-          </Field>
-
-          <Field label="갈아탈 종목 (B)">
-            <select
-              className={box}
-              value={bondB?.maturityDate ?? ""}
-              onChange={(e) => set("bKey")(e.target.value)}
-            >
-              <option value="">선택 안 함</option>
-              {sorted.map((b) => (
-                <option key={b.maturityDate} value={b.maturityDate}>
-                  {b.nameKo}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="B 매수수익률 (%)" hint="비우면 시세">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              placeholder={bondB?.buyYieldPct != null ? fmtNum(bondB.buyYieldPct, 2) : "자동"}
-              value={state.bYield}
-              onFocus={focusSelect}
-              onChange={(e) => set("bYield")(clean(e.target.value))}
-            />
-          </Field>
-          <Field label="B 매수가격 (R$)" hint="계산값">
-            <input
-              className={`${numInput} text-zinc-400`}
-              readOnly
-              value={puBuyB != null ? fmtNum(puBuyB, 2) : ""}
-              placeholder="자동계산"
-            />
-          </Field>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {SLOT_ORDER.map((k, i) => (
+            <div key={k ?? `blank-${i}`} className={k ? undefined : "hidden lg:block"}>
+              {k ? slots[k] : null}
+            </div>
+          ))}
         </div>
+
+        <div className="grid gap-3 border-t border-zinc-100 pt-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-800">
+          {EXTRA_ORDER.map((k) => (
+            <div key={k}>{slots[k]}</div>
+          ))}
+        </div>
+
+        {input && hold ? (
+          <p className="text-[11px] leading-relaxed text-zinc-400">
+            {contractDate} 투자 · 신탁원금 {fmtInt(principalKrw)}원 (선취{" "}
+            {fmtNum(num(state.trustFee), 2)}%) → A {fmtInt((hold.legs[0]?.pricing.faceValue ?? 0) / NTNF_FACE)}
+            좌 매수 · 매수단가 R${puBuyA != null ? fmtNum(puBuyA, 2) : "-"} · 환율{" "}
+            {fmtNum(fxRate, 2)}원/헤알. <b>현금흐름 탭과 같은 엔진</b>이라 후취보수·
+            현금성이자·세금·경과이자의 원금 차감이 그대로 반영된다.
+          </p>
+        ) : (
+          <p className="text-[11px] text-zinc-400">
+            보유종목 · 신탁투자원금 · 헤알화환율을 채우면 계산된다.
+          </p>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-xs">
@@ -437,7 +637,7 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
                           {l.exitPrice != null && (
                             <span className="text-zinc-400">
                               {" "}
-                              (청산 R${fmtNum(l.exitPrice, 2)})
+                              (매도 R${fmtNum(l.exitPrice, 2)})
                             </span>
                           )}
                         </td>

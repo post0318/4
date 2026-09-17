@@ -447,3 +447,43 @@ export function computeBondPricing(
     cashBalance,
   };
 }
+
+/**
+ * 브라질식 단가(PU, dirty)에서 수익률을 역산한다 — `computeBrazilDirtyPrice`의
+ * 역함수. 수익률이 오르면 단가가 내려가는 단조성을 이용한 이분법이다.
+ *
+ * 시뮬레이션에서 「A 매수가격(R$)」처럼 단가를 직접 지정했을 때, 그 단가를 내는
+ * 수익률로 바꿔 엔진에 넣기 위해 쓴다. 엔진이 수익률만 받기 때문에 가격을
+ * 따로 흘려보내면 현금흐름 탭과 규칙이 갈라진다(2026-09-17 결정).
+ * 기존 `impliedYieldFromPrice`는 엑셀 PRICE 방식이라 여기엔 쓸 수 없다.
+ */
+export function impliedYieldFromBrazilPrice(
+  settlement: Date,
+  maturity: Date,
+  annualRate: number,
+  targetPrice: number,
+  redemption: number,
+  frequency: CouponFrequency
+): number | null {
+  if (settlement >= maturity) return null;
+  if (!(targetPrice > 0)) return null;
+
+  const priceAt = (y: number) =>
+    computeBrazilDirtyPrice(settlement, maturity, annualRate, y, redemption, frequency);
+
+  let lo = -0.5; // 단가 상한
+  let hi = 2; // 단가 하한
+  const priceLo = priceAt(lo);
+  const priceHi = priceAt(hi);
+  if (priceLo == null || priceHi == null) return null;
+  if (!(priceLo >= targetPrice && targetPrice >= priceHi)) return null; // 범위 밖
+
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    const priceMid = priceAt(mid);
+    if (priceMid == null) return null;
+    if (priceMid > targetPrice) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
