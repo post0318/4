@@ -899,12 +899,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
               실제로 손에 들어오는 돈이고 그대로 다음 구간 원금이 된다.
               전략 총수령액은 위 4전략 표가 이미 보여준다.
             */}
-            <p className="mb-1.5 text-[11px] text-zinc-400">
-              「종료 시 회수」는 구간이 끝날 때 실제로 손에 들어오는 돈이고, 그대로
-              다음 구간의 「투입 원금」이 된다. 「기지급이자」는 보유 중 반기마다
-              이미 지급된 이자라 신탁에 남지 않아 재투자되지 않는다. 전략 총수령액은
-              위 표에 있다.
-            </p>
             <table className="w-full min-w-[820px] table-fixed text-[11px]">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
