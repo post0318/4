@@ -970,9 +970,10 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                         <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                           {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                         </td>
+                        {/* 원본처럼 총수익률 차이를 %p 로 (오너 지시, 2026-09-17) */}
                         <td className="py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
                           {base
-                            ? `+${fmtInt(r.totalReceivedKrw - base.totalReceivedKrw)}원`
+                            ? `${pct(r.totalReturnPct - base.totalReturnPct, 2)}p`
                             : "-"}
                         </td>
                       </>
