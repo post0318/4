@@ -19,7 +19,6 @@ import { parseIsoDate, toISODate, today } from "@/lib/ntnfPricing";
 import { impliedYieldFromBrazilPrice } from "@/lib/cashflow/bondPricing";
 import { getSettlementDate } from "@/lib/cashflow/couponSchedule";
 import {
-  breakEvenReinvestPct,
   simulateEarlyTermination,
   simulateHold,
   simulateRollover,
@@ -477,16 +476,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   const puBuyB =
     swi?.legs[1]?.pricing.dirtyPrice ?? roll?.legs[1]?.pricing.dirtyPrice ?? null;
 
-  const breakEven = useMemo(
-    () => (term && hold ? breakEvenReinvestPct(term, hold) : null),
-    [term, hold]
-  );
-
   /**
    * 「복리 최고」 배지 — 말 그대로 복리(연) 열에서 가장 높은 전략에 붙인다.
    * 중도해지를 빼고 뽑던 것을 고쳤다(오너 지적, 2026-09-17 — "중도해지가
    * 복리수익률이 높은데?"). 기간이 짧을수록 복리가 높게 나오기 쉽다는 한계는
-   * 표 아래 설명과 「중도해지 판단」 문장이 따로 짚는다.
+   * 표 아래 설명과 「기간」 열이 짚는다.
    */
   const best = useMemo(() => {
     const cands = [
@@ -885,20 +879,10 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </table>
         </div>
 
-        {term && hold && breakEven != null && (
-          <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            <b>중도해지 판단</b> — {term.endDate} 에 해지하면 {fmtInt(term.totalReceivedKrw)}
-            원을 받습니다. 그 돈을 남은 {fmtInt(hold.days - term.days)}일 동안 연{" "}
-            <b>{fmtNum(breakEven, 2)}%</b> 넘게 굴릴 수 있어야 만기까지 보유하는
-            것보다 낫습니다.
-          </p>
-        )}
-
         <p className="text-[11px] leading-relaxed text-zinc-400">
           「복리 최고」는 복리(연) 열에서 가장 높다는 뜻일 뿐이다 — <b>기간이
-          짧을수록 복리는 높게 나오기 쉽다</b>. 중도해지가 복리 최고로 뽑혔다면
-          그 돈을 남은 기간에 어떻게 굴릴지까지 봐야 하며, 그 기준이 바로 위의
-          「중도해지 판단」이다. 「단리(연)」는 총수익률 × 365 ÷ 투자일수로, <b>현금흐름 탭의 「세후수익률」과
+          짧을수록 복리는 높게 나오기 쉽다</b>. 기간 열을 함께 봐야 한다.
+          「단리(연)」는 총수익률 × 365 ÷ 투자일수로, <b>현금흐름 탭의 「세후수익률」과
           같은 기준</b>이라 만기보유끼리 맞춰 볼 수 있다. 다만 종료 시점이 전략마다
           달라 전략 사이 우열은 「복리(연)」로 견준다. 이 엔진은 반기지급형이라 <b>쿠폰을 재투자하지 않는다</b>. 받은
           쿠폰을 다시 굴리면 일찍 옮겨 탄 쪽(갈아타기)이 유리해질 수 있다.
