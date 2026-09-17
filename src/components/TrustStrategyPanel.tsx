@@ -314,13 +314,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * 화면 배치 — 4열 × 4행. `null`은 사용자가 지정한 빈칸이다.
- * 1·2열이 보유종목(A), 3·4열이 갈아탈 종목(B) 쪽으로 묶인다. 2행의 날짜는
- * 각 종목을 사는 날이다 — A 는 최초투자시점, B 는 중도매도 시점에 산다.
+ * 1·2열이 보유종목(A), 3·4열이 갈아탈 종목(B) 쪽으로 묶인다. 2행은
+ * 보유종목A · 최초투자시점 · 중도매도 시점 · 갈아탈 종목B 순이다(오너 지정).
  * 배치를 바꿀 때는 이 배열만 손대면 된다.
  */
 const SLOT_ORDER = [
   "principal", "trustFee",   "backFee", "fxRate",
-  "bondA",     "buyDate",    "bondB",   "sellDate",
+  "bondA",     "buyDate",    "sellDate", "bondB",
   "aYield",    "buyPriceA",  "bYield",  "buyPriceB",
   "sellYield", "sellPriceA", null,      null,
 ] as const;
