@@ -35,6 +35,8 @@ export interface MaturitySummary {
   investedPrincipal: number;
   totalInterest: number;
   postTaxMaturityAmount: number;
+  /** 신탁 전 기간에 투자자가 실제 수령하는 세후 총액 (수익률 분자) */
+  totalReceived: number;
   postTaxYield: number;
   /**
    * 세후 복리수익률(CAGR) = (총수령액/원금)^(365/투자일수) − 1.
@@ -121,6 +123,7 @@ export function computeMaturitySummary(
     investedPrincipal,
     totalInterest,
     postTaxMaturityAmount,
+    totalReceived,
     postTaxYield,
     postTaxCagr:
       principal > 0 && investmentDays > 0 && totalReceived > 0
