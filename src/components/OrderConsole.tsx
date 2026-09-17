@@ -50,13 +50,20 @@ import type { BondItem, BondSearchResponse, FxRates, QuoteFreshness } from "@/li
 interface OrderConsoleProps {
   /** 서버가 해석한 공유 링크. 링크가 아니면 null. */
   share: ShareResolution | null;
+  /** 고객 모드 링크 열람자 IP (워터마크용). 서버가 요청 헤더에서 읽는다. */
+  viewerIp?: string | null;
   /** 트레이딩 탭 가입·사용이 허용되는 회사 이메일 도메인 */
   allowedDomains: string[];
   /** `/?signup=1` — 가입 신청 폼을 바로 연다 */
   openSignup?: boolean;
 }
 
-export function OrderConsole({ share, allowedDomains, openSignup = false }: OrderConsoleProps) {
+export function OrderConsole({
+  share,
+  viewerIp = null,
+  allowedDomains,
+  openSignup = false,
+}: OrderConsoleProps) {
   // 트레이딩 탭·주문 발송은 승인된 회사 계정만 (감사 ⑤ 치명1). 서버 API 도 같은 기준.
   const auth = useAppAuth();
   const tradingUnlocked = auth.enabled && auth.isSignedIn && auth.allowed === true;
@@ -471,7 +478,7 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
 
   return (
     <div className="print-page mx-auto grid max-w-6xl gap-5 p-4 sm:p-6">
-      {hideTrading && <ClientViewGuard issued={clientIssued} />}
+      {hideTrading && <ClientViewGuard issued={clientIssued} viewerIp={viewerIp} />}
       {shareProblem && (
         <p
           role="alert"
