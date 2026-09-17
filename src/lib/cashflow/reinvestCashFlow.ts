@@ -15,6 +15,7 @@ import {
   FREQUENCY_PER_YEAR,
   addMonths,
   getInvestmentDays,
+  getSettlementDate,
 } from "@/lib/cashflow/couponSchedule";
 import {
   anbimaCouponFactor,
@@ -70,6 +71,28 @@ export interface ReinvestCashFlowInputs {
    * 만기 구간 현금성이자에 모두 반영된다.
    */
   trustMaturityDate?: string;
+  /**
+   * 중도청산(갈아타기·중도해지). 넣으면 만기까지 가지 않고 이 날짜에 멈춰
+   * 그때까지 불어난 좌수를 청산단가로 평가해 회수한다. 시뮬레이션 전용이며
+   * 현금흐름 탭은 넣지 않아 결과가 그대로다(2026-09-17).
+   */
+  earlyExit?: {
+    date: string;
+    sellYieldPct: number;
+    /** 청산 시점 환율. 비우면 만기예상환율 */
+    fxRate?: number;
+  };
+}
+
+export interface ReinvestExitResult {
+  /** 청산 결제일 */
+  date: string;
+  /** 청산 시점 보유 좌수 (재투자로 불어난 결과) */
+  units: number;
+  /** 청산단가 (R$, per 좌) */
+  pu: number;
+  /** 청산 회수액 (수탁통화) — 좌수 평가액 + 잔여현금 − 청산까지의 후취보수 */
+  recoveredKrw: number;
 }
 
 export interface ReinvestCashFlowSummary {
@@ -107,6 +130,8 @@ export interface ReinvestCashFlowSummary {
 export interface ReinvestCashFlowResult {
   rows: ReinvestCashFlowRow[];
   summary: ReinvestCashFlowSummary;
+  /** 중도청산을 넣었을 때만 채워진다 (그때는 summary 의 만기값을 쓰지 않는다) */
+  exit?: ReinvestExitResult;
   /** 최초 매수 좌수 */
   initialUnits: number;
   /** 최초 매수단가(PU, R$) */
@@ -165,6 +190,19 @@ export function generateReinvestCashFlow(
   }
   if (dates.length === 0) return null;
 
+  // 중도청산: 청산 결제일까지만 재투자하고 그 시점 단가로 평가해 회수한다.
+  const exitSettle = input.earlyExit
+    ? getSettlementDate(input.earlyExit.date)
+    : null;
+  if (input.earlyExit && !exitSettle) return null;
+  if (exitSettle) {
+    if (toTime(exitSettle) <= toTime(settlement)) return null; // 매수 결제일 이전
+    if (toTime(exitSettle) >= toTime(maturity)) return null; // 만기 이후면 만기보유
+  }
+  const scheduleDates = exitSettle
+    ? dates.filter((d) => toTime(d) <= toTime(exitSettle))
+    : dates;
+
   let units = Math.round(pricing.faceValue / FACE); // 최초 좌수
   const initialUnits = units;
   // 매수 후 남은 현금잔액(원화 표시)은 BRL로 전환해 첫 재투자 재원으로 쓴다.
@@ -172,7 +210,7 @@ export function generateReinvestCashFlow(
   let totalCouponBrl = 0;
   const rows: ReinvestCashFlowRow[] = [];
 
-  dates.forEach((date) => {
+  scheduleDates.forEach((date) => {
     const isMaturity = toTime(date) === toTime(maturity);
     const unitsBefore = units;
     const cashBrlBefore = cashBrl; // 이번 회차 쿠폰 반영 전 잔여현금
@@ -238,6 +276,40 @@ export function generateReinvestCashFlow(
     });
   });
 
+  // 중도청산: 마지막 재투자까지 끝낸 좌수를 그 시점 단가로 평가해 회수한다.
+  // 쿠폰이 전부 신탁 안에 남아 채권이 된 상태라 따로 지급된 돈이 없다.
+  let exit: ReinvestExitResult | undefined;
+  if (exitSettle && input.earlyExit) {
+    const exitPu = computeNtnfPu(
+      input.maturityDate,
+      Number(input.earlyExit.sellYieldPct),
+      exitSettle
+    );
+    if (exitPu == null || exitPu <= 0) return null;
+    const exitFx =
+      needsFx && Number(input.earlyExit.fxRate) > 0
+        ? Number(input.earlyExit.fxRate)
+        : maturityFx;
+    const grossBrl = units * exitPu + cashBrl;
+    // 후취보수는 계약일 ~ 청산 결제일. 만기 리드타임은 붙지 않는다.
+    const exitDays = Math.round(
+      (toTime(exitSettle) - toTime(parseIsoDate(input.trustContractDate) ?? settlement)) /
+        86400000
+    );
+    const exitBackFee = (trustAmount * (backFeeRate / 100) / 365) * exitDays;
+    // 채권이자 과세분은 만기와 같은 규칙(재투자된 쿠폰도 과세소득이다)
+    const exitTaxBrl = totalCouponBrl * getEffectiveIncomeTaxRate(input.taxStatus);
+    exit = {
+      date: toISODate(exitSettle),
+      units,
+      pu: exitPu,
+      recoveredKrw: roundDown(
+        (grossBrl - exitTaxBrl) * exitFx - exitBackFee,
+        2
+      ),
+    };
+  }
+
   const maturityRow = rows[rows.length - 1];
   const preTaxMaturityKrw = maturityRow.maturityKrw ?? 0;
 
@@ -270,6 +342,7 @@ export function generateReinvestCashFlow(
 
   return {
     rows,
+    exit,
     initialUnits,
     initialPu: pricing.dirtyPrice,
     summary: {

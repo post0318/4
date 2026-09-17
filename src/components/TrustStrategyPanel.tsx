@@ -21,6 +21,10 @@ import { getSettlementDate } from "@/lib/cashflow/couponSchedule";
 import {
   simulateEarlyTermination,
   simulateHold,
+  simulateReinvestHold,
+  simulateReinvestRollover,
+  simulateReinvestSwitch,
+  simulateReinvestTermination,
   simulateRollover,
   simulateSwitch,
   type TrustSimInput,
@@ -495,6 +499,19 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
     )[0];
   }, [hold, roll, swi, term]);
 
+  // 재투자 기준 — 쿠폰으로 같은 종목을 더 사서 좌수를 불린다.
+  // 좌수 증가는 현금흐름 탭 재투자형을 그대로 따른다(오너 지시, 2026-09-17).
+  const reHold = useMemo(() => (input ? simulateReinvestHold(input) : null), [input]);
+  const reRoll = useMemo(
+    () => (input ? simulateReinvestRollover(input) : null),
+    [input]
+  );
+  const reSwi = useMemo(() => (input ? simulateReinvestSwitch(input) : null), [input]);
+  const reTerm = useMemo(
+    () => (input ? simulateReinvestTermination(input) : null),
+    [input]
+  );
+
   const rollCard = useMemo(
     () => cardMetrics("rollover", "만기상환 후 롤오버", roll, fxRate, contractDate),
     [roll, fxRate, contractDate]
@@ -888,6 +905,72 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             </tbody>
           </table>
         </div>
+
+        {/* 재투자 기준 — 반기지급형과 나란히 본다 */}
+        {(reHold || reRoll || reSwi || reTerm) && (
+          <div className="mt-2 space-y-2 overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+            <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              재투자 기준{" "}
+              <span className="text-[11px] font-normal text-zinc-400">
+                (쿠폰으로 같은 종목 추가 매수 — 현금흐름 탭 재투자형과 같은 규칙)
+              </span>
+            </h3>
+            <table className="w-full min-w-[760px] table-fixed text-xs">
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+                  <th className="w-[22%] py-1.5 pr-3 font-medium">전략</th>
+                  <th className="w-[20%] py-1.5 pr-3 font-medium">좌수 (최초 → 종료)</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                  <th className="w-[13%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                  <th className="w-[13%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                  <th className="w-[16%] py-1.5 text-right font-medium">반기지급 대비</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {(
+                  [
+                    ["만기보유", reHold, hold],
+                    ["롤오버", reRoll, roll],
+                    ["갈아타기", reSwi, swi],
+                    ["중도해지", reTerm, term],
+                  ] as const
+                ).map(([label, r, base]) => (
+                  <tr key={label}>
+                    <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">{label}</td>
+                    {r ? (
+                      <>
+                        <td className="py-2 pr-3 tabular-nums text-zinc-600 dark:text-zinc-400">
+                          {r.legs
+                            .map((l) => `${fmtInt(l.startUnits)}→${fmtInt(l.endUnits)}`)
+                            .join(" / ")}
+                          좌
+                        </td>
+                        <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                          {fmtInt(r.totalReceivedKrw)}원
+                        </td>
+                        <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                          {fmtNum(r.totalReturnPct, 2)}%
+                        </td>
+                        <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                          {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
+                        </td>
+                        <td className="py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                          {base
+                            ? `+${fmtInt(r.totalReceivedKrw - base.totalReceivedKrw)}원`
+                            : "-"}
+                        </td>
+                      </>
+                    ) : (
+                      <td colSpan={5} className="py-2 text-zinc-400">
+                        입력값을 확인하세요.
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/*
           지표 설명 문단은 오너 지시로 걷어냈다(2026-09-17).

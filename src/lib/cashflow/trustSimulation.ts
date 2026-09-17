@@ -12,6 +12,10 @@ import {
   type MaturitySummary,
 } from "@/lib/cashflow/maturitySummary";
 import {
+  generateReinvestCashFlow,
+  type ReinvestCashFlowInputs,
+} from "@/lib/cashflow/reinvestCashFlow";
+import {
   getInvestmentDays,
   getTrustMaturityDate,
 } from "@/lib/cashflow/couponSchedule";
@@ -445,4 +449,237 @@ export function breakEvenReinvestPct(
       1) *
     100
   );
+}
+
+
+/* ────────────────────────────────────────────────────────────────────────
+ * 재투자 기준 — 쿠폰을 받는 즉시 같은 종목을 더 사서 좌수를 늘린다.
+ *
+ * 좌수가 불어나는 방식은 **현금흐름 탭의 재투자형을 그대로 따른다**
+ * (`generateReinvestCashFlow`) — 오너 지시(2026-09-17). 이표일마다 쿠폰과
+ * 남은 헤알로 그날 단가에 정수 좌수만 사고, 남는 돈은 다음 회차로 넘긴다.
+ * 재매수 금리는 최초 매수금리 그대로다.
+ *
+ * 반기지급형(위쪽 네 전략)과 달리 중간에 나가는 돈이 없어 구간 연결이 단순하다 —
+ * 구간이 끝날 때 받은 전액이 다음 구간 원금이 된다.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface TrustReinvestLeg {
+  bondMaturity: string;
+  contractDate: string;
+  principalKrw: number;
+  /** 최초 매수 좌수 */
+  startUnits: number;
+  /** 재투자까지 끝낸 구간 종료 시 좌수 */
+  endUnits: number;
+  /** 구간 종료 시 회수액 (원) — 전액이 다음 구간 원금이 된다 */
+  recoveredKrw: number;
+  endDate: string;
+  /** 중도청산 구간이면 그 청산단가 (R$) */
+  exitPrice?: number;
+}
+
+export interface TrustReinvestResult {
+  legs: TrustReinvestLeg[];
+  totalReceivedKrw: number;
+  totalReturnPct: number;
+  cagrPct: number | null;
+  days: number;
+  endDate: string;
+}
+
+function reinvestInputs(
+  input: TrustSimInput,
+  bond: { maturityDate: string; purchaseYieldPct: number },
+  contractDate: string,
+  principalKrw: number,
+  frontFeePct: number,
+  opts?: {
+    trustMaturityDate?: string;
+    purchaseFxRate?: number;
+    earlyExit?: { date: string; sellYieldPct: number; fxRate?: number };
+  }
+): ReinvestCashFlowInputs {
+  return {
+    maturityDate: bond.maturityDate,
+    couponRate: String(input.couponRatePct),
+    couponFrequency: input.couponFrequency,
+    purchaseYield: String(bond.purchaseYieldPct),
+    calcBasis: input.calcBasis,
+    trustContractDate: contractDate,
+    recentCouponDate: "",
+    tradeCurrency: "BRL",
+    custodyCurrency: "KRW",
+    purchaseFxRate: String(opts?.purchaseFxRate ?? input.purchaseFxRate),
+    maturityFxRate: String(input.maturityFxRate),
+    trustInvestmentAmount: String(principalKrw),
+    frontFeeRate: String(frontFeePct),
+    backFeeRate: String(input.backFeePct),
+    taxStatus: input.taxStatus,
+    comprehensiveTaxRate: String(input.comprehensiveTaxPct),
+    ...(opts?.trustMaturityDate ? { trustMaturityDate: opts.trustMaturityDate } : {}),
+    ...(opts?.earlyExit ? { earlyExit: opts.earlyExit } : {}),
+  };
+}
+
+function runReinvestLeg(
+  input: TrustSimInput,
+  bond: { maturityDate: string; purchaseYieldPct: number },
+  contractDate: string,
+  principalKrw: number,
+  frontFeePct: number,
+  opts?: {
+    trustMaturityDate?: string;
+    purchaseFxRate?: number;
+    earlyExit?: { date: string; sellYieldPct: number; fxRate?: number };
+  }
+): TrustReinvestLeg | null {
+  if (!(principalKrw > 0)) return null;
+  const r = generateReinvestCashFlow(
+    reinvestInputs(input, bond, contractDate, principalKrw, frontFeePct, opts)
+  );
+  if (!r) return null;
+
+  if (opts?.earlyExit) {
+    if (!r.exit) return null;
+    return {
+      bondMaturity: bond.maturityDate,
+      contractDate,
+      principalKrw,
+      startUnits: r.initialUnits,
+      endUnits: r.exit.units,
+      recoveredKrw: r.exit.recoveredKrw,
+      endDate: r.exit.date,
+      exitPrice: r.exit.pu,
+    };
+  }
+  return {
+    bondMaturity: bond.maturityDate,
+    contractDate,
+    principalKrw,
+    startUnits: r.initialUnits,
+    endUnits: r.summary.finalUnits,
+    recoveredKrw: r.summary.postTaxMaturityKrw,
+    endDate: r.rows[r.rows.length - 1].date,
+  };
+}
+
+function wrapReinvest(
+  input: TrustSimInput,
+  legs: TrustReinvestLeg[]
+): TrustReinvestResult | null {
+  if (legs.length === 0) return null;
+  const last = legs[legs.length - 1];
+  const total = last.recoveredKrw;
+  const isExit = last.exitPrice != null;
+  const days = isExit
+    ? daysBetweenIso(input.contractDate, last.endDate)
+    : (getInvestmentDays(input.contractDate, last.bondMaturity) ?? 0);
+  const trustMaturity = isExit ? null : getTrustMaturityDate(last.bondMaturity);
+  return {
+    legs,
+    totalReceivedKrw: total,
+    totalReturnPct: (total / input.principalKrw - 1) * 100,
+    cagrPct:
+      days > 0 && total > 0
+        ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
+        : null,
+    days,
+    endDate: trustMaturity ?? last.endDate,
+  };
+}
+
+/** ① 재투자 · 만기보유 */
+export function simulateReinvestHold(
+  input: TrustSimInput
+): TrustReinvestResult | null {
+  const leg = runReinvestLeg(
+    input,
+    input.bondA,
+    input.contractDate,
+    input.principalKrw,
+    input.frontFeePct
+  );
+  return leg ? wrapReinvest(input, [leg]) : null;
+}
+
+/** ② 재투자 · 롤오버 — A 만기상환 대금 전액으로 B 를 사서 다시 재투자 */
+export function simulateReinvestRollover(
+  input: TrustSimInput
+): TrustReinvestResult | null {
+  if (!input.bondB) return null;
+  if (!(input.bondB.maturityDate > input.bondA.maturityDate)) return null;
+  const legA = runReinvestLeg(
+    input,
+    input.bondA,
+    input.contractDate,
+    input.principalKrw,
+    input.frontFeePct,
+    { trustMaturityDate: input.bondA.maturityDate } // 리드타임 0
+  );
+  if (!legA) return null;
+  const legB = runReinvestLeg(
+    input,
+    input.bondB,
+    input.bondA.maturityDate,
+    Math.trunc(legA.recoveredKrw),
+    input.rolloverFrontFeePct
+  );
+  return legB ? wrapReinvest(input, [legA, legB]) : null;
+}
+
+/** ③ 재투자 · 갈아타기 — A 를 중도매도하고 그 대금 전액으로 B */
+export function simulateReinvestSwitch(
+  input: TrustSimInput
+): TrustReinvestResult | null {
+  if (!input.bondB || !input.exitDate || input.exitSellYieldPct == null) return null;
+  if (!(input.bondB.maturityDate > input.bondA.maturityDate)) return null;
+  if (!(input.exitDate < input.bondA.maturityDate)) return null;
+  const legA = runReinvestLeg(
+    input,
+    input.bondA,
+    input.contractDate,
+    input.principalKrw,
+    input.frontFeePct,
+    {
+      earlyExit: {
+        date: input.exitDate,
+        sellYieldPct: input.exitSellYieldPct,
+        fxRate: input.exitFxRate,
+      },
+    }
+  );
+  if (!legA) return null;
+  const legB = runReinvestLeg(
+    input,
+    input.bondB,
+    legA.endDate,
+    Math.trunc(legA.recoveredKrw),
+    input.switchFrontFeePct,
+    // 같은 날 팔고 사므로 같은 환율 (반기지급형 쪽과 같은 규칙)
+    { purchaseFxRate: input.exitFxRate }
+  );
+  return legB ? wrapReinvest(input, [legA, legB]) : null;
+}
+
+/** ④ 재투자 · 중도해지 */
+export function simulateReinvestTermination(
+  input: TrustSimInput
+): TrustReinvestResult | null {
+  if (!input.exitDate || input.exitSellYieldPct == null) return null;
+  const leg = runReinvestLeg(
+    input,
+    input.bondA,
+    input.contractDate,
+    input.principalKrw,
+    input.frontFeePct,
+    {
+      earlyExit: {
+        date: input.exitDate,
+        sellYieldPct: input.exitSellYieldPct,
+        fxRate: input.exitFxRate,
+      },
+    }
+  );
+  return leg ? wrapReinvest(input, [leg]) : null;
 }
