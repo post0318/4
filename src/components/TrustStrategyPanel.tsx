@@ -357,7 +357,15 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
 
   const contractDate = state.buyDate || toISODate(today());
   const principalKrw = num(state.principalKrw);
-  const liveFx = fx?.krwBrl ?? null;
+  /**
+   * 시세 환율은 소수 2자리로 끊어 쓴다.
+   *
+   * 칸을 비워두면 시세를 쓰는데, 화면에는 자리값으로 2자리(265.80)를 보여주면서
+   * 계산에는 원값(265.8038…)을 넣고 있었다. 현금흐름 탭은 자동입력된 2자리 값을
+   * 쓰므로 같은 조건인데도 만기보유 금액이 429원 어긋났다(2026-09-17 오너 지적).
+   * 보이는 값과 계산하는 값이 달라서는 안 된다.
+   */
+  const liveFx = fx?.krwBrl != null ? Math.round(fx.krwBrl * 100) / 100 : null;
   const fxRate = state.fxRate !== "" ? num(state.fxRate) : (liveFx ?? 0);
 
   /** 단가(R$)를 직접 넣었으면 그 단가를 내는 수익률로 역산해 엔진에 넣는다 */
@@ -803,6 +811,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                 <th className="py-1.5 pr-3 font-medium">종료</th>
                 <th className="py-1.5 pr-3 text-right font-medium">세후 총수령</th>
                 <th className="py-1.5 pr-3 text-right font-medium">총수익률</th>
+                <th className="py-1.5 pr-3 text-right font-medium">단리(연)</th>
                 <th className="py-1.5 pr-3 text-right font-medium">복리(연)</th>
                 <th className="py-1.5 text-right font-medium">기간</th>
               </tr>
@@ -828,6 +837,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                       <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                         {fmtNum(r.totalReturnPct, 2)}%
                       </td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                        {r.days > 0
+                          ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
+                          : "-"}
+                      </td>
                       <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                         {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                       </td>
@@ -836,7 +850,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                       </td>
                     </>
                   ) : (
-                    <td colSpan={5} className="py-2 text-zinc-400">
+                    <td colSpan={6} className="py-2 text-zinc-400">
                       {unavailable ?? "입력값을 확인하세요."}
                     </td>
                   )}
@@ -856,8 +870,9 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         )}
 
         <p className="text-[11px] leading-relaxed text-zinc-400">
-          종료 시점이 전략마다 달라 총수익률로는 우열을 가릴 수 없다 — 「복리(연)」로
-          견준다. 이 엔진은 반기지급형이라 <b>쿠폰을 재투자하지 않는다</b>. 받은
+          「단리(연)」는 총수익률 × 365 ÷ 투자일수로, <b>현금흐름 탭의 「세후수익률」과
+          같은 기준</b>이라 만기보유끼리 맞춰 볼 수 있다. 다만 종료 시점이 전략마다
+          달라 전략 사이 우열은 「복리(연)」로 견준다. 이 엔진은 반기지급형이라 <b>쿠폰을 재투자하지 않는다</b>. 받은
           쿠폰을 다시 굴리면 일찍 옮겨 탄 쪽(갈아타기)이 유리해질 수 있다.
         </p>
 
