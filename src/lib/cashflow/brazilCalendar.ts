@@ -93,6 +93,21 @@ export function isPlausibleYear(date: Date): boolean {
  * 관행(결제일 포함 ~ 현금흐름일 제외)과 일치한다. start > end면 음수를 반환한다
  * (다른 yearFrac 구현들과의 부호 규칙 일치).
  */
+/**
+ * (시작, 끝) → 영업일수 기억장치.
+ *
+ * 이 함수는 하루씩 걷는다. 단가(PU) 한 번에 이표 수만큼, 단가에서 수익률을
+ * 역산할 때는 거기에 이분법 반복 횟수까지 곱해서 불린다. 그런데 역산 내내
+ * 결제일도 이표일도 그대로고 수익률만 바뀌므로, 영업일수는 매번 같은 값이다.
+ * 기억해 두지 않으면 2037년물 역산 한 번이 806ms 걸려(실측 2026-09-17) 가격칸에
+ * 한 글자 칠 때마다 화면이 멈춘다.
+ *
+ * 브라질 공휴일표가 고정이라 같은 입력이면 항상 같은 답이고, 캐시가 값을
+ * 바꾸지 않는다. 날짜 조합이 무한정 쌓이지 않게 상한을 두고 넘으면 비운다.
+ */
+const duCache = new Map<string, number>();
+const DU_CACHE_MAX = 20000;
+
 export function brazilBusinessDaysBetween(start: Date, end: Date): number {
   let s = start;
   let e = end;
@@ -101,6 +116,10 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
     [s, e] = [e, s];
     sign = -1;
   }
+
+  const key = `${s.getTime()}|${e.getTime()}`;
+  const hit = duCache.get(key);
+  if (hit !== undefined) return sign * hit;
 
   // 잘못된 입력 방어: Invalid Date거나, NTN-F 최장 만기(~15년)를 훨씬 넘는
   // 100년+ 구간(직접 타이핑 중인 미완성 날짜 등). 하루씩 걷는 아래 루프가
@@ -117,5 +136,7 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
     if (isBrazilBusinessDay(cursor)) count++;
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
+  if (duCache.size >= DU_CACHE_MAX) duCache.clear();
+  duCache.set(key, count);
   return sign * count;
 }

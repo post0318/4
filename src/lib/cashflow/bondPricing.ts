@@ -478,7 +478,9 @@ export function impliedYieldFromBrazilPrice(
   if (priceLo == null || priceHi == null) return null;
   if (!(priceLo >= targetPrice && targetPrice >= priceHi)) return null; // 범위 밖
 
-  for (let i = 0; i < 100; i++) {
+  // 구간 폭 2.5 를 60번 반으로 쪼개면 2.2e-18 이라 배정밀도 한계를 이미 넘는다.
+  // 100번은 그냥 낭비였다(가격칸 타이핑이 멈추던 원인 중 하나, 2026-09-17).
+  for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
     const priceMid = priceAt(mid);
     if (priceMid == null) return null;

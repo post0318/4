@@ -758,7 +758,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </button>
         </div>
 
-        {/* 1행(신탁 조건)과 2행 아래(종목별 조건)를 점선으로 가른다 */}
+        {/*
+          입력부 전체에 옅은 배경을 깔아 결과(카드·표)와 눈으로 구분한다
+          (오너 지시, 2026-09-17). 1행(신탁 조건)과 그 아래는 점선으로 가른다.
+        */}
+        <div className="space-y-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
         {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
           <div
             key={g}
@@ -778,6 +782,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             ))}
           </div>
         ))}
+        </div>
 
         {/*
           입력에 두지 않은 고정값을 화면에 밝혀둔다(오너 지시, 2026-09-17).
