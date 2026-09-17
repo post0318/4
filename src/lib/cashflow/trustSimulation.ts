@@ -25,8 +25,8 @@ import type { CalcBasis, CouponFrequency, TaxStatus } from "@/lib/cashflow/bondL
  * 전략:
  *  · 만기보유 — 보유종목 A 를 만기까지
  *  · 롤오버   — A 만기상환 → 그 대금으로 B 매수 → B 만기까지 (현금흐름 2회 연결)
- *  · 갈아타기 — A 중도청산 → B 매수 → B 만기까지 (3단계에서 추가)
- *  · 중도해지 — A 중도청산으로 종료 (4단계에서 추가)
+ *  · 갈아타기 — A 중도청산 → B 매수 → B 만기까지
+ *  · 중도해지 — A 중도청산으로 종료
  */
 
 export interface TrustSimInput {
@@ -326,4 +326,79 @@ export function simulateSwitch(
     days,
     endDate: legB.endDate,
   };
+}
+
+/** 두 날짜 사이 일수 (YYYY-MM-DD) */
+function daysBetweenIso(from: string, to: string): number {
+  const a = new Date(from).getTime();
+  const b = new Date(to).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86400000);
+}
+
+/**
+ * ④ 중도해지 — A 를 중도청산하고 거기서 끝낸다(새로 사지 않는다).
+ * 후취보수는 해지일까지만, 신탁만기일 리드타임(11일)은 붙지 않으며 해지
+ * 수수료도 없다(2026-09-17 결정). 기간도 계약일~청산 결제일로 센다.
+ * 비교 대상은 롤오버가 아니라 "만기까지 보유"다 — 종료 시점이 다르므로
+ * 총수익률이 아니라 복리(CAGR)로 견주어야 한다.
+ */
+export function simulateEarlyTermination(
+  input: TrustSimInput
+): TrustStrategyResult | null {
+  if (!input.exitDate || input.exitSellYieldPct == null) return null;
+  if (!(input.exitDate < input.bondA.maturityDate)) return null;
+
+  const leg = runLeg(
+    input,
+    input.bondA,
+    input.contractDate,
+    input.principalKrw,
+    input.frontFeePct,
+    {
+      earlyExit: {
+        date: input.exitDate,
+        sellYieldPct: input.exitSellYieldPct,
+      },
+    }
+  );
+  if (!leg) return null;
+
+  const days = daysBetweenIso(input.contractDate, leg.endDate);
+  const total = leg.recoveredKrw;
+  return {
+    legs: [leg],
+    totalReceivedKrw: total,
+    totalReturnPct: (total / input.principalKrw - 1) * 100,
+    cagrPct:
+      days > 0 && total > 0
+        ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
+        : null,
+    days,
+    endDate: leg.endDate,
+  };
+}
+
+/**
+ * 중도해지 손익분기 재투자율 — 해지해서 받은 돈을 만기까지 연 몇 %로 굴려야
+ * 만기보유와 같아지는가.
+ *
+ * 종료 시점이 다른 두 전략은 총수익률로도 복리로도 곧바로 비교할 수 없다.
+ * 특히 이 엔진은 쿠폰을 재투자하지 않으므로, 오래 들고 갈수록 복리 환산이
+ * 낮아진다 — 해지 쪽 복리가 높게 나오는 것은 기간이 짧아서일 뿐이다.
+ * "받은 돈을 이 정도로 굴릴 수 있으면 해지가 낫다"가 판단에 쓸 수 있는 형태다.
+ *
+ * @returns 연 % (해지 회수액이 이미 만기보유보다 많으면 음수). 비교 불가면 null.
+ */
+export function breakEvenReinvestPct(
+  early: TrustStrategyResult,
+  hold: TrustStrategyResult
+): number | null {
+  const remainDays = hold.days - early.days;
+  if (!(remainDays > 0) || !(early.totalReceivedKrw > 0)) return null;
+  return (
+    (Math.pow(hold.totalReceivedKrw / early.totalReceivedKrw, 365 / remainDays) -
+      1) *
+    100
+  );
 }
