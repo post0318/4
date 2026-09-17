@@ -784,9 +784,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           투자 한 줄 요약과 매도시 환율 적용 규칙 설명은 뺐다.
         */}
         <p className="text-[11px] leading-relaxed text-zinc-400">
-          고정 전제 — 표면이율 10% · 이자지급 6개월 · Business/252 ·{" "}
-          <b>비과세</b> · <b>현금성이율 0%</b> ·{" "}
-          <b>롤오버 선취보수 0%</b>(같은 신탁이 이어져 다시 떼지 않는다).
+          표면이율 10% · 이자지급 6개월 · Business/252 · <b>비과세</b> ·{" "}
+          <b>현금성이율 0%</b> · <b>롤오버 선취보수 0%</b>
         </p>
         {!input && (
           <p className="text-[11px] text-zinc-400">
