@@ -42,9 +42,10 @@ import type { BondItem, FxRates } from "@/lib/types";
  * 시뮬레이션이 아예 뜨지 않아서다 — 가져올 것은 화면이 아니라 **로직**이라는
  * 결론(2026-09-17). 화면 구성은 「시뮬레이션 원본」 탭 그대로 4열 × 4행이다.
  *
- * 원본에 없던 후취보수·현금성이율·과세여부는 엔진이 반드시 요구하는 값이라
- * 마지막 행에 덧붙였다. 표면이율(10%)·이자지급주기(6개월)·계산기준
- * (Business/252)·종합소득세율(15.4%)은 NTN-F 고정값이라 입력으로 두지 않는다.
+ * 원본에 없던 헤알화환율·후취보수·현금성이율은 엔진이 반드시 요구하는 값이라
+ * 격자 아래 줄에 덧붙였다. 표면이율(10%)·이자지급주기(6개월)·계산기준
+ * (Business/252)·종합소득세율(15.4%)·과세여부(비과세)·롤오버 선취보수(0%)는
+ * 브라질 국채에서 달라지지 않아 입력으로 두지 않는다.
  */
 
 interface Props {
@@ -60,6 +61,8 @@ const NTNF_FREQUENCY: CouponFrequency = "6개월";
 const NTNF_BASIS: CalcBasis = "Business/252";
 const NTNF_FACE = 1000;
 const COMPREHENSIVE_TAX_PCT = 15.4;
+/** 브라질 국채 이자는 한·브 조세조약상 비과세 — 선택지를 두지 않는다 */
+const NTNF_TAX_STATUS: TaxStatus = "비과세";
 
 const box =
   "w-full rounded border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100";
@@ -96,7 +99,7 @@ const SLOT_ORDER = [
 ] as const;
 
 /** 위 격자에 자리가 없지만 엔진이 요구하는 공통 조건 */
-const EXTRA_ORDER = ["fxRate", "rollFee", "backFee", "cashRate", "taxStatus"] as const;
+const EXTRA_ORDER = ["fxRate", "backFee", "cashRate"] as const;
 
 type SlotKey =
   | Exclude<(typeof SLOT_ORDER)[number], null>
@@ -187,13 +190,14 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           ? { maturityDate: bondB.maturityDate, purchaseYieldPct: bYieldEff }
           : undefined,
       frontFeePct: num(state.trustFee),
-      rolloverFrontFeePct: num(state.rollFee),
+      // 롤오버는 같은 신탁이 이어지는 것이라 선취보수를 다시 떼지 않는다(0%)
+      rolloverFrontFeePct: 0,
       // 갈아타기 선취보수는 원본과 같이 「신탁보수 선취」를 그대로 쓴다
       switchFrontFeePct: num(state.trustFee),
       backFeePct: num(state.backFee),
       cashInterestPct: num(state.cashRate),
       comprehensiveTaxPct: COMPREHENSIVE_TAX_PCT,
-      taxStatus: state.taxStatus,
+      taxStatus: NTNF_TAX_STATUS,
       // 원본과 같이 단일환율 — 매수시점과 만기예상을 같게 본다
       purchaseFxRate: fxRate,
       maturityFxRate: fxRate,
@@ -206,8 +210,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   }, [
     bondA, bondB, principalKrw, contractDate, fxRate,
     aYieldEff, bYieldEff, sellYieldEff,
-    state.trustFee, state.rollFee, state.backFee, state.cashRate,
-    state.taxStatus, state.sellDate,
+    state.trustFee, state.backFee, state.cashRate,
+    state.sellDate,
   ]);
 
   const hold = useMemo(() => (input ? simulateHold(input) : null), [input]);
@@ -411,17 +415,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         />
       </Field>
     ),
-    rollFee: (
-      <Field label="롤오버 선취보수 (%)">
-        <input
-          className={numInput}
-          inputMode="decimal"
-          value={state.rollFee}
-          onFocus={focusSelect}
-          onChange={(e) => set("rollFee")(clean(e.target.value))}
-        />
-      </Field>
-    ),
     backFee: (
       <Field label="후취 신탁보수 (%, 연)">
         <input
@@ -442,18 +435,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           onFocus={focusSelect}
           onChange={(e) => set("cashRate")(clean(e.target.value))}
         />
-      </Field>
-    ),
-    taxStatus: (
-      <Field label="과세여부">
-        <select
-          className={box}
-          value={state.taxStatus}
-          onChange={(e) => set("taxStatus")(e.target.value as TaxStatus)}
-        >
-          <option value="비과세">비과세</option>
-          <option value="일반과세">일반과세</option>
-        </select>
       </Field>
     ),
   };
