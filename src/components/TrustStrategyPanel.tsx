@@ -314,15 +314,17 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * 화면 배치 — 4열 × 4행. `null`은 사용자가 지정한 빈칸이다.
- * 3행에 보유종목(A) 관련 네 칸을 모으고, 갈아탈 종목(B)은 4행 3·4열에 둔다.
- * 2행은 보유종목A · 최초투자시점 · 중도매도 시점 · 갈아탈 종목B 순이다(오너 지정).
+ * 3행은 환율·수익률, 4행은 같은 열에 대응하는 가격이다(오너 지정) —
+ * 헤알화환율/매도시환율 · A매수수익률/A매수가격 · A중도매도수익률/A매도가격 ·
+ * B매수수익률/B매수가격. 2행은 보유종목A · 최초투자시점 · 중도매도 시점 ·
+ * 갈아탈 종목B 순이다.
  * 배치를 바꿀 때는 이 배열만 손대면 된다.
  */
 const SLOT_ORDER = [
   "principal", "trustFee",   "backFee",    null,
   "bondA",     "buyDate",    "sellDate",   "bondB",
-  "aYield",    "buyPriceA",  "sellYield",  "sellPriceA",
-  "fxRate",    "exitFxRate", "bYield",     "buyPriceB",
+  "fxRate",     "aYield",    "sellYield",  "bYield",
+  "exitFxRate", "buyPriceA", "sellPriceA", "buyPriceB",
 ] as const;
 
 type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
