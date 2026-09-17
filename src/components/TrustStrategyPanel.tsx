@@ -875,15 +875,12 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </table>
         </div>
 
-        <p className="text-[11px] leading-relaxed text-zinc-400">
-          「복리 최고」는 복리(연) 열에서 가장 높다는 뜻일 뿐이다 — <b>기간이
-          짧을수록 복리는 높게 나오기 쉽다</b>. 기간 열을 함께 봐야 한다.
-          「단리(연)」는 총수익률 × 365 ÷ 투자일수로, <b>현금흐름 탭의 「세후수익률」과
-          같은 기준</b>이라 만기보유끼리 맞춰 볼 수 있다. 다만 종료 시점이 전략마다
-          달라 전략 사이 우열은 「복리(연)」로 견준다. 이 엔진은 반기지급형이라 <b>쿠폰을 재투자하지 않는다</b>. 받은
-          쿠폰을 다시 굴리면 일찍 옮겨 탄 쪽(갈아타기)이 유리해질 수 있다.
-        </p>
-
+        {/*
+          지표 설명 문단은 오너 지시로 걷어냈다(2026-09-17).
+          「단리(연)」 = 총수익률 × 365 ÷ 투자일수(현금흐름 탭 「세후수익률」과 같은 기준),
+          「복리 최고」 = 복리(연) 열 최고값, 이 엔진은 쿠폰을 재투자하지 않는다 —
+          셋 다 CLAUDE.md 에 남겨둔다.
+        */}
         {rows.some((x) => x.r && x.r.legs.length > 1) && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[11px]">
