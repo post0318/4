@@ -12,6 +12,7 @@ import {
 } from "@/components/CurrencyExchange";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { createSimulationState } from "@/components/RollSwitchComparison";
+import { RollSwitchComparisonOriginal } from "@/components/RollSwitchComparisonOriginal";
 import { DurationPanel, createDurationState } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
@@ -80,7 +81,12 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
           : "공유 링크가 손상되었거나 변조되었습니다. 링크를 다시 확인하세요."
       : null;
   const [tab, setTab] = useState<
-    "market" | "trading" | "cashflow" | "simulation" | "duration"
+    | "market"
+    | "trading"
+    | "cashflow"
+    | "simulation"
+    | "simulation-orig"
+    | "duration"
   >("cashflow"); // 첫 화면은 현금흐름 (고객 공유 링크도 동일)
 
   // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
@@ -427,6 +433,8 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     { key: "market" as const, label: "시장정보" },
     { key: "cashflow" as const, label: "현금흐름" },
     { key: "simulation" as const, label: "시뮬레이션" },
+    // 현금흐름 기반으로 다시 만들기 전 계산을 보존한 사본. 같은 입력을 공유한다.
+    { key: "simulation-orig" as const, label: "시뮬레이션 원본" },
     { key: "duration" as const, label: "금리/환율 민감도" },
     { key: "trading" as const, label: "트레이딩" },
   ].filter((t) => !(hideTrading && t.key === "trading"));
@@ -653,6 +661,15 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
 
       {tab === "simulation" && (
         <SimulationPanel bonds={bonds} fx={fx} state={simState} onChange={setSimState} />
+      )}
+
+      {tab === "simulation-orig" && (
+        <RollSwitchComparisonOriginal
+          bonds={bonds}
+          fx={fx}
+          state={simState}
+          onChange={setSimState}
+        />
       )}
 
       {tab === "duration" && (
