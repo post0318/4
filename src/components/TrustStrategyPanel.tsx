@@ -319,10 +319,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  * 배치를 바꿀 때는 이 배열만 손대면 된다.
  */
 const SLOT_ORDER = [
-  "principal", "trustFee",   "backFee", "fxRate",
-  "bondA",     "buyDate",    "sellDate", "bondB",
-  "aYield",    "buyPriceA",  "sellYield", "sellPriceA",
-  null,        null,         "bYield",    "buyPriceB",
+  "principal", "trustFee",   "backFee",    null,
+  "bondA",     "buyDate",    "sellDate",   "bondB",
+  "aYield",    "buyPriceA",  "sellYield",  "sellPriceA",
+  "fxRate",    "exitFxRate", "bYield",     "buyPriceB",
 ] as const;
 
 type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
@@ -367,6 +367,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
    */
   const liveFx = fx?.krwBrl != null ? Math.round(fx.krwBrl * 100) / 100 : null;
   const fxRate = state.fxRate !== "" ? num(state.fxRate) : (liveFx ?? 0);
+  /** 매도시 환율 — 비우면 매수시점과 같게 본다(환율이 안 움직인 경우) */
+  const exitFxRate = state.exitFxRate !== "" ? num(state.exitFxRate) : fxRate;
 
   /** 단가(R$)를 직접 넣었으면 그 단가를 내는 수익률로 역산해 엔진에 넣는다 */
   const yieldFromPrice = (
@@ -450,10 +452,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
       calcBasis: NTNF_BASIS,
       exitDate: state.sellDate || undefined,
       exitSellYieldPct: Number.isFinite(sellYieldEff) ? sellYieldEff : undefined,
+      exitFxRate: exitFxRate > 0 ? exitFxRate : fxRate,
     };
   }, [
     bondA, bondB, principalKrw, contractDate, fxRate,
-    aYieldEff, bYieldEff, sellYieldEff,
+    aYieldEff, bYieldEff, sellYieldEff, exitFxRate,
     state.trustFee, state.backFee,
     state.sellDate,
   ]);
@@ -620,6 +623,18 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             </option>
           ))}
         </select>
+      </Field>
+    ),
+    exitFxRate: (
+      <Field label="매도시 헤알화환율 (원/헤알)">
+        <input
+          className={numInput}
+          inputMode="decimal"
+          placeholder={fxRate > 0 ? fmtNum(fxRate, 2) : ""}
+          value={state.exitFxRate}
+          onFocus={focusSelect}
+          onChange={(e) => set("exitFxRate")(clean(e.target.value))}
+        />
       </Field>
     ),
     bYield: (

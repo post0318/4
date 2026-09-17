@@ -51,6 +51,17 @@ export interface TrustSimInput {
   exitDate?: string;
   /** 중도청산 시점 A 매도수익률 (연 %) */
   exitSellYieldPct?: number;
+  /**
+   * 중도매도 시점 환율 (원/헤알). 비우면 매수시점환율과 같게 본다.
+   *
+   * 매수·만기는 `purchaseFxRate`/`maturityFxRate`, 중도매도만 이 환율이다.
+   * **갈아타기는 이 환율이 결과를 바꾸지 않는다** — A 를 팔아 받은 헤알로 그
+   * 자리에서 B 를 사므로 환전이 일어나지 않는다. 엔진이 구간을 원화로 잇기
+   * 때문에, 같은 날 같은 환율로 나갔다 들어와 정확히 상쇄되도록 B 매수환율에도
+   * 이 값을 쓴다. 실제로 값이 달라지는 것은 **중도해지**뿐이다(그때는 원화로
+   * 회수하고 끝난다).
+   */
+  exitFxRate?: number;
   /** 후취 신탁보수율 (%, 연) */
   backFeePct: number;
   /** 현금성이율 (%, 연) */
@@ -103,7 +114,9 @@ function baseInputs(
   bond: { maturityDate: string; purchaseYieldPct: number },
   contractDate: string,
   principalKrw: number,
-  frontFeePct: number
+  frontFeePct: number,
+  /** 이 구간의 매수환율 수기 지정 — 갈아타기의 B 구간은 매도시 환율로 산다 */
+  purchaseFxOverride?: number
 ): CashFlowScheduleInputs {
   return {
     maturityDate: bond.maturityDate,
@@ -116,7 +129,7 @@ function baseInputs(
     trustMaturityDate: "",
     tradeCurrency: "BRL",
     custodyCurrency: "KRW",
-    purchaseFxRate: String(input.purchaseFxRate),
+    purchaseFxRate: String(purchaseFxOverride ?? input.purchaseFxRate),
     maturityFxRate: String(input.maturityFxRate),
     trustInvestmentAmount: String(principalKrw),
     frontFeeRate: String(frontFeePct),
@@ -140,12 +153,21 @@ function runLeg(
   opts?: {
     trustMaturityDate?: string;
     /** 중도청산 — 넣으면 만기까지 가지 않고 이 날짜에 평가·회수한다 */
-    earlyExit?: { date: string; sellYieldPct: number };
+    earlyExit?: { date: string; sellYieldPct: number; fxRate?: number };
+    /** 이 구간의 매수환율 수기 지정 */
+    purchaseFxRate?: number;
   }
 ): TrustLeg | null {
   if (!(principalKrw > 0)) return null;
   const cfInput: CashFlowScheduleInputs = {
-    ...baseInputs(input, bond, contractDate, principalKrw, frontFeePct),
+    ...baseInputs(
+      input,
+      bond,
+      contractDate,
+      principalKrw,
+      frontFeePct,
+      opts?.purchaseFxRate
+    ),
     ...(opts?.trustMaturityDate ? { trustMaturityDate: opts.trustMaturityDate } : {}),
     ...(opts?.earlyExit ? { earlyExit: opts.earlyExit } : {}),
   };
@@ -323,6 +345,7 @@ export function simulateSwitch(
       earlyExit: {
         date: input.exitDate,
         sellYieldPct: input.exitSellYieldPct,
+        fxRate: input.exitFxRate,
       },
     }
   );
@@ -334,7 +357,10 @@ export function simulateSwitch(
     legA.endDate, // 청산 결제일부터 B 보유 시작
     // 중도매도 대금만 재투자한다 — 그 전에 받은 쿠폰은 이미 지급됐다
     Math.trunc(legA.rolloverKrw),
-    input.switchFrontFeePct
+    input.switchFrontFeePct,
+    // A 를 판 헤알로 그 자리에서 B 를 산다 — 엔진이 원화로 구간을 잇기 때문에
+    // 나갈 때와 들어올 때 같은 환율을 써야 환전이 정확히 상쇄된다.
+    { purchaseFxRate: input.exitFxRate }
   );
   if (!legB) return null;
 
@@ -372,6 +398,7 @@ export function simulateEarlyTermination(
       earlyExit: {
         date: input.exitDate,
         sellYieldPct: input.exitSellYieldPct,
+        fxRate: input.exitFxRate,
       },
     }
   );

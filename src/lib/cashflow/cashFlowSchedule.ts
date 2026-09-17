@@ -71,6 +71,12 @@ export interface EarlyExitInput {
   date: string;
   /** 청산 시점 매도수익률 (연 %) — 이 금리로 그날 단가를 구해 평가한다 */
   sellYieldPct: number;
+  /**
+   * 중도매도 시점 환율 (수탁통화/거래통화). 비우면 만기예상환율을 쓴다.
+   * 매수·만기는 기존 헤알화환율, 중도매도만 이 환율을 적용한다(오너 지시,
+   * 2026-09-17). 현금흐름 탭은 earlyExit 자체를 넣지 않아 영향이 없다.
+   */
+  fxRate?: number;
 }
 
 export interface CashFlowScheduleInputs {
@@ -311,9 +317,14 @@ export function generateFixCashFlow(
     const availableBackFee = carryBackFeeResidual + backFeeThisPeriod;
     const totalDeduction = carryFrontFee + availableBackFee;
 
-    // 청산대금 = 보유 액면 ÷ 1,000 × 청산단가 (거래통화) → 수탁통화 환산
+    // 청산대금 = 보유 액면 ÷ 1,000 × 청산단가 (거래통화) → 수탁통화 환산.
+    // 환산은 중도매도 시점 환율로 — 없으면 만기예상환율(종전 동작).
+    const exitFx =
+      needsFx && Number(input.earlyExit.fxRate) > 0
+        ? Number(input.earlyExit.fxRate)
+        : maturityFxRate;
     const unitsHeld = pricing.faceValue / FACE_PER_UNIT;
-    const proceeds = truncByCurrency(unitsHeld * exitPu * maturityFxRate);
+    const proceeds = truncByCurrency(unitsHeld * exitPu * exitFx);
 
     // 청산대금에 섞인 경과이자는 채권이자 성격이라 과세여부를 따른다.
     // 보유 구간 현금이자는 언제나 과세(CASH_INTEREST_TAX_RATE).

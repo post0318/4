@@ -35,6 +35,8 @@ export interface SimulationState {
   sellYield: string;
   sellDate: string;
   fxRate: string;
+  /** 매도시 헤알화환율(원/헤알) — 새 시뮬레이션 탭에서만 쓴다 */
+  exitFxRate: string;
   trustFee: string;
   /** 후취 신탁보수(%, 연) — 새 시뮬레이션 탭에서만 쓴다 */
   backFee: string;
@@ -86,6 +88,7 @@ export function createSimulationState(): SimulationState {
     sellYield: "",
     sellDate: defaultSellDate(n),
     fxRate: "",
+    exitFxRate: "",
     trustFee: DEFAULT_TRUST_FEE,
     backFee: "0.5",
     buyPriceA: "",
