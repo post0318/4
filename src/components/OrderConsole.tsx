@@ -11,7 +11,13 @@ import {
   type ExchangeState,
 } from "@/components/CurrencyExchange";
 import { TrustStrategyPanel } from "@/components/TrustStrategyPanel";
-import { createSimulationState } from "@/components/RollSwitchComparison";
+import {
+  createSimulationState,
+  type SimulationState,
+} from "@/components/RollSwitchComparison";
+
+/** 시뮬레이션 입력 보관 키 (탭 단위) */
+const SIM_STATE_KEY = "ntnf.simulation.v1";
 import { RollSwitchComparisonOriginal } from "@/components/RollSwitchComparisonOriginal";
 import { DurationPanel, createDurationState } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
@@ -96,8 +102,35 @@ export function OrderConsole({ share, allowedDomains, openSignup = false }: Orde
     shareInput ? { ...createDefaultInput(), ...shareInput } : createDefaultInput()
   );
   const [cfLocked, setCfLocked] = useState<boolean>(isSharedLink);
-  // 시뮬레이션·민감도 입력값도 여기서 보유 — 탭을 옮겨도 유지(감사 ⑤ 중7)
-  const [simState, setSimState] = useState(createSimulationState);
+  /**
+   * 시뮬레이션·민감도 입력값도 여기서 보유 — 탭을 옮겨도 유지(감사 ⑤ 중7).
+   *
+   * 시뮬레이션은 새로고침에도 살아남게 sessionStorage 에 남긴다(오너 신고,
+   * 2026-09-17 — "새로고침하니 원래 하던 시뮬레이션 맛이가면서 사라졌다").
+   * 종목·금리·환율을 여러 개 맞춰놓고 보는 화면이라 한 번 날아가면 다시
+   * 세팅하는 품이 크다. 탭(브라우저 탭) 단위라 창을 닫으면 사라진다.
+   *
+   * 읽을 때는 항상 기본값 위에 덮어쓴다 — 옛 버전이 남긴 값에 새로 생긴 칸이
+   * 없으면 undefined 가 흘러들어 계산이 통째로 비어버린다.
+   */
+  const [simState, setSimState] = useState<SimulationState>(() => {
+    const base = createSimulationState();
+    try {
+      const raw = sessionStorage.getItem(SIM_STATE_KEY);
+      if (!raw) return base;
+      const saved = JSON.parse(raw) as Partial<SimulationState>;
+      return { ...base, ...saved };
+    } catch {
+      return base; // 시크릿 모드·저장 차단 등 — 기본값으로 시작
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SIM_STATE_KEY, JSON.stringify(simState));
+    } catch {
+      // 저장 실패는 무시 — 이번 세션에서 기억만 안 될 뿐 화면은 그대로 동작
+    }
+  }, [simState]);
   const [durState, setDurState] = useState(createDurationState);
   // 가입 신청 팝업 (헤더 링크·트레이딩 안내·/?signup=1 에서 연다)
   const [signupOpen, setSignupOpen] = useState(openSignup);
