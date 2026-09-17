@@ -40,8 +40,14 @@ export interface TrustSimInput {
   bondB?: { maturityDate: string; purchaseYieldPct: number };
   /** 선취 신탁보수율 (%) — 최초 매수 */
   frontFeePct: number;
-  /** 롤오버·갈아타기 때 새로 떼는 선취보수율 (%) */
+  /** 롤오버 때 새로 떼는 선취보수율 (%) */
   rolloverFrontFeePct: number;
+  /** 갈아타기 때 새로 떼는 선취보수율 (%) — 롤오버와 다를 수 있어 따로 받는다 */
+  switchFrontFeePct: number;
+  /** 중도청산일 "YYYY-MM-DD" (갈아타기·중도해지) */
+  exitDate?: string;
+  /** 중도청산 시점 A 매도수익률 (연 %) */
+  exitSellYieldPct?: number;
   /** 후취 신탁보수율 (%, 연) */
   backFeePct: number;
   /** 현금성이율 (%, 연) */
@@ -66,8 +72,10 @@ export interface TrustLeg {
   principalKrw: number;
   pricing: BondPricingResult;
   rows: CashFlowRow[];
-  /** 만기까지 보유한 구간만 채워진다 */
+  /** 만기까지 보유한 구간만 채워진다 (중도청산 구간은 null) */
   summary: MaturitySummary | null;
+  /** 중도청산 구간이면 그 청산단가 (R$) */
+  exitPrice?: number;
   /** 구간 종료 시 회수한 세후 총액 (원) — 다음 구간의 원금이 된다 */
   recoveredKrw: number;
   /** 구간 종료일 (만기보유면 신탁만기일, 중도청산이면 청산 결제일) */
@@ -113,16 +121,42 @@ function runLeg(
   contractDate: string,
   principalKrw: number,
   frontFeePct: number,
-  opts?: { trustMaturityDate?: string }
+  opts?: {
+    trustMaturityDate?: string;
+    /** 중도청산 — 넣으면 만기까지 가지 않고 이 날짜에 평가·회수한다 */
+    earlyExit?: { date: string; sellYieldPct: number };
+  }
 ): TrustLeg | null {
   if (!(principalKrw > 0)) return null;
   const cfInput: CashFlowScheduleInputs = {
     ...baseInputs(input, bond, contractDate, principalKrw, frontFeePct),
     ...(opts?.trustMaturityDate ? { trustMaturityDate: opts.trustMaturityDate } : {}),
+    ...(opts?.earlyExit ? { earlyExit: opts.earlyExit } : {}),
   };
   const pricing = computeBondPricing({ ...cfInput, reserveRate: "0" });
   const rows = generateFixCashFlow(cfInput);
   if (!pricing || !rows || rows.length === 0) return null;
+
+  // 중도청산 구간은 만기 요약이 성립하지 않는다(마지막 행이 만기가 아님).
+  // 회수액은 만기 요약과 같은 식으로 직접 구한다 — 각 회차 세후수령 합계 +
+  // 청산대금 + 반환 보유현금. 청산 후취보수는 이미 청산 회차에 반영돼 있고
+  // 신탁만기일 리드타임은 붙지 않는다.
+  if (opts?.earlyExit) {
+    const last = rows[rows.length - 1];
+    const totalNet = rows.reduce((sum, r) => sum + r.netAmount, 0);
+    const totalPrincipal = rows.reduce((sum, r) => sum + r.principal, 0);
+    return {
+      bondMaturity: bond.maturityDate,
+      contractDate,
+      principalKrw,
+      pricing,
+      rows,
+      summary: null,
+      exitPrice: last.exitPrice,
+      recoveredKrw: totalNet + totalPrincipal + pricing.cashBalance,
+      endDate: last.date,
+    };
+  }
 
   const summary = computeMaturitySummary(pricing, rows, {
     trustContractDate: contractDate,
@@ -233,6 +267,58 @@ export function simulateRollover(
     legs: [legA, legB],
     totalReceivedKrw: total,
     totalReturnPct: ret * 100,
+    cagrPct:
+      days > 0 && total > 0
+        ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
+        : null,
+    days,
+    endDate: legB.endDate,
+  };
+}
+
+/**
+ * ③ 갈아타기 — A 를 중도청산하고 그 대금으로 B 를 사서 B 만기까지.
+ * 앞 구간은 청산일까지만 후취보수를 물고 리드타임은 붙지 않는다(엔진이 처리).
+ */
+export function simulateSwitch(
+  input: TrustSimInput
+): TrustStrategyResult | null {
+  if (!input.bondB || !input.exitDate || input.exitSellYieldPct == null) {
+    return null;
+  }
+  if (!(input.bondB.maturityDate > input.bondA.maturityDate)) return null;
+  if (!(input.exitDate < input.bondA.maturityDate)) return null;
+
+  const legA = runLeg(
+    input,
+    input.bondA,
+    input.contractDate,
+    input.principalKrw,
+    input.frontFeePct,
+    {
+      earlyExit: {
+        date: input.exitDate,
+        sellYieldPct: input.exitSellYieldPct,
+      },
+    }
+  );
+  if (!legA) return null;
+
+  const legB = runLeg(
+    input,
+    input.bondB,
+    legA.endDate, // 청산 결제일부터 B 보유 시작
+    Math.trunc(legA.recoveredKrw),
+    input.switchFrontFeePct
+  );
+  if (!legB) return null;
+
+  const days = getInvestmentDays(input.contractDate, input.bondB.maturityDate) ?? 0;
+  const total = legB.recoveredKrw;
+  return {
+    legs: [legA, legB],
+    totalReceivedKrw: total,
+    totalReturnPct: (total / input.principalKrw - 1) * 100,
     cagrPct:
       days > 0 && total > 0
         ? (Math.pow(total / input.principalKrw, 365 / days) - 1) * 100
