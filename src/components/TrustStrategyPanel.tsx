@@ -14,7 +14,10 @@ import {
   type TrustStrategyResult,
 } from "@/lib/cashflow/trustSimulation";
 import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
-import type { SimulationState } from "@/components/RollSwitchComparison";
+import {
+  createSimulationState,
+  type SimulationState,
+} from "@/components/RollSwitchComparison";
 import type { BondItem } from "@/lib/types";
 
 /**
@@ -135,6 +138,12 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
     () => (input ? simulateEarlyTermination(input) : null),
     [input]
   );
+  // 참고 표시용 단가 — 원본 탭처럼 회색 자리값으로 보여준다
+  const puBuyA = hold?.legs[0]?.pricing.dirtyPrice ?? null;
+  const puSellA = swi?.legs[0]?.exitPrice ?? term?.legs[0]?.exitPrice ?? null;
+  const puBuyB =
+    roll?.legs[1]?.pricing.dirtyPrice ?? swi?.legs[1]?.pricing.dirtyPrice ?? null;
+
   const breakEven = useMemo(
     () => (term && hold ? breakEvenReinvestPct(term, hold) : null),
     [term, hold]
@@ -204,6 +213,13 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
               (만기보유 · 롤오버 · 갈아타기 · 중도해지)
             </span>
           </h2>
+          <button
+            type="button"
+            onClick={() => onChange(createSimulationState())}
+            className="shrink-0 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            초기화
+          </button>
         </div>
 
         <p className="text-[11px] leading-relaxed text-zinc-400">
@@ -216,6 +232,7 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
           계약일 {contractDate} 은 <b>현금흐름 탭 설정</b>을 따른다.
         </p>
 
+        {/* 원본 탭과 같은 4열 배치 — 행마다 (종목/시점) · 수익률 · 단가 · 보수 */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="보유종목 (A)">
             <select
@@ -240,6 +257,61 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
               onChange={(e) => set("aYield")(clean(e.target.value))}
             />
           </Field>
+          <Field label="A 매수가격 (R$)" hint="계산값">
+            <input
+              className={`${numInput} text-zinc-400`}
+              readOnly
+              value={puBuyA != null ? fmtNum(puBuyA, 2) : ""}
+              placeholder="자동계산"
+            />
+          </Field>
+          <Field label="롤오버 선취보수 (%)">
+            <input
+              className={numInput}
+              inputMode="decimal"
+              value={state.rollFee}
+              onFocus={focusSelect}
+              onChange={(e) => set("rollFee")(clean(e.target.value))}
+            />
+          </Field>
+
+          <Field label="중도청산 시점" hint="갈아타기·중도해지">
+            <input
+              className={box}
+              type="date"
+              value={state.sellDate}
+              max={bondA?.maturityDate}
+              onChange={(e) => set("sellDate")(e.target.value)}
+            />
+          </Field>
+          <Field label="A 매도수익률 (%)" hint="비우면 매수와 동일">
+            <input
+              className={numInput}
+              inputMode="decimal"
+              placeholder={state.aYield || (bondA?.buyYieldPct != null ? fmtNum(bondA.buyYieldPct, 2) : "자동")}
+              value={state.sellYield}
+              onFocus={focusSelect}
+              onChange={(e) => set("sellYield")(clean(e.target.value))}
+            />
+          </Field>
+          <Field label="A 매도가격 (R$)" hint="계산값">
+            <input
+              className={`${numInput} text-zinc-400`}
+              readOnly
+              value={puSellA != null ? fmtNum(puSellA, 2) : ""}
+              placeholder="자동계산"
+            />
+          </Field>
+          <Field label="갈아타기 선취보수 (%)">
+            <input
+              className={numInput}
+              inputMode="decimal"
+              value={state.switchFee}
+              onFocus={focusSelect}
+              onChange={(e) => set("switchFee")(clean(e.target.value))}
+            />
+          </Field>
+
           <Field label="갈아탈 종목 (B)">
             <select
               className={box}
@@ -264,41 +336,12 @@ export function TrustStrategyPanel({ bonds, cashflow, state, onChange }: Props) 
               onChange={(e) => set("bYield")(clean(e.target.value))}
             />
           </Field>
-          <Field label="중도청산 시점" hint="갈아타기·중도해지">
+          <Field label="B 매수가격 (R$)" hint="계산값">
             <input
-              className={box}
-              type="date"
-              value={state.sellDate}
-              max={bondA?.maturityDate}
-              onChange={(e) => set("sellDate")(e.target.value)}
-            />
-          </Field>
-          <Field label="A 매도수익률 (%)" hint="비우면 매수와 동일">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              placeholder={state.aYield || (bondA?.buyYieldPct != null ? fmtNum(bondA.buyYieldPct, 2) : "자동")}
-              value={state.sellYield}
-              onFocus={focusSelect}
-              onChange={(e) => set("sellYield")(clean(e.target.value))}
-            />
-          </Field>
-          <Field label="롤오버 선취보수 (%)">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              value={state.rollFee}
-              onFocus={focusSelect}
-              onChange={(e) => set("rollFee")(clean(e.target.value))}
-            />
-          </Field>
-          <Field label="갈아타기 선취보수 (%)">
-            <input
-              className={numInput}
-              inputMode="decimal"
-              value={state.switchFee}
-              onFocus={focusSelect}
-              onChange={(e) => set("switchFee")(clean(e.target.value))}
+              className={`${numInput} text-zinc-400`}
+              readOnly
+              value={puBuyB != null ? fmtNum(puBuyB, 2) : ""}
+              placeholder="자동계산"
             />
           </Field>
         </div>
