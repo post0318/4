@@ -780,19 +780,15 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         ))}
 
         {/*
-          한 줄 요약은 남기고, 고정 전제(표면이율·주기·계산기준·비과세·현금성이율·
-          롤오버 선취보수)와 환율 적용 규칙 설명은 걷어냈다(2026-09-17 오너 지시).
-          그 내용은 CLAUDE.md 와 이 파일 상단 주석에 있다.
+          입력에 두지 않은 고정값을 화면에 밝혀둔다(오너 지시, 2026-09-17).
+          투자 한 줄 요약과 매도시 환율 적용 규칙 설명은 뺐다.
         */}
-        {input && hold ? (
-          <p className="text-[11px] leading-relaxed text-zinc-400">
-            {contractDate} 투자 · 신탁원금 {fmtInt(principalKrw)}원 (선취{" "}
-            {fmtNum(num(state.trustFee), 2)}%) → A{" "}
-            {fmtInt((hold.legs[0]?.pricing.faceValue ?? 0) / NTNF_FACE)}좌 매수 ·
-            매수단가 R${puBuyA != null ? fmtNum(puBuyA, 2) : "-"} · 환율{" "}
-            {fmtNum(fxRate, 2)}원/헤알
-          </p>
-        ) : (
+        <p className="text-[11px] leading-relaxed text-zinc-400">
+          고정 전제 — 표면이율 10% · 이자지급 6개월 · Business/252 ·{" "}
+          <b>비과세</b> · <b>현금성이율 0%</b>(보유현금에 이자를 붙이지 않는다) ·{" "}
+          <b>롤오버 선취보수 0%</b>(같은 신탁이 이어져 다시 떼지 않는다).
+        </p>
+        {!input && (
           <p className="text-[11px] text-zinc-400">
             보유종목 · 신탁투자원금 · 헤알화환율을 채우면 계산된다.
           </p>
