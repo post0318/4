@@ -824,19 +824,19 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
 
         <div className="overflow-x-auto">
           {/*
-            table-fixed 로 일곱 열을 같은 너비로 나눈다(오너 지시, 2026-09-17).
-            전략 열이 두 줄(이름 + 설명)이라 좁으면 접히므로 최소 너비를 넓혔다.
+            table-fixed — 전략 열만 넓게(두 줄이라 접힌다), 나머지 여섯 열은
+            같은 너비로 나눈다(오너 지시, 2026-09-17). 22% + 13%×6 = 100%.
           */}
-          <table className="w-full min-w-[820px] table-fixed text-xs">
+          <table className="w-full min-w-[760px] table-fixed text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                <th className="py-1.5 pr-3 font-medium">전략</th>
-                <th className="py-1.5 pr-3 font-medium">종료</th>
-                <th className="py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                <th className="py-1.5 pr-3 text-right font-medium">총수익률</th>
-                <th className="py-1.5 pr-3 text-right font-medium">단리(연)</th>
-                <th className="py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                <th className="py-1.5 text-right font-medium">기간</th>
+                <th className="w-[22%] py-1.5 pr-3 font-medium">전략</th>
+                <th className="w-[13%] py-1.5 pr-3 font-medium">종료</th>
+                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">단리(연)</th>
+                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                <th className="w-[13%] py-1.5 text-right font-medium">기간</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
