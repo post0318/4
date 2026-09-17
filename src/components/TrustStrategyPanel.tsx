@@ -823,7 +823,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-xs">
+          {/*
+            table-fixed 로 일곱 열을 같은 너비로 나눈다(오너 지시, 2026-09-17).
+            전략 열이 두 줄(이름 + 설명)이라 좁으면 접히므로 최소 너비를 넓혔다.
+          */}
+          <table className="w-full min-w-[820px] table-fixed text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
                 <th className="py-1.5 pr-3 font-medium">전략</th>
