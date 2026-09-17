@@ -798,6 +798,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </p>
         )}
 
+        {/*
+          여기부터가 결과다 — 입력부(옅은 배경)와 실선으로 가른다
+          (오너 지시, 2026-09-17 "전략부터를 구분하자").
+        */}
+        <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         {/* 전략 카드 — 시뮬레이션의 핵심 화면. 원본 구성 그대로 */}
         <div className="grid gap-3 sm:grid-cols-2">
           <ScenarioCard
@@ -950,6 +955,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             </table>
           </div>
         )}
+        </div>
       </section>
 
       <CashFlowDisclaimer />
