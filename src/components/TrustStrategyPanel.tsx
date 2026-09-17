@@ -785,7 +785,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         */}
         <p className="text-[11px] leading-relaxed text-zinc-400">
           고정 전제 — 표면이율 10% · 이자지급 6개월 · Business/252 ·{" "}
-          <b>비과세</b> · <b>현금성이율 0%</b>(보유현금에 이자를 붙이지 않는다) ·{" "}
+          <b>비과세</b> · <b>현금성이율 0%</b> ·{" "}
           <b>롤오버 선취보수 0%</b>(같은 신탁이 이어져 다시 떼지 않는다).
         </p>
         {!input && (
