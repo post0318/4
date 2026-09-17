@@ -822,7 +822,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           />
         </div>
 
-        <div className="overflow-x-auto">
+        {/* 전략 카드와 눈으로 갈리게 표를 박스에 넣는다(오너 지시, 2026-09-17) */}
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
           {/*
             table-fixed — 전략 열만 넓게(두 줄이라 접힌다), 나머지 여섯 열은
             같은 너비로 나눈다(오너 지시, 2026-09-17). 22% + 13%×6 = 100%.
