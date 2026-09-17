@@ -484,13 +484,26 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           </button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {SLOT_ORDER.map((k, i) => (
-            <div key={k ?? `blank-${i}`} className={k ? undefined : "hidden lg:block"}>
-              {k ? slots[k] : null}
-            </div>
-          ))}
-        </div>
+        {/* 1행(신탁 조건)과 2행 아래(종목별 조건)를 점선으로 가른다 */}
+        {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
+          <div
+            key={g}
+            className={
+              g === 0
+                ? "grid gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                : "grid gap-3 border-t border-dashed border-zinc-300 pt-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-700"
+            }
+          >
+            {group.map((k, i) => (
+              <div
+                key={k ?? `blank-${g}-${i}`}
+                className={k ? undefined : "hidden lg:block"}
+              >
+                {k ? slots[k] : null}
+              </div>
+            ))}
+          </div>
+        ))}
 
         {input && hold ? (
           <p className="text-[11px] leading-relaxed text-zinc-400">
