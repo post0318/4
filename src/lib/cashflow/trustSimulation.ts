@@ -79,8 +79,21 @@ export interface TrustLeg {
   summary: MaturitySummary | null;
   /** 중도청산 구간이면 그 청산단가 (R$) */
   exitPrice?: number;
-  /** 구간 종료 시 회수한 세후 총액 (원) — 다음 구간의 원금이 된다 */
+  /** 구간 전체에서 받은 세후 총액 (원) — 중간 쿠폰 + 마지막 회차 */
   recoveredKrw: number;
+  /**
+   * 구간 **마지막 회차에 손에 들어오는 금액** (원) — 만기상환(또는 중도매도)
+   * 대금 + 그 회차 세후 쿠폰 + 반환 보유현금 − 그때까지의 후취보수.
+   * 다음 구간에 재투자할 수 있는 돈은 이것뿐이다.
+   */
+  rolloverKrw: number;
+  /**
+   * 구간 도중 이미 지급되어 나간 세후 쿠폰 합계 (원) = recoveredKrw − rolloverKrw.
+   * 반기지급형이라 이 돈은 신탁에 남지 않으므로 재투자 원금에 넣으면 안 되고,
+   * 전략 총수령액에는 그대로 더해야 한다(2026-09-17 수정 — 넣었더니 롤오버
+   * 좌수가 443→843 으로 부풀었다).
+   */
+  paidOutKrw: number;
   /** 구간 종료일 (만기보유면 신탁만기일, 중도청산이면 청산 결제일) */
   endDate: string;
 }
@@ -148,6 +161,10 @@ function runLeg(
     const last = rows[rows.length - 1];
     const totalNet = rows.reduce((sum, r) => sum + r.netAmount, 0);
     const totalPrincipal = rows.reduce((sum, r) => sum + r.principal, 0);
+    const recovered = totalNet + totalPrincipal + pricing.cashBalance;
+    // 청산 회차에 실제로 받는 금액(청산대금 + 그 회차 세후 + 반환 보유현금).
+    // 그 앞 회차들의 쿠폰은 이미 고객에게 지급돼 신탁에 없다.
+    const rolloverKrw = last.exitPayout ?? recovered;
     return {
       bondMaturity: bond.maturityDate,
       contractDate,
@@ -156,7 +173,9 @@ function runLeg(
       rows,
       summary: null,
       exitPrice: last.exitPrice,
-      recoveredKrw: totalNet + totalPrincipal + pricing.cashBalance,
+      recoveredKrw: recovered,
+      rolloverKrw,
+      paidOutKrw: recovered - rolloverKrw,
       endDate: last.date,
     };
   }
@@ -174,6 +193,9 @@ function runLeg(
   });
   if (!summary) return null;
 
+  const lastRow = rows[rows.length - 1];
+  // 만기 회차 지급액(원금상환 + 마지막 쿠폰 세후 + 반환 보유현금 − 만기 후취보수)
+  const rolloverKrw = lastRow.maturityPayout ?? summary.totalReceived;
   return {
     bondMaturity: bond.maturityDate,
     contractDate,
@@ -182,7 +204,9 @@ function runLeg(
     rows,
     summary,
     recoveredKrw: summary.totalReceived,
-    endDate: rows[rows.length - 1].date,
+    rolloverKrw,
+    paidOutKrw: summary.totalReceived - rolloverKrw,
+    endDate: lastRow.date,
   };
 }
 
@@ -203,7 +227,12 @@ export interface TrustStrategyResult {
 function wrap(input: TrustSimInput, legs: TrustLeg[]): TrustStrategyResult | null {
   if (legs.length === 0) return null;
   const last = legs[legs.length - 1];
-  const total = last.recoveredKrw;
+  // 마지막 구간의 전체 수령액 + 앞 구간들에서 이미 지급돼 나간 쿠폰.
+  // 앞 구간의 재투자분(rolloverKrw)은 마지막 구간 원금으로 들어가 있으므로
+  // 여기서 또 더하면 이중계상이다.
+  const total =
+    last.recoveredKrw +
+    legs.slice(0, -1).reduce((sum, leg) => sum + leg.paidOutKrw, 0);
   const days =
     getInvestmentDays(input.contractDate, last.bondMaturity) ?? 0;
   // 종료일은 채권 만기일이 아니라 **신탁만기일**(만기 + 리드타임 11일)이다.
@@ -261,7 +290,8 @@ export function simulateRollover(
     input,
     input.bondB,
     input.bondA.maturityDate,
-    Math.trunc(legA.recoveredKrw),
+    // 만기상환 대금만 재투자한다 — 중간 쿠폰은 이미 지급돼 신탁에 없다
+    Math.trunc(legA.rolloverKrw),
     input.rolloverFrontFeePct
   );
   if (!legB) return null;
@@ -302,7 +332,8 @@ export function simulateSwitch(
     input,
     input.bondB,
     legA.endDate, // 청산 결제일부터 B 보유 시작
-    Math.trunc(legA.recoveredKrw),
+    // 중도매도 대금만 재투자한다 — 그 전에 받은 쿠폰은 이미 지급됐다
+    Math.trunc(legA.rolloverKrw),
     input.switchFrontFeePct
   );
   if (!legB) return null;

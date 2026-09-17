@@ -74,6 +74,233 @@ const num = (s: string, fallback = 0) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
+function pct(n: number, d = 1) {
+  return `${n >= 0 ? "+" : ""}${fmtNum(n, d)}%`;
+}
+
+/**
+ * 원본 시뮬레이션의 전략 카드에 쓰던 지표를 **새 엔진 결과**로 다시 구한다.
+ * 이 카드가 시뮬레이션의 핵심 화면이라 구성을 그대로 가져왔다(오너 지시, 2026-09-17).
+ *
+ * 분해식은 원본 그대로 네 항이고 합이 총수익률과 정확히 맞는다(증분효과가 잔차).
+ *  · 만기효과 A = A 청산단가(롤오버는 액면) ÷ A 매수단가 − 1
+ *  · 만기효과 B = 액면 ÷ B 매수단가 − 1 (만기 par 수렴)
+ *  · 이자효과   = 받은 쿠폰 ÷ A 보유 액면 (순수 쿠폰수익률, 매수가 무관)
+ *  · 증분효과   = 나머지
+ *
+ * 다만 총수익률이 원본(헤알 명목)과 달리 **현금흐름 엔진의 세후 원화 수익률**
+ * 이라, 잔차인 증분효과가 후취보수·세금까지 함께 떠안는다. 카드의 총 기대수익률과
+ * 아래 표의 총수익률이 어긋나지 않으려면 이쪽이 맞다.
+ */
+interface CardMetrics {
+  label: string;
+  kind: "rollover" | "switch";
+  unitsStart: number;
+  unitsEnd: number;
+  incrementPct: number;
+  startYear: number;
+  exitDate: string;
+  endDate: string;
+  years: number;
+  totalReturnPct: number;
+  maturityEffectAPct: number;
+  maturityEffectBPct: number;
+  couponEffectPct: number;
+  incrementEffectPct: number;
+  exitPriceA: number;
+  buyPriceB: number;
+}
+
+function cardMetrics(
+  kind: "rollover" | "switch",
+  label: string,
+  r: TrustStrategyResult | null,
+  fxRate: number,
+  contractDate: string
+): CardMetrics | null {
+  if (!r || r.legs.length < 2 || !(fxRate > 0)) return null;
+  const [a, b] = r.legs;
+  const unitsStart = a.pricing.faceValue / NTNF_FACE;
+  const unitsEnd = b.pricing.faceValue / NTNF_FACE;
+  const puA = a.pricing.dirtyPrice;
+  const puB = b.pricing.dirtyPrice;
+  if (!(unitsStart > 0) || !(puA > 0) || !(puB > 0)) return null;
+  // 롤오버는 A 를 만기상환(액면)으로 끝내고, 갈아타기는 청산단가로 판다
+  const exitPriceA = kind === "rollover" ? NTNF_FACE : (a.exitPrice ?? NTNF_FACE);
+  // 쿠폰은 두 구간 합. 엔진이 수탁통화(원)로 주므로 헤알로 되돌린다
+  const couponBrl =
+    r.legs.reduce(
+      (sum, leg) => sum + leg.rows.reduce((t, row) => t + row.interest, 0),
+      0
+    ) / fxRate;
+
+  const total = r.totalReturnPct / 100;
+  const mA = exitPriceA / puA - 1;
+  const mB = NTNF_FACE / puB - 1;
+  const cE = couponBrl / (unitsStart * NTNF_FACE);
+  return {
+    label,
+    kind,
+    unitsStart,
+    unitsEnd,
+    incrementPct: (unitsEnd / unitsStart - 1) * 100,
+    startYear: Number(contractDate.slice(0, 4)),
+    exitDate: kind === "rollover" ? a.bondMaturity : a.endDate,
+    endDate: r.endDate,
+    years: r.days / 365,
+    totalReturnPct: r.totalReturnPct,
+    maturityEffectAPct: mA * 100,
+    maturityEffectBPct: mB * 100,
+    couponEffectPct: cE * 100,
+    incrementEffectPct: (total - mA - mB - cE) * 100,
+    exitPriceA,
+    buyPriceB: puB,
+  };
+}
+
+/** 계약연도 ─ 전환연도 ─ 종료연도 한 줄 막대 (원본 그대로) */
+function Timeline({ m }: { m: CardMetrics }) {
+  const start = m.startYear;
+  const exitY = Number(m.exitDate.slice(0, 4));
+  const endY = Number(m.endDate.slice(0, 4));
+  const span = Math.max(1, endY - start);
+  const exitX = ((exitY - start) / span) * 100;
+  return (
+    <div className="my-2">
+      <div className="relative h-1 rounded bg-zinc-200 dark:bg-zinc-700">
+        <div className="absolute -top-1 h-3 w-0.5 bg-zinc-400" style={{ left: "0%" }} />
+        <div
+          className="absolute -top-1 h-3 w-0.5 bg-blue-500"
+          style={{ left: `${exitX}%` }}
+        />
+        <div className="absolute -top-1 right-0 h-3 w-0.5 bg-zinc-400" />
+      </div>
+      <div className="relative mt-1 h-3 text-[10px] text-zinc-400">
+        <span className="absolute left-0">{start}</span>
+        <span
+          className="absolute -translate-x-1/2 text-blue-500"
+          style={{ left: `${Math.min(92, Math.max(8, exitX))}%` }}
+        >
+          {exitY}
+        </span>
+        <span className="absolute right-0">{endY}</span>
+      </div>
+    </div>
+  );
+}
+
+/** 하단 손익 분해 — 왼쪽 A 몫, 오른쪽 B 몫 (원본 그대로) */
+function Breakdown({ m }: { m: CardMetrics }) {
+  const aLabel = m.kind === "rollover" ? "만기효과 A" : "중도매도효과 A";
+  const row = (c: string, label: string, note: string, v: number) => (
+    <div className="flex items-baseline gap-1.5">
+      <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-sm ${c}`} />
+      <span className="text-zinc-500 dark:text-zinc-400">
+        {label}
+        {note && <span className="text-zinc-400"> ({note})</span>}{" "}
+        <span className="font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+          {pct(v)}
+        </span>
+      </span>
+    </div>
+  );
+  return (
+    <div className="mt-1 space-y-1 text-[11px]">
+      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        <div className="flex items-start">
+          {row("bg-zinc-400", aLabel, "A 매수가 대비 청산가", m.maturityEffectAPct)}
+        </div>
+        <div className="space-y-1">
+          {row("bg-zinc-500", "만기효과 B", "B 매수가 대비 액면", m.maturityEffectBPct)}
+          {row(
+            "bg-orange-400",
+            "증분효과",
+            "할인 교차분·선취·후취·세금·잔돈",
+            m.incrementEffectPct
+          )}
+        </div>
+      </div>
+      <div className="mt-1 border-t border-zinc-300 pt-1.5 dark:border-zinc-600">
+        {row("bg-emerald-500", "이자효과", "쿠폰 ÷ A 보유 액면", m.couponEffectPct)}
+      </div>
+    </div>
+  );
+}
+
+function ScenarioCard({
+  m,
+  frontFeePct,
+  win,
+  reason,
+}: {
+  m: CardMetrics | null;
+  frontFeePct: number;
+  win: boolean;
+  reason?: string;
+}) {
+  if (!m)
+    return (
+      <div className="rounded-lg border border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {reason ?? "조건을 확인하세요."}
+      </div>
+    );
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        win
+          ? "border-red-300 bg-red-50/40 dark:border-red-800 dark:bg-red-950/20"
+          : "border-zinc-200 dark:border-zinc-800"
+      }`}
+    >
+      <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+        ■ {m.label}
+        {frontFeePct > 0 && (
+          <span className="font-normal text-zinc-400">
+            {" "}
+            (선취 {fmtNum(frontFeePct, frontFeePct % 1 ? 1 : 0)}%)
+          </span>
+        )}
+      </h4>
+
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          {m.kind === "rollover" ? "만기상환수량" : "중도매도수량"}{" "}
+          {fmtInt(m.unitsStart)} → 신규매수수량 {fmtInt(m.unitsEnd)}
+        </span>
+        <span
+          className={`rounded px-1 text-xs font-bold ${
+            win
+              ? "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"
+              : "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300"
+          }`}
+        >
+          {pct(m.incrementPct)} &uarr;
+        </span>
+      </div>
+
+      <Timeline m={m} />
+
+      <div className="my-2 flex items-baseline gap-2">
+        <span className="text-sm text-zinc-500 dark:text-zinc-400">총 기대수익률</span>
+        <span
+          className={`text-lg font-bold tabular-nums ${
+            win ? "text-red-600 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"
+          }`}
+        >
+          {pct(m.totalReturnPct)}
+        </span>
+      </div>
+
+      <Breakdown m={m} />
+
+      <p className="mt-1.5 text-[10px] text-zinc-400">
+        A 청산단가 R${fmtNum(m.exitPriceA, 2)} &middot; B 매수가격 R$
+        {fmtNum(m.buyPriceB, 2)} &middot; {fmtNum(m.years, 1)}년
+      </p>
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
@@ -241,6 +468,15 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
       (a[1]!.cagrPct ?? -Infinity) >= (b[1]!.cagrPct ?? -Infinity) ? a : b
     )[0];
   }, [hold, roll, swi]);
+
+  const rollCard = useMemo(
+    () => cardMetrics("rollover", "만기상환 후 롤오버", roll, fxRate, contractDate),
+    [roll, fxRate, contractDate]
+  );
+  const switchCard = useMemo(
+    () => cardMetrics("switch", "중도매도 후 갈아타기", swi, fxRate, contractDate),
+    [swi, fxRate, contractDate]
+  );
 
   const slots: Record<SlotKey, ReactNode> = {
     bondA: (
@@ -521,6 +757,30 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             보유종목 · 신탁투자원금 · 헤알화환율을 채우면 계산된다.
           </p>
         )}
+
+        {/* 전략 카드 — 시뮬레이션의 핵심 화면. 원본 구성 그대로 */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ScenarioCard
+            m={rollCard}
+            frontFeePct={0}
+            win={
+              !!rollCard &&
+              !!switchCard &&
+              rollCard.totalReturnPct >= switchCard.totalReturnPct
+            }
+            reason={rows.find((x) => x.key === "roll")?.unavailable}
+          />
+          <ScenarioCard
+            m={switchCard}
+            frontFeePct={num(state.trustFee)}
+            win={
+              !!rollCard &&
+              !!switchCard &&
+              switchCard.totalReturnPct > rollCard.totalReturnPct
+            }
+            reason={rows.find((x) => x.key === "switch")?.unavailable}
+          />
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-xs">
