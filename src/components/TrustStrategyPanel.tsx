@@ -849,23 +849,24 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         */}
         <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
           {/*
-            table-fixed — 전략 열만 넓게(두 줄이라 접힌다), 나머지 여섯 열은
-            같은 너비로 나눈다(오너 지시, 2026-09-17). 22% + 13%×6 = 100%.
+            table-fixed — 전략 열 폭은 재투자 표와 동일(22%)하게 맞춘다(오너 지시,
+            두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다). 나머지 4열은
+            같은 너비(19.5%×4=78%)로 나눈다.
           */}
-          <table className="w-full min-w-0 sm:min-w-[420px] table-fixed text-xs">
+          <table className="w-full min-w-0 sm:min-w-[460px] table-fixed text-[10px] sm:text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                {/* 전략 열 폭은 재투자 표와 동일(30%)하게 맞춘다(오너 지시) —
-                    두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다 */}
-                <th className="w-[30%] py-1.5 pr-3 font-medium">전략</th>
-                <th className="w-[35%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                <th className="w-[35%] py-1.5 text-right font-medium">복리(연)</th>
+                <th className="w-[22%] py-1.5 pr-1 sm:pr-3 font-medium">전략</th>
+                <th className="w-[19.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
+                <th className="w-[19.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
+                <th className="w-[19.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
+                <th className="w-[19.5%] py-1.5 text-right font-medium">복리(연)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {rows.map(({ key, label, note, r, unavailable }) => (
                 <tr key={key}>
-                  <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                  <td className="py-2 pr-1 text-zinc-800 dark:text-zinc-200 sm:pr-3">
                     {label}
                     {best === key && (
                       <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -876,15 +877,23 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                   </td>
                   {r ? (
                     <>
-                      <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                      <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:pr-3">
                         {fmtInt(r.totalReceivedKrw)}원
+                      </td>
+                      <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
+                        {fmtNum(r.totalReturnPct, 2)}%
+                      </td>
+                      <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
+                        {r.days > 0
+                          ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
+                          : "-"}
                       </td>
                       <td className="py-2 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                         {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                       </td>
                     </>
                   ) : (
-                    <td colSpan={2} className="py-2 text-zinc-400">
+                    <td colSpan={4} className="py-2 text-zinc-400">
                       {unavailable ?? "입력값을 확인하세요."}
                     </td>
                   )}
@@ -903,17 +912,19 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                 (쿠폰으로 같은 종목 추가 매수 — 현금흐름 탭 재투자형과 같은 규칙)
               </span>
             </h3>
-            <table className="w-full min-w-0 sm:min-w-[560px] table-fixed text-xs">
+            <table className="w-full min-w-0 sm:min-w-[560px] table-fixed text-[10px] sm:text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  {/* 전략 열 폭은 위 4전략 표와 동일(30%) */}
-                  <th className="w-[30%] py-1.5 pr-3 font-medium">전략</th>
+                  {/* 전략 열 폭은 위 4전략 표와 동일(22%) */}
+                  <th className="w-[22%] py-1.5 pr-1 font-medium sm:pr-3">전략</th>
                   {/* 좌수 열은 4단계 숫자가 다 들어가야 해서 더 넓게(오너 지시) */}
-                  <th className="w-[35%] py-1.5 pr-3 font-medium">
+                  <th className="w-[24%] py-1.5 pr-1 font-medium sm:pr-3">
                     좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
                   </th>
-                  <th className="w-[15%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                  <th className="w-[20%] py-1.5 text-right font-medium">반기지급 대비</th>
+                  <th className="w-[13.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
+                  <th className="w-[13.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
+                  <th className="w-[13.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">복리(연)</th>
+                  <th className="w-[13.5%] py-1.5 text-right font-medium">반기지급 대비</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -924,7 +935,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                   ] as const
                 ).map(([label, r, base]) => (
                   <tr key={label}>
-                    <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                    <td className="py-2 pr-1 text-zinc-800 dark:text-zinc-200 sm:pr-3">
                       {label}
                       {reWin === label && (
                         <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -935,7 +946,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                     {r ? (
                       <>
                         {/* 원본 탭과 같은 4단계 표기 — 최초 → 청산직전 → 갈아탄직후 → 만기 */}
-                        <td className="py-2 pr-3 tabular-nums text-zinc-600 dark:text-zinc-400">
+                        <td className="py-2 pr-1 tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
                           {[
                             r.legs[0]?.startUnits,
                             r.legs[0]?.endUnits,
@@ -947,7 +958,13 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                             .join(" → ")}
                           좌
                         </td>
-                        <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                        <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:pr-3">
+                          {fmtInt(r.totalReceivedKrw)}원
+                        </td>
+                        <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
+                          {fmtNum(r.totalReturnPct, 2)}%
+                        </td>
+                        <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:pr-3">
                           {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                         </td>
                         {/* 원본처럼 총수익률 차이를 %p 로 (오너 지시, 2026-09-17) */}
@@ -958,7 +975,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                         </td>
                       </>
                     ) : (
-                      <td colSpan={3} className="py-2 text-zinc-400">
+                      <td colSpan={5} className="py-2 text-zinc-400">
                         입력값을 확인하세요.
                       </td>
                     )}
