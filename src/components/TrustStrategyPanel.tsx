@@ -787,8 +787,8 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             key={g}
             className={
               g === 0
-                ? "grid gap-3 sm:grid-cols-3 lg:grid-cols-4"
-                : "grid gap-3 border-t border-dashed border-zinc-300 pt-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-700"
+                ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                : "grid grid-cols-2 gap-3 border-t border-dashed border-zinc-300 pt-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-700"
             }
           >
             {group.map((k, i) => (
