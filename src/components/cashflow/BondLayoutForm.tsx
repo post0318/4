@@ -391,22 +391,10 @@ export function BondLayoutForm({
           </Row>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden md:col-span-2">
-          {/* 잠금 버튼은 사내(원본) 화면 전용 — 공유 링크로 연 화면
-              (lockToggleDisabled)에선 숨긴다. 공유 링크 생성은 별도 버튼
-              (ShareLinkButton, 현금흐름 탭 상단). */}
-          {!lockToggleDisabled && (
-            <button
-              type="button"
-              onClick={() => onLockedChange(!locked)}
-              className={
-                locked
-                  ? "inline-flex w-fit items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
-                  : "inline-flex w-fit items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }
-            >
-              {locked ? "🔒 편입자산정보 잠김 (해제)" : "🔓 편입자산정보 잠금"}
-            </button>
-          )}
+          {/* 잠금 수동 토글 버튼은 삭제 — 공유 링크는 열람 시 자동으로 잠기고
+              (isSharedLink), 종목 검색으로 새로 반영하면 자동으로 풀린다
+              (onLockedChange(false)) — 오너 지시, 2026-09-19. 공유 링크
+              생성은 별도 버튼(ShareLinkButton, 현금흐름 탭 상단). */}
           {!lockToggleDisabled && onReset && (
             <button
               type="button"
