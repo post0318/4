@@ -399,7 +399,7 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
                   i % 2 === 1 ? "bg-zinc-50/70 dark:bg-zinc-900/40" : ""
                 }`}
               >
-                <td className={`${td} text-left`}>
+                <td className={`${td} overflow-hidden text-left text-ellipsis`}>
                   <span className="font-medium text-zinc-800 dark:text-zinc-100">
                     {bond.nameKo}
                   </span>

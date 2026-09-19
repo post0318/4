@@ -477,7 +477,7 @@ export function OrderConsole({
   ].filter((t) => !(hideTrading && t.key === "trading"));
 
   return (
-    <div className="print-page mx-auto grid max-w-6xl gap-5 p-4 sm:p-6">
+    <div className="print-page mx-auto grid grid-cols-1 max-w-6xl gap-5 p-4 sm:p-6">
       {hideTrading && <ClientViewGuard issued={clientIssued} viewerIp={viewerIp} />}
       {shareProblem && (
         <p
