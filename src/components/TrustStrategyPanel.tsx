@@ -330,6 +330,13 @@ const SLOT_ORDER = [
 
 type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
 
+/**
+ * 모바일 전용 순서 — PC(4열, 신탁조건 3칸+빈칸으로 줄 구분)와 다르게, 빈칸 없이
+ * 15개 항목을 위에서부터 2개씩 짝지어 배치한다(오너 지시, "1,2/3,4식").
+ * PC의 lg:grid-cols-4 레이아웃과는 완전히 분리된 별도 블록으로 렌더링한다.
+ */
+const MOBILE_SLOT_ORDER = SLOT_ORDER.filter((k): k is SlotKey => k !== null);
+
 export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   const sorted = useMemo(
     () => [...bonds].sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)),
@@ -779,28 +786,38 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
 
         {/*
           입력부 전체에 옅은 배경을 깔아 결과(카드·표)와 눈으로 구분한다
-          (오너 지시, 2026-09-17). 1행(신탁 조건)과 그 아래는 점선으로 가른다.
+          (오너 지시, 2026-09-17).
+          모바일은 PC와 완전히 다른 레이아웃 — 빈칸 없이 15개 항목을 위에서부터
+          2개씩 순서대로 짝지은 전용 블록(오너 지시). PC(sm 이상)는 기존
+          4열·신탁조건 구분 유지.
         */}
         <div className="space-y-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
-        {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
-          <div
-            key={g}
-            className={
-              g === 0
-                ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-                : "grid grid-cols-2 gap-3 border-t border-dashed border-zinc-300 pt-3 sm:grid-cols-3 lg:grid-cols-4 dark:border-zinc-700"
-            }
-          >
-            {group.map((k, i) => (
+          <div className="grid grid-cols-2 gap-3 sm:hidden">
+            {MOBILE_SLOT_ORDER.map((k) => (
+              <div key={k}>{slots[k]}</div>
+            ))}
+          </div>
+          <div className="hidden sm:block">
+            {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
               <div
-                key={k ?? `blank-${g}-${i}`}
-                className={k ? undefined : "hidden lg:block"}
+                key={g}
+                className={
+                  g === 0
+                    ? "grid grid-cols-3 gap-3 lg:grid-cols-4"
+                    : "grid grid-cols-3 gap-3 border-t border-dashed border-zinc-300 pt-3 lg:grid-cols-4 dark:border-zinc-700"
+                }
               >
-                {k ? slots[k] : null}
+                {group.map((k, i) => (
+                  <div
+                    key={k ?? `blank-${g}-${i}`}
+                    className={k ? undefined : "hidden lg:block"}
+                  >
+                    {k ? slots[k] : null}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-        ))}
         </div>
 
         {/*
