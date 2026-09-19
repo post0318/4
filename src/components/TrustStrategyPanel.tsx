@@ -813,23 +813,19 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
               ))}
             </div>
           </div>
+          {/* 태블릿(sm)도 PC와 동일한 4열로 — 중간에 3열 단계를 두지 않는다(오너 지시) */}
           <div className="hidden sm:block">
             {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
               <div
                 key={g}
                 className={
                   g === 0
-                    ? "grid grid-cols-3 gap-3 lg:grid-cols-4"
-                    : "grid grid-cols-3 gap-3 border-t border-dashed border-zinc-300 pt-3 lg:grid-cols-4 dark:border-zinc-700"
+                    ? "grid grid-cols-4 gap-3"
+                    : "grid grid-cols-4 gap-3 border-t border-dashed border-zinc-300 pt-3 dark:border-zinc-700"
                 }
               >
                 {group.map((k, i) => (
-                  <div
-                    key={k ?? `blank-${g}-${i}`}
-                    className={k ? undefined : "hidden lg:block"}
-                  >
-                    {k ? slots[k] : null}
-                  </div>
+                  <div key={k ?? `blank-${g}-${i}`}>{k ? slots[k] : null}</div>
                 ))}
               </div>
             ))}
