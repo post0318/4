@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { card, cardPad, cn, sectionTitle } from "@/lib/ui";
 
 interface NewsItem {
   titleKo: string;
@@ -62,7 +63,7 @@ function fmtDate(iso: string): string {
 
 function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-3.5">
       {items.map((n, i) => (
         <li key={`${i}-${n.link}`} className="text-xs">
           <a
@@ -89,7 +90,7 @@ function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
 
 function NewsList({ items }: { items: NewsItem[] }) {
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-3">
       {items.map((n, i) => (
         <li key={`${i}-${n.link}`} className="text-xs">
           <a
@@ -119,18 +120,16 @@ function NewsList({ items }: { items: NewsItem[] }) {
 
 function DailyReportCard({ report }: { report: DailyReport }) {
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          {report.title}
-        </h2>
+    <section className={cn(card, cardPad)}>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className={sectionTitle}>{report.title}</h2>
         <span className="text-[11px] text-zinc-400">
           {relTime(report.publishedAt)}
         </span>
       </div>
 
       {report.brief.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {report.brief.map((t, i) => (
             <div key={i}>
               {t.headline && (
@@ -138,7 +137,7 @@ function DailyReportCard({ report }: { report: DailyReport }) {
                   {t.headline}
                 </p>
               )}
-              <ul className="mt-1 space-y-1">
+              <ul className="mt-1.5 space-y-1.5">
                 {t.bullets.map((b, j) => (
                   <li
                     key={j}
@@ -162,7 +161,7 @@ function DailyReportCard({ report }: { report: DailyReport }) {
         </div>
       )}
 
-      <p className="mt-3 border-t border-zinc-100 pt-2 text-[11px] text-zinc-400 dark:border-zinc-800">
+      <p className="mt-4 border-t border-zinc-100 pt-3 text-[11px] text-zinc-400 dark:border-zinc-800">
         {report.partial && "본문 요약만 표시됩니다. "}
         출처{" "}
         <a
@@ -360,58 +359,66 @@ export function BrazilBriefing() {
   }, []);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       {report && <DailyReportCard report={report} />}
 
       {/* 뉴스: 좌 = 현지, 우 = 글로벌 */}
-      <section className="grid gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:grid-cols-2">
+      <section className={cn(card, cardPad, "grid gap-6 sm:grid-cols-2")}>
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className={sectionTitle}>
             브라질 현지 뉴스{" "}
             <span className="text-[11px] font-normal text-zinc-400">
               (좋은아침뉴스 · 상파울루 한인신문)
             </span>
           </h2>
           {!news && !newsError && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
               불러오는 중…
             </p>
           )}
           {newsError && (
-            <p className="text-xs text-red-500">뉴스를 불러오지 못했습니다.</p>
+            <p className="mt-3 text-xs text-red-500">뉴스를 불러오지 못했습니다.</p>
           )}
-          {news && <LocalNewsList items={news} />}
+          {news && (
+            <div className="mt-3">
+              <LocalNewsList items={news} />
+            </div>
+          )}
         </div>
 
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className={sectionTitle}>
             브라질 관련 글로벌 뉴스{" "}
             <span className="text-[11px] font-normal text-zinc-400">
               (영문 · 자동 번역)
             </span>
           </h2>
           {!global && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
               불러오는 중…
             </p>
           )}
           {global && global.length === 0 && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
               글로벌 뉴스가 없습니다.
             </p>
           )}
-          {global && global.length > 0 && <NewsList items={global} />}
+          {global && global.length > 0 && (
+            <div className="mt-3">
+              <NewsList items={global} />
+            </div>
+          )}
         </div>
       </section>
 
       {/* 주요일정: 뉴스 아래 */}
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          브라질 주요일정
-        </h2>
-        <AgendaBody agenda={agenda} />
+      <section className={cn(card, cardPad)}>
+        <h2 className={sectionTitle}>브라질 주요일정</h2>
+        <div className="mt-3">
+          <AgendaBody agenda={agenda} />
+        </div>
         {agenda && agenda.length > 0 && (
-          <p className="mt-3 border-t border-zinc-100 pt-2 text-[11px] text-zinc-400 dark:border-zinc-800">
+          <p className="mt-4 border-t border-zinc-100 pt-3 text-[11px] text-zinc-400 dark:border-zinc-800">
             출처 발표일 IBGE 캘린더 · 예상치 브라질 중앙은행 Focus 설문 · 발표치
             브라질 중앙은행 SGS · 휴장일 B3 · 대선 일정 TSE
           </p>
