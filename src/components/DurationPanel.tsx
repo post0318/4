@@ -17,7 +17,7 @@ export interface DurationState {
   reinvest: boolean;
 }
 export function createDurationState(): DurationState {
-  return { dy: 1, dfx: 0, reinvest: false };
+  return { dy: 0, dfx: 0, reinvest: false };
 }
 
 interface Props {
@@ -273,20 +273,25 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
 
   // 요약표: 종목별 "현재 매수금리로 만기까지 보유 시 헤알 수익률" (금리 Δ 무관)
   // reinvest=false 일반형(쿠폰 현금수령) / true 재투자형(쿠폰을 매수금리로 복리 재투자)
-  // 예상수익률 표는 2031·2033·2037 3종목만 — 종목 수가 많으면 표가 좁아져
-  // 모바일에서 읽기 힘들다(오너 지시).
-  const MATRIX_YEARS = ["2031", "2033", "2037"];
-  const matrixBonds: MatrixBond[] = useMemo(
+  // 예상수익률 표 — 모바일은 2031·2033·2037 3종목만(표가 좁아져 읽기 힘들다,
+  // 오너 지시), 태블릿·PC는 전종목(오너 지시, "테블릿에서는 29 35도 나오게").
+  const MATRIX_YEARS_MOBILE = ["2031", "2033", "2037"];
+  const toMatrixBond = (b: BondItem): MatrixBond => ({
+    label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
+    hold:
+      b.buyYieldPct != null
+        ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0, reinvest)
+        : null,
+  });
+  const matrixBondsMobile: MatrixBond[] = useMemo(
     () =>
       sorted
-        .filter((b) => MATRIX_YEARS.includes(b.maturityDate.slice(0, 4)))
-        .map((b) => ({
-          label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
-          hold:
-            b.buyYieldPct != null
-              ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0, reinvest)
-              : null,
-        })),
+        .filter((b) => MATRIX_YEARS_MOBILE.includes(b.maturityDate.slice(0, 4)))
+        .map(toMatrixBond),
+    [sorted, reinvest]
+  );
+  const matrixBondsAll: MatrixBond[] = useMemo(
+    () => sorted.map(toMatrixBond),
     [sorted, reinvest]
   );
 
@@ -495,7 +500,12 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
                 ? "재투자형: 쿠폰을 매수금리로 재투자한다고 가정."
                 : "일반형: 쿠폰을 현금으로 받아 재투자하지 않음."}
             </p>
-            <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} />
+            <div className="sm:hidden">
+              <ReturnMatrix bonds={matrixBondsMobile} baseFx={fx.krwBrl} />
+            </div>
+            <div className="hidden sm:block">
+              <ReturnMatrix bonds={matrixBondsAll} baseFx={fx.krwBrl} />
+            </div>
           </div>
 
           <div className="mt-4 border-t border-zinc-300 pt-3 dark:border-zinc-700">
@@ -506,7 +516,12 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
               매수단가에 사서 만기에 <b>액면 R$1,000만 상환</b>(쿠폰 미포함) →
               헤알 강·약세가 <b>투자 원금</b>에 미치는 영향만.
             </p>
-            <ReturnMatrix bonds={matrixBonds} baseFx={fx.krwBrl} parOnly />
+            <div className="sm:hidden">
+              <ReturnMatrix bonds={matrixBondsMobile} baseFx={fx.krwBrl} parOnly />
+            </div>
+            <div className="hidden sm:block">
+              <ReturnMatrix bonds={matrixBondsAll} baseFx={fx.krwBrl} parOnly />
+            </div>
           </div>
 
           <p className="text-xs text-zinc-400">
