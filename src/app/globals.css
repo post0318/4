@@ -26,6 +26,19 @@
   }
 }
 
+/* 모바일 전용 배경 — 브라질 국기 초록을 기반으로 옅게(오너 지시). 데스크톱은
+   위의 중립 회색 그대로 */
+@media (max-width: 639px) {
+  :root {
+    --background: #eef8f0;
+  }
+}
+@media (max-width: 639px) and (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a1710;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
