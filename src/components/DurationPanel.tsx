@@ -366,22 +366,27 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] table-fixed border-collapse text-[13px]">
+        <table className="w-full min-w-[430px] sm:min-w-[560px] table-fixed border-collapse text-[13px]">
           <colgroup>
             <col className="w-[19%]" />
-            {/* 수익률 ~ 원화가치변동: 7칸 동일폭 */}
-            {Array.from({ length: 7 }, (_, i) => (
-              <col key={i} className="w-[11.57%]" />
-            ))}
+            <col className="w-[16.2%] sm:w-[11.57%]" />
+            {/* PU: 모바일에서 가로 스크롤을 줄이려 숨긴다 */}
+            <col className="hidden sm:table-column sm:w-[11.57%]" />
+            <col className="w-[16.2%] sm:w-[11.57%]" />
+            {/* 수익률 0.01%p 가격변화(R$): 모바일에서 숨긴다 */}
+            <col className="hidden sm:table-column sm:w-[11.57%]" />
+            <col className="w-[16.2%] sm:w-[11.57%]" />
+            <col className="w-[16.2%] sm:w-[11.57%]" />
+            <col className="w-[16.2%] sm:w-[11.57%]" />
           </colgroup>
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/60">
               <th className={`${th} text-center`}>종목</th>
               <th className={`${th} text-center`}>수익률</th>
-              <th className={`${th} text-center`}>PU</th>
+              <th className={`${th} hidden text-center sm:table-cell`}>PU</th>
               <th className={`${th} text-center`}>수정
                 <br />듀레이션</th>
-              <th className={`${th} text-center`}>수익률 0.01%p
+              <th className={`${th} hidden text-center sm:table-cell`}>수익률 0.01%p
                 <br />가격변화(R$)</th>
               <th className={`${th} text-center`}>가격
                 <br />변동</th>
@@ -409,13 +414,13 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
                     ? `${fmtNum(bond.buyYieldPct, 2)}%`
                     : "-"}
                 </td>
-                <td className={`${td} text-right`}>
+                <td className={`${td} hidden text-right sm:table-cell`}>
                   {risk ? fmtNum(risk.pu, 2) : "-"}
                 </td>
                 <td className={`${td} text-right font-semibold`}>
                   {risk ? `${fmtNum(risk.modDuration, 2)}년` : "-"}
                 </td>
-                <td className={`${td} text-right`}>
+                <td className={`${td} hidden text-right sm:table-cell`}>
                   {risk ? fmtNum(risk.dv01, 3) : "-"}
                 </td>
                 <td
