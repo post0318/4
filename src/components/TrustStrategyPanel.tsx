@@ -886,61 +886,112 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         */}
         <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
           {/*
-            table-fixed — 전략 열 폭은 재투자 표와 동일(30%)하게 맞춘다(오너 지시,
-            두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다. 노트 문구가
-            줄바꿈되지 않게 30%까지 넓힘). 세후 총수령은 "원"까지 한 줄에
-            들어가게 22%, 나머지 3열은 16%씩.
+            모바일용과 PC용을 완전히 별도 블록으로 분리한다(오너 지시,
+            2026-09-20 — sm: 접두사만으로 폭을 바꾸는 방식은 뷰포트 판정이
+            어긋나면 PC에서도 모바일 폭으로 보이는 문제가 있었다). 입력폼
+            (SLOT_ORDER)과 같은 sm:hidden / hidden sm:block 분리 패턴.
           */}
-          <table className="w-full min-w-0 sm:min-w-[460px] table-fixed text-[10px] sm:text-xs">
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                {/* 전략 열 — 재투자 표와 모바일 기준 열 위치별로 폭을 맞춘다(오너 지시,
-                    26/26/16/16/16). 노트 문구도 이 폭에서 줄바꿈 안 됨 */}
-                <th className="w-[26%] py-1.5 pr-1 sm:w-[30%] sm:pr-3 font-medium">전략</th>
-                <th className="w-[26%] py-1.5 pr-1 text-right font-medium sm:w-[22%] sm:pr-3">세후 총수령</th>
-                <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
-                <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
-                <th className="w-[16%] py-1.5 text-right font-medium">복리(연)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {rows.map(({ key, label, note, r, unavailable }) => (
-                <tr key={key}>
-                  <td className="py-2 pr-1 text-zinc-800 dark:text-zinc-200 sm:pr-3">
-                    {label}
-                    {best === key && (
-                      <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                        복리 최고
-                      </span>
-                    )}
-                    <span className="block text-[10px] text-zinc-400">{note}</span>
-                  </td>
-                  {r ? (
-                    <>
-                      <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:pr-3">
-                        {fmtInt(r.totalReceivedKrw)}원
-                      </td>
-                      <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
-                        {fmtNum(r.totalReturnPct, 2)}%
-                      </td>
-                      <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
-                        {r.days > 0
-                          ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
-                          : "-"}
-                      </td>
-                      <td className="py-2 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-                        {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
-                      </td>
-                    </>
-                  ) : (
-                    <td colSpan={4} className="py-2 text-zinc-400">
-                      {unavailable ?? "입력값을 확인하세요."}
-                    </td>
-                  )}
+          <div className="sm:hidden">
+            <table className="w-full table-fixed text-[10px]">
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+                  <th className="w-[26%] py-1.5 pr-1 font-medium">전략</th>
+                  <th className="w-[26%] py-1.5 pr-1 text-right font-medium">세후 총수령</th>
+                  <th className="w-[16%] py-1.5 pr-1 text-right font-medium">총수익률</th>
+                  <th className="w-[16%] py-1.5 pr-1 text-right font-medium">단리(연)</th>
+                  <th className="w-[16%] py-1.5 text-right font-medium">복리(연)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {rows.map(({ key, label, note, r, unavailable }) => (
+                  <tr key={key}>
+                    <td className="py-2 pr-1 text-zinc-800 dark:text-zinc-200">
+                      {label}
+                      {best === key && (
+                        <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                          복리 최고
+                        </span>
+                      )}
+                      <span className="block text-[10px] text-zinc-400">{note}</span>
+                    </td>
+                    {r ? (
+                      <>
+                        <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                          {fmtInt(r.totalReceivedKrw)}원
+                        </td>
+                        <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                          {fmtNum(r.totalReturnPct, 2)}%
+                        </td>
+                        <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                          {r.days > 0
+                            ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
+                            : "-"}
+                        </td>
+                        <td className="py-2 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                          {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
+                        </td>
+                      </>
+                    ) : (
+                      <td colSpan={4} className="py-2 text-zinc-400">
+                        {unavailable ?? "입력값을 확인하세요."}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="hidden sm:block">
+            <table className="w-full min-w-[460px] table-fixed text-xs">
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+                  <th className="w-[30%] py-1.5 pr-3 font-medium">전략</th>
+                  <th className="w-[22%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">단리(연)</th>
+                  <th className="w-[16%] py-1.5 text-right font-medium">복리(연)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {rows.map(({ key, label, note, r, unavailable }) => (
+                  <tr key={key}>
+                    <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                      {label}
+                      {best === key && (
+                        <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                          복리 최고
+                        </span>
+                      )}
+                      <span className="block text-[10px] text-zinc-400">{note}</span>
+                    </td>
+                    {r ? (
+                      <>
+                        <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                          {fmtInt(r.totalReceivedKrw)}원
+                        </td>
+                        <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                          {fmtNum(r.totalReturnPct, 2)}%
+                        </td>
+                        <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                          {r.days > 0
+                            ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
+                            : "-"}
+                        </td>
+                        <td className="py-2 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                          {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
+                        </td>
+                      </>
+                    ) : (
+                      <td colSpan={4} className="py-2 text-zinc-400">
+                        {unavailable ?? "입력값을 확인하세요."}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* 재투자 기준 — 반기지급형과 나란히 본다 */}
@@ -952,83 +1003,152 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                 (쿠폰으로 같은 종목 추가 매수 — 현금흐름 탭 재투자형과 같은 규칙)
               </span>
             </h3>
-            <table className="w-full min-w-0 sm:min-w-[560px] table-fixed text-[10px] sm:text-xs">
-              <thead>
-                <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  {/* 전략 열 폭은 위 4전략 표와 모바일 기준 동일(26%, sm은 30%) */}
-                  <th className="w-[26%] py-1.5 pr-1 font-medium sm:w-[30%] sm:pr-3">전략</th>
-                  {/* 좌수 = 위 표의 세후총수령과 같은 폭(모바일 26%, sm 20%), 나머지
-                      3열은 그것들끼리(위 표 나머지 3열과도) 동일 폭 16%/10%(오너 지시) */}
-                  <th className="w-[26%] py-1.5 pr-1 font-medium sm:w-[20%] sm:pr-3">
-                    좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
-                  </th>
-                  {/* 세후 총수령은 태블릿 이상에서만 — 모바일은 좁아서 뺀다(오너 지시) */}
-                  <th className="hidden py-1.5 pr-1 text-right font-medium sm:table-cell sm:w-[20%] sm:pr-3">세후 총수령</th>
-                  <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">총수익률</th>
-                  <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">복리(연)</th>
-                  <th className="w-[16%] py-1.5 text-right font-medium sm:w-[10%]">
-                    반기지급
-                    <br />
-                    대비
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {(
-                  [
-                    ["롤오버", reRoll, roll],
-                    ["갈아타기", reSwi, swi],
-                  ] as const
-                ).map(([label, r, base]) => (
-                  <tr key={label}>
-                    <td className="py-2 pr-1 text-zinc-800 dark:text-zinc-200 sm:pr-3">
-                      {label}
-                      {reWin === label && (
-                        <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                          우세
-                        </span>
-                      )}
-                    </td>
-                    {r ? (
-                      <>
-                        {/* 원본 탭과 같은 4단계 표기 — 최초 → 청산직전 → 갈아탄직후 → 만기 */}
-                        <td className="py-2 pr-1 tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
-                          {[
-                            r.legs[0]?.startUnits,
-                            r.legs[0]?.endUnits,
-                            r.legs[1]?.startUnits,
-                            r.legs[1]?.endUnits,
-                          ]
-                            .filter((u): u is number => u != null)
-                            .map((u) => fmtInt(u))
-                            .join(" → ")}
-                          좌
-                        </td>
-                        <td className="hidden py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:table-cell sm:pr-3">
-                          {fmtInt(r.totalReceivedKrw)}원
-                        </td>
-                        <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
-                          {fmtNum(r.totalReturnPct, 2)}%
-                        </td>
-                        <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:pr-3">
-                          {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
-                        </td>
-                        {/* 원본처럼 총수익률 차이를 %p 로 (오너 지시, 2026-09-17) */}
-                        <td className="py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
-                          {base
-                            ? `${pct(r.totalReturnPct - base.totalReturnPct, 2)}p`
-                            : "-"}
-                        </td>
-                      </>
-                    ) : (
-                      <td colSpan={5} className="py-2 text-zinc-400">
-                        입력값을 확인하세요.
-                      </td>
-                    )}
+            {/* 모바일용과 PC용 완전 분리 — 위 4전략 표와 같은 패턴(오너 지시,
+                2026-09-20) */}
+            <div className="sm:hidden">
+              <table className="w-full table-fixed text-[10px]">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+                    <th className="w-[26%] py-1.5 pr-1 font-medium">전략</th>
+                    <th className="w-[26%] py-1.5 pr-1 font-medium">
+                      좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
+                    </th>
+                    {/* 세후 총수령은 모바일에서는 좁아서 뺀다(오너 지시) */}
+                    <th className="w-[16%] py-1.5 pr-1 text-right font-medium">총수익률</th>
+                    <th className="w-[16%] py-1.5 pr-1 text-right font-medium">복리(연)</th>
+                    <th className="w-[16%] py-1.5 text-right font-medium">
+                      반기지급
+                      <br />
+                      대비
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {(
+                    [
+                      ["롤오버", reRoll, roll],
+                      ["갈아타기", reSwi, swi],
+                    ] as const
+                  ).map(([label, r, base]) => (
+                    <tr key={label}>
+                      <td className="py-2 pr-1 text-zinc-800 dark:text-zinc-200">
+                        {label}
+                        {reWin === label && (
+                          <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                            우세
+                          </span>
+                        )}
+                      </td>
+                      {r ? (
+                        <>
+                          <td className="py-2 pr-1 tabular-nums text-zinc-600 dark:text-zinc-400">
+                            {[
+                              r.legs[0]?.startUnits,
+                              r.legs[0]?.endUnits,
+                              r.legs[1]?.startUnits,
+                              r.legs[1]?.endUnits,
+                            ]
+                              .filter((u): u is number => u != null)
+                              .map((u) => fmtInt(u))
+                              .join(" → ")}
+                            좌
+                          </td>
+                          <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                            {fmtNum(r.totalReturnPct, 2)}%
+                          </td>
+                          <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                            {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
+                          </td>
+                          <td className="py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {base
+                              ? `${pct(r.totalReturnPct - base.totalReturnPct, 2)}p`
+                              : "-"}
+                          </td>
+                        </>
+                      ) : (
+                        <td colSpan={4} className="py-2 text-zinc-400">
+                          입력값을 확인하세요.
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="hidden sm:block">
+              <table className="w-full min-w-[560px] table-fixed text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+                    <th className="w-[30%] py-1.5 pr-3 font-medium">전략</th>
+                    <th className="w-[20%] py-1.5 pr-3 font-medium">
+                      좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
+                    </th>
+                    <th className="w-[20%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                    <th className="w-[10%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                    <th className="w-[10%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                    <th className="w-[10%] py-1.5 text-right font-medium">
+                      반기지급
+                      <br />
+                      대비
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {(
+                    [
+                      ["롤오버", reRoll, roll],
+                      ["갈아타기", reSwi, swi],
+                    ] as const
+                  ).map(([label, r, base]) => (
+                    <tr key={label}>
+                      <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                        {label}
+                        {reWin === label && (
+                          <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                            우세
+                          </span>
+                        )}
+                      </td>
+                      {r ? (
+                        <>
+                          <td className="py-2 pr-3 tabular-nums text-zinc-600 dark:text-zinc-400">
+                            {[
+                              r.legs[0]?.startUnits,
+                              r.legs[0]?.endUnits,
+                              r.legs[1]?.startUnits,
+                              r.legs[1]?.endUnits,
+                            ]
+                              .filter((u): u is number => u != null)
+                              .map((u) => fmtInt(u))
+                              .join(" → ")}
+                            좌
+                          </td>
+                          <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                            {fmtInt(r.totalReceivedKrw)}원
+                          </td>
+                          <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                            {fmtNum(r.totalReturnPct, 2)}%
+                          </td>
+                          <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                            {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
+                          </td>
+                          <td className="py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {base
+                              ? `${pct(r.totalReturnPct - base.totalReturnPct, 2)}p`
+                              : "-"}
+                          </td>
+                        </>
+                      ) : (
+                        <td colSpan={5} className="py-2 text-zinc-400">
+                          입력값을 확인하세요.
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
