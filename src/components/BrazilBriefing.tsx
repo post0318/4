@@ -101,7 +101,7 @@ function NewsList({ items }: { items: NewsItem[] }) {
             {n.titleKo}
           </a>
           {!n.translationOk && (
-            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <span className="ml-1 rounded border border-zinc-300 px-1 text-[10px] text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
               번역 불확실
             </span>
           )}
@@ -189,12 +189,9 @@ function DailyReportCard({ report }: { report: DailyReport }) {
 
 function AgendaRow({ a }: { a: AgendaItem }) {
   const past = a.date < new Date().toISOString().slice(0, 10);
-  const badge =
-    a.category === "선거"
-      ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-      : a.category === "휴장"
-        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
+  // 카테고리 배지는 텍스트 자체가 정보를 전달하므로 중립 톤 하나로 통일
+  // (색상은 기능적 신호에만 쓴다 — 오너 지시, 디자인 원칙 적용).
+  const badge = "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
       <span
