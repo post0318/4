@@ -849,18 +849,19 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         */}
         <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
           {/*
-            table-fixed — 전략 열 폭은 재투자 표와 동일(22%)하게 맞춘다(오너 지시,
-            두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다). 나머지 4열은
-            같은 너비(19.5%×4=78%)로 나눈다.
+            table-fixed — 전략 열 폭은 재투자 표와 동일(30%)하게 맞춘다(오너 지시,
+            두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다. 노트 문구가
+            줄바꿈되지 않게 30%까지 넓힘). 나머지 4열은 같은 너비(17.5%×4=70%).
           */}
           <table className="w-full min-w-0 sm:min-w-[460px] table-fixed text-[10px] sm:text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                <th className="w-[22%] py-1.5 pr-1 sm:pr-3 font-medium">전략</th>
-                <th className="w-[19.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
-                <th className="w-[19.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
-                <th className="w-[19.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
-                <th className="w-[19.5%] py-1.5 text-right font-medium">복리(연)</th>
+                {/* 전략 열 — 노트 문구("A 중도매도로 종료" 등)가 줄바꿈 안 되게 넓힘(오너 지시) */}
+                <th className="w-[30%] py-1.5 pr-1 sm:pr-3 font-medium">전략</th>
+                <th className="w-[17.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
+                <th className="w-[17.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
+                <th className="w-[17.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
+                <th className="w-[17.5%] py-1.5 text-right font-medium">복리(연)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -915,16 +916,17 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             <table className="w-full min-w-0 sm:min-w-[560px] table-fixed text-[10px] sm:text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  {/* 전략 열 폭은 위 4전략 표와 동일(22%) */}
-                  <th className="w-[22%] py-1.5 pr-1 font-medium sm:pr-3">전략</th>
+                  {/* 전략 열 폭은 위 4전략 표와 동일(30%) */}
+                  <th className="w-[30%] py-1.5 pr-1 font-medium sm:pr-3">전략</th>
                   {/* 좌수 열은 4단계 숫자가 다 들어가야 해서 더 넓게(오너 지시) */}
-                  <th className="w-[24%] py-1.5 pr-1 font-medium sm:pr-3">
+                  <th className="w-[24%] py-1.5 pr-1 font-medium sm:w-[20%] sm:pr-3">
                     좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
                   </th>
-                  <th className="w-[13.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
-                  <th className="w-[13.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
-                  <th className="w-[13.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">복리(연)</th>
-                  <th className="w-[13.5%] py-1.5 text-right font-medium">반기지급 대비</th>
+                  {/* 세후 총수령은 태블릿 이상에서만 — 모바일은 좁아서 뺀다(오너 지시) */}
+                  <th className="hidden py-1.5 pr-1 text-right font-medium sm:table-cell sm:w-[12.5%] sm:pr-3">세후 총수령</th>
+                  <th className="w-[15.33%] py-1.5 pr-1 text-right font-medium sm:w-[12.5%] sm:pr-3">총수익률</th>
+                  <th className="w-[15.33%] py-1.5 pr-1 text-right font-medium sm:w-[12.5%] sm:pr-3">복리(연)</th>
+                  <th className="w-[15.33%] py-1.5 text-right font-medium sm:w-[12.5%]">반기지급 대비</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -958,7 +960,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                             .join(" → ")}
                           좌
                         </td>
-                        <td className="py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:pr-3">
+                        <td className="hidden py-2 pr-1 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 sm:table-cell sm:pr-3">
                           {fmtInt(r.totalReceivedKrw)}원
                         </td>
                         <td className="py-2 pr-1 text-right tabular-nums text-zinc-600 dark:text-zinc-400 sm:pr-3">
