@@ -488,25 +488,31 @@ export function OrderConsole({
         </p>
       )}
       <header className="flex items-center justify-between print:hidden">
-        <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          {/* 제목 클릭 → 첫 화면(현금흐름) 탭으로 */}
-          <button
-            type="button"
-            onClick={() => setTab("cashflow")}
-            className="flex items-center gap-2 rounded-md outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="처음 화면으로"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={BRAZIL_FLAG_DATA_URI}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className="flag-wave h-4 w-auto shrink-0 select-none"
-            />
-            브라질세상
-          </button>
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            {/* 제목 클릭 → 첫 화면(현금흐름) 탭으로 */}
+            <button
+              type="button"
+              onClick={() => setTab("cashflow")}
+              className="flex items-center gap-2 rounded-md outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
+              aria-label="처음 화면으로"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={BRAZIL_FLAG_DATA_URI}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="flag-wave h-4 w-auto shrink-0 select-none"
+              />
+              브라질세상
+            </button>
+          </h1>
+          {/* 사내한 자료 문구 — 현금흐름 탭에서 옮겨와 제목 오른쪽에 항상 표시(오너 지시) */}
+          <p className="hidden text-xs font-bold text-red-600 dark:text-red-500 sm:block">
+            ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
+          </p>
+        </div>
         {/* 공유 링크는 로그인/계정 메뉴 바로 왼쪽에 (오너 지시) — 고객 화면(hideTrading)·
             공유 링크로 연 화면(isSharedLink)에선 안 보인다 */}
         <div className="flex items-center gap-3">

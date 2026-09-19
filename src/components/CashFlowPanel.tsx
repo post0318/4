@@ -180,7 +180,8 @@ export function CashFlowPanel({
   return (
     <div className="cf-print-root">
       <div className="flex flex-col gap-6">
-        <p className="text-xs font-bold text-red-600 dark:text-red-500 print:text-red-600">
+        {/* 화면에서는 헤더(제목 오른쪽)로 옮겼다(오너 지시) — 인쇄물에는 그대로 남긴다 */}
+        <p className="hidden text-xs font-bold text-red-600 print:block">
           ※ 본 자료는 참고용이며, 불특정 다수에게 제공이 금지된 사내한 자료입니다.
         </p>
         <BondLayoutForm
