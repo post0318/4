@@ -294,8 +294,8 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
   }
 
   const th =
-    "px-2 py-2 font-semibold text-zinc-500 dark:text-zinc-400 leading-tight";
-  const td = "px-2 py-1.5 whitespace-nowrap tabular-nums";
+    "px-1 py-2 sm:px-2 font-semibold text-zinc-500 dark:text-zinc-400 leading-tight";
+  const td = "px-1 py-1.5 sm:px-2 whitespace-nowrap tabular-nums";
 
   return (
     <div className="space-y-4">
@@ -366,7 +366,7 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[430px] sm:min-w-[560px] table-fixed border-collapse text-[13px]">
+        <table className="w-full min-w-0 sm:min-w-[560px] table-fixed border-collapse text-[11px] sm:text-[13px]">
           <colgroup>
             <col className="w-[19%]" />
             <col className="w-[16.2%] sm:w-[11.57%]" />
