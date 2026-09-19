@@ -929,7 +929,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                   <th className="hidden py-1.5 pr-1 text-right font-medium sm:table-cell sm:w-[20%] sm:pr-3">세후 총수령</th>
                   <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">총수익률</th>
                   <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">복리(연)</th>
-                  <th className="w-[16%] py-1.5 text-right font-medium sm:w-[10%]">반기지급 대비</th>
+                  <th className="w-[16%] py-1.5 text-right font-medium sm:w-[10%]">
+                    반기지급
+                    <br />
+                    대비
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
