@@ -62,7 +62,7 @@ function fmtDate(iso: string): string {
 
 function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-4">
       {items.map((n, i) => (
         <li key={`${i}-${n.link}`} className="text-xs">
           <a
@@ -89,7 +89,7 @@ function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
 
 function NewsList({ items }: { items: NewsItem[] }) {
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-4">
       {items.map((n, i) => (
         <li key={`${i}-${n.link}`} className="text-xs">
           <a
@@ -101,15 +101,10 @@ function NewsList({ items }: { items: NewsItem[] }) {
             {n.titleKo}
           </a>
           {!n.translationOk && (
-            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-              번역 불확실
-            </span>
+            <span className="ml-1 text-[10px] text-zinc-400">(번역 불확실)</span>
           )}
           <p className="mt-0.5 text-[11px] text-zinc-400">
-            <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
-              {n.category}
-            </span>{" "}
-            {n.source} · {relTime(n.publishedAt)}
+            {n.category} · {n.source} · {relTime(n.publishedAt)}
           </p>
         </li>
       ))}
@@ -119,9 +114,9 @@ function NewsList({ items }: { items: NewsItem[] }) {
 
 function DailyReportCard({ report }: { report: DailyReport }) {
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+    <section className="border-b border-zinc-100 pb-10 dark:border-zinc-900">
+      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           {report.title}
         </h2>
         <span className="text-[11px] text-zinc-400">
@@ -130,7 +125,7 @@ function DailyReportCard({ report }: { report: DailyReport }) {
       </div>
 
       {report.brief.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-5">
           {report.brief.map((t, i) => (
             <div key={i}>
               {t.headline && (
@@ -138,7 +133,7 @@ function DailyReportCard({ report }: { report: DailyReport }) {
                   {t.headline}
                 </p>
               )}
-              <ul className="mt-1 space-y-1">
+              <ul className="mt-1.5 space-y-1.5">
                 {t.bullets.map((b, j) => (
                   <li
                     key={j}
@@ -162,7 +157,7 @@ function DailyReportCard({ report }: { report: DailyReport }) {
         </div>
       )}
 
-      <p className="mt-3 border-t border-zinc-100 pt-2 text-[11px] text-zinc-400 dark:border-zinc-800">
+      <p className="mt-5 text-[11px] text-zinc-400">
         {report.partial && "본문 요약만 표시됩니다. "}
         출처{" "}
         <a
@@ -189,12 +184,6 @@ function DailyReportCard({ report }: { report: DailyReport }) {
 
 function AgendaRow({ a }: { a: AgendaItem }) {
   const past = a.date < new Date().toISOString().slice(0, 10);
-  const badge =
-    a.category === "선거"
-      ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-      : a.category === "휴장"
-        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
       <span
@@ -206,7 +195,7 @@ function AgendaRow({ a }: { a: AgendaItem }) {
       >
         {fmtDate(a.date)}
       </span>
-      <span className={`shrink-0 rounded px-1 text-[10px] ${badge}`}>
+      <span className="w-14 shrink-0 text-[11px] text-zinc-400">
         {a.category}
       </span>
       <span className="text-zinc-800 dark:text-zinc-100">{a.titleKo}</span>
@@ -363,58 +352,66 @@ export function BrazilBriefing() {
   }, []);
 
   return (
-    <div className="grid gap-4">
+    <div>
       {report && <DailyReportCard report={report} />}
 
       {/* 뉴스: 좌 = 현지, 우 = 글로벌 */}
-      <section className="grid gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:grid-cols-2">
+      <section className="grid gap-8 border-b border-zinc-100 py-10 dark:border-zinc-900 sm:grid-cols-2">
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            브라질 현지 뉴스{" "}
-            <span className="text-[11px] font-normal text-zinc-400">
-              (좋은아침뉴스 · 상파울루 한인신문)
-            </span>
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            브라질 현지 뉴스
           </h2>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            좋은아침뉴스 · 상파울루 한인신문
+          </p>
           {!news && !newsError && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
               불러오는 중…
             </p>
           )}
           {newsError && (
-            <p className="text-xs text-red-500">뉴스를 불러오지 못했습니다.</p>
+            <p className="mt-4 text-xs text-red-500">뉴스를 불러오지 못했습니다.</p>
           )}
-          {news && <LocalNewsList items={news} />}
+          {news && (
+            <div className="mt-4">
+              <LocalNewsList items={news} />
+            </div>
+          )}
         </div>
 
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            브라질 관련 글로벌 뉴스{" "}
-            <span className="text-[11px] font-normal text-zinc-400">
-              (영문 · 자동 번역)
-            </span>
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            브라질 관련 글로벌 뉴스
           </h2>
+          <p className="mt-1 text-[11px] text-zinc-400">영문 · 자동 번역</p>
           {!global && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
               불러오는 중…
             </p>
           )}
           {global && global.length === 0 && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
               글로벌 뉴스가 없습니다.
             </p>
           )}
-          {global && global.length > 0 && <NewsList items={global} />}
+          {global && global.length > 0 && (
+            <div className="mt-4">
+              <NewsList items={global} />
+            </div>
+          )}
         </div>
       </section>
 
       {/* 주요일정: 뉴스 아래 */}
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <section className="pt-10">
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           브라질 주요일정
         </h2>
-        <AgendaBody agenda={agenda} />
+        <div className="mt-5">
+          <AgendaBody agenda={agenda} />
+        </div>
         {agenda && agenda.length > 0 && (
-          <p className="mt-3 border-t border-zinc-100 pt-2 text-[11px] text-zinc-400 dark:border-zinc-800">
+          <p className="mt-6 text-[11px] text-zinc-400">
             출처 발표일 IBGE 캘린더 · 예상치 브라질 중앙은행 Focus 설문 · 발표치
             브라질 중앙은행 SGS · 휴장일 B3 · 대선 일정 TSE
           </p>
