@@ -813,9 +813,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
               ))}
             </div>
           </div>
-          {/* 태블릿(sm)도 PC와 동일한 4열로 — 중간에 3열 단계를 두지 않는다(오너 지시) */}
+          {/* 태블릿(sm)도 PC와 동일한 4열로 — 중간에 3열 단계를 두지 않는다(오너 지시).
+              점선은 전체 16칸의 정중앙(8칸씩)을 나눈다 — 1~2행(기본조건·종목선택)
+              vs 3~4행(A/B 수익률·가격·환율)(오너 지시, "점선은 중간을 구분하는거다") */}
           <div className="hidden sm:block">
-            {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
+            {[SLOT_ORDER.slice(0, 8), SLOT_ORDER.slice(8)].map((group, g) => (
               <div
                 key={g}
                 className={
