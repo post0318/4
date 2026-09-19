@@ -27,7 +27,9 @@ async function fetchTable(): Promise<Map<string, CountryRating>> {
   if (!res.ok) throw new Error(`tradingeconomics.com 요청 실패 (${res.status})`);
 
   // 페이지에는 국가별 등급이 이스케이프된 JSON으로 임베드돼 있다:
-  // {"country":"Brazil","url":"/brazil/rating","S&P":"BB","Moody's":"Ba1","DBRS":"BB",...}
+  // {"country":"Brazil","url":"/brazil/rating","S&P":"BB","S&P Outlook":"Stable","DBRS":"BB",...}
+  // 사이트 개편으로 Moody's 필드가 빠졌다(2026-09-19 확인) — 있으면 반영하고
+  // 없어도 S&P만으로 동작하도록 선택 그룹으로 둔다.
   // HTML 테이블 스크레이핑보다 안정적이라 이 JSON을 파싱한다.
   const html = (await res.text())
     .replace(/\\u0026/g, "&")
@@ -37,7 +39,7 @@ async function fetchTable(): Promise<Map<string, CountryRating>> {
 
   const table = new Map<string, CountryRating>();
   const re =
-    /"url":"\/([a-z-]+)\/rating"[^{}]*?"S&P":"([^"]*)"[^{}]*?"Moody's":"([^"]*)"(?:[^{}]*?"DBRS":"([^"]*)")?/g;
+    /"url":"\/([a-z-]+)\/rating"[^{}]*?"S&P":"([^"]*)"(?:[^{}]*?"Moody's":"([^"]*)")?(?:[^{}]*?"DBRS":"([^"]*)")?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     const [, slug, sp, moodys, dbrs] = m;
