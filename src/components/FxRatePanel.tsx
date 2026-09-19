@@ -178,13 +178,13 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       <CardHeader
         title="브라질 시장정보"
         action={
-          <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading}>
+          <Button size="sm" onClick={onRefresh} disabled={loading}>
             {loading ? "조회 중…" : "새로고침"}
           </Button>
         }
       />
 
-      <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cards.map((c) => {
           const active = selected === c.key;
           return (
@@ -194,19 +194,19 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
               onClick={() => setSelected(c.key)}
               aria-pressed={active}
               className={cn(
-                "border-t-2 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-500/25",
+                "rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/25",
                 active
-                  ? "border-zinc-900 dark:border-zinc-100"
-                  : "border-transparent hover:border-zinc-300 dark:hover:border-zinc-700"
+                  ? "border-blue-300 bg-blue-50/70 dark:border-blue-800 dark:bg-blue-950/40"
+                  : "border-transparent bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
               )}
             >
-              <p className="text-[11px] font-medium tracking-wide text-zinc-400 dark:text-zinc-500">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 {c.label}
               </p>
-              <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-100">
+              <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-100">
                 {c.value}
               </p>
-              <p className="mt-1 text-[11px] text-zinc-400">{c.hint}</p>
+              <p className="mt-0.5 text-[11px] text-zinc-400">{c.hint}</p>
             </button>
           );
         })}
@@ -221,8 +221,8 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       {chartProps && <FxHistoryChart {...chartProps} />}
 
       {staleWarning && (
-        <p className="mt-2 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-          {staleWarning}
+        <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+          ⚠ {staleWarning}
         </p>
       )}
 
