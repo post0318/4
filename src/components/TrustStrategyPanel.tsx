@@ -321,11 +321,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  * 갈아탈 종목B 순이다.
  * 배치를 바꿀 때는 이 배열만 손대면 된다.
  */
+// PC(태블릿 이상)용 원래 순서 — 모바일과 다르게 별도 구성한다(오너 지시,
+// "모바일과 피시용은 다르게 디자인구성한다"). 모바일 전용 재배치가 여기 영향을
+// 주지 않도록 PC 순서는 이 배열에서만 관리한다.
 const SLOT_ORDER = [
   "principal", "trustFee",   "backFee",    null,
-  "bondA",     "bondB",      "buyDate",    "sellDate",
-  "aYield",     "sellYield", "buyPriceA",  "sellPriceA",
-  "fxRate",     "bYield",    "exitFxRate", "buyPriceB",
+  "bondA",     "buyDate",    "sellDate",   "bondB",
+  "fxRate",     "aYield",    "sellYield",  "bYield",
+  "exitFxRate", "buyPriceA", "sellPriceA", "buyPriceB",
 ] as const;
 
 type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
@@ -338,12 +341,15 @@ type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
  */
 const MOBILE_ROW1: readonly (SlotKey | null)[] = SLOT_ORDER.slice(0, 4);
 /**
- * 2행부터는 빈칸이 없어 위에서부터 2개씩 순서대로 짝지으면 된다
- * (오너 지시, "1,2/3,4식"). PC의 lg:grid-cols-4 레이아웃과는 별도 블록.
+ * 모바일 2행부터 — PC와 다른 모바일 전용 순서(오너 지시, "5,8,6,7"·
+ * "10,11,14,15"): 종목 선택(A·B)과 시점을 먼저 묶고, A 관련 수익률·가격,
+ * 그다음 환율·B 관련을 묶는다. PC는 위 SLOT_ORDER의 원래 순서를 그대로 쓴다.
  */
-const MOBILE_REST: readonly SlotKey[] = SLOT_ORDER.slice(4).filter(
-  (k): k is SlotKey => k !== null
-);
+const MOBILE_REST: readonly SlotKey[] = [
+  "bondA", "bondB", "buyDate", "sellDate",
+  "aYield", "sellYield", "buyPriceA", "sellPriceA",
+  "fxRate", "bYield", "exitFxRate", "buyPriceB",
+];
 
 export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   const sorted = useMemo(
