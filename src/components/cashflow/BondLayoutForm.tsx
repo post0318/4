@@ -339,13 +339,12 @@ export function BondLayoutForm({
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
           입력 레이아웃
         </h2>
-        {/* 편입자산정보가 잠겨 있어도 검색창은 계속 쓸 수 있어야 다른 종목을
-            검색해 새로 반영할 수 있다(검색으로 새 종목을 반영하면
-            onLockedChange(false)로 잠금을 푼다). 반면 공유 링크로 연 화면
-            (lockToggleDisabled=isSharedLink)은 배포된 값을 그대로 봐야
-            하므로 검색 자체를 막는다. */}
+        {/* 편입자산정보가 잠겨 있어도, 그리고 공유 링크로 연 화면이어도 검색창은
+            계속 쓸 수 있다 — 다른 종목을 검색해 새로 반영할 수 있어야 한다
+            (검색으로 새 종목을 반영하면 onLockedChange(false)로 잠금을 푼다).
+            (오너 지시, 2026-09-19 — 공유 링크에서도 채권 선택 가능하게) */}
         <BrazilBondSearchBox
-          disabled={lockToggleDisabled}
+          disabled={false}
           autoDefault={!lockToggleDisabled && !value.maturityDate}
           onApply={(fields) => {
             onLockedChange(false);
