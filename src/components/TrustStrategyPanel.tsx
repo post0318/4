@@ -852,16 +852,14 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             table-fixed — 전략 열만 넓게(두 줄이라 접힌다), 나머지 여섯 열은
             같은 너비로 나눈다(오너 지시, 2026-09-17). 22% + 13%×6 = 100%.
           */}
-          <table className="w-full min-w-[760px] table-fixed text-xs">
+          <table className="w-full min-w-0 sm:min-w-[420px] table-fixed text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                <th className="w-[22%] py-1.5 pr-3 font-medium">전략</th>
-                <th className="w-[13%] py-1.5 pr-3 font-medium">종료</th>
-                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">단리(연)</th>
-                <th className="w-[13%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                <th className="w-[13%] py-1.5 text-right font-medium">기간</th>
+                {/* 전략 열 폭은 재투자 표와 동일(30%)하게 맞춘다(오너 지시) —
+                    두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다 */}
+                <th className="w-[30%] py-1.5 pr-3 font-medium">전략</th>
+                <th className="w-[35%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                <th className="w-[35%] py-1.5 text-right font-medium">복리(연)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -878,27 +876,15 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                   </td>
                   {r ? (
                     <>
-                      <td className="py-2 pr-3 tabular-nums text-zinc-500">{r.endDate}</td>
                       <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                         {fmtInt(r.totalReceivedKrw)}원
                       </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
-                        {fmtNum(r.totalReturnPct, 2)}%
-                      </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
-                        {r.days > 0
-                          ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
-                          : "-"}
-                      </td>
-                      <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                      <td className="py-2 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                         {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
-                      </td>
-                      <td className="py-2 text-right tabular-nums text-zinc-500">
-                        {fmtInt(r.days)}일
                       </td>
                     </>
                   ) : (
-                    <td colSpan={6} className="py-2 text-zinc-400">
+                    <td colSpan={2} className="py-2 text-zinc-400">
                       {unavailable ?? "입력값을 확인하세요."}
                     </td>
                   )}
@@ -917,17 +903,17 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                 (쿠폰으로 같은 종목 추가 매수 — 현금흐름 탭 재투자형과 같은 규칙)
               </span>
             </h3>
-            <table className="w-full min-w-[760px] table-fixed text-xs">
+            <table className="w-full min-w-0 sm:min-w-[560px] table-fixed text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  <th className="w-[16%] py-1.5 pr-3 font-medium">전략</th>
-                  <th className="w-[30%] py-1.5 pr-3 font-medium">
+                  {/* 전략 열 폭은 위 4전략 표와 동일(30%) */}
+                  <th className="w-[30%] py-1.5 pr-3 font-medium">전략</th>
+                  {/* 좌수 열은 4단계 숫자가 다 들어가야 해서 더 넓게(오너 지시) */}
+                  <th className="w-[35%] py-1.5 pr-3 font-medium">
                     좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
                   </th>
-                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                  <th className="w-[12%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                  <th className="w-[12%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                  <th className="w-[14%] py-1.5 text-right font-medium">반기지급 대비</th>
+                  <th className="w-[15%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                  <th className="w-[20%] py-1.5 text-right font-medium">반기지급 대비</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -962,12 +948,6 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                           좌
                         </td>
                         <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-                          {fmtInt(r.totalReceivedKrw)}원
-                        </td>
-                        <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
-                          {fmtNum(r.totalReturnPct, 2)}%
-                        </td>
-                        <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                           {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                         </td>
                         {/* 원본처럼 총수익률 차이를 %p 로 (오너 지시, 2026-09-17) */}
@@ -978,7 +958,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                         </td>
                       </>
                     ) : (
-                      <td colSpan={5} className="py-2 text-zinc-400">
+                      <td colSpan={3} className="py-2 text-zinc-400">
                         입력값을 확인하세요.
                       </td>
                     )}
