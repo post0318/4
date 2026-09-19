@@ -468,7 +468,7 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
       </p>
     </section>
 
-    <section className="space-y-3 rounded-xl border border-zinc-300 bg-zinc-50/60 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+    <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
           환율 시나리오별 예상 수익률
