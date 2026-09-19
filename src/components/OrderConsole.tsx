@@ -507,59 +507,57 @@ export function OrderConsole({
             브라질세상
           </button>
         </h1>
-        {/* 고객 화면엔 계정 정보를 띄우지 않는다 — 사내 직원이 링크를 열어 보거나
-            캡처할 때 자기 이메일이 같이 찍힌다 */}
-        {auth.enabled && auth.isSignedIn && !hideTrading && (
-          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="hidden sm:inline">{auth.email}</span>
-            {/* 아바타 클릭 → 계정 관리(비밀번호 변경)·로그아웃. 관리자에겐 「승인 관리」 추가 */}
-            <UserButton>
-              {auth.isAdmin && (
-                <UserButton.MenuItems>
-                  <UserButton.Link
-                    label="승인 관리"
-                    href="/admin"
-                    labelIcon={
-                      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                        <path d="M2 8.5l3.5 3.5L14 3.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    }
-                  />
-                </UserButton.MenuItems>
-              )}
-            </UserButton>
-          </div>
-        )}
-        {auth.enabled && auth.isLoaded && !auth.isSignedIn && !hideTrading && (
-          // 처음 오는 사람이 헤매지 않도록 트레이딩 탭 위에 로그인·가입 링크
-          <div className="flex items-center gap-3 text-sm">
-            <button
-              type="button"
-              onClick={auth.openSignIn}
-              className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-            >
-              로그인
-            </button>
-            <span className="text-zinc-300 dark:text-zinc-700">|</span>
-            <button
-              type="button"
-              onClick={() => setSignupOpen(true)}
-              className="text-zinc-600 hover:underline dark:text-zinc-400"
-            >
-              가입 신청
-            </button>
-          </div>
-        )}
+        {/* 공유 링크는 로그인/계정 메뉴 바로 왼쪽에 (오너 지시) — 고객 화면(hideTrading)·
+            공유 링크로 연 화면(isSharedLink)에선 안 보인다 */}
+        <div className="flex items-center gap-3">
+          {!isSharedLink && !hideTrading && <ShareLinkButton value={cfInput} />}
+          {/* 고객 화면엔 계정 정보를 띄우지 않는다 — 사내 직원이 링크를 열어 보거나
+              캡처할 때 자기 이메일이 같이 찍힌다 */}
+          {auth.enabled && auth.isSignedIn && !hideTrading && (
+            <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="hidden sm:inline">{auth.email}</span>
+              {/* 아바타 클릭 → 계정 관리(비밀번호 변경)·로그아웃. 관리자에겐 「승인 관리」 추가 */}
+              <UserButton>
+                {auth.isAdmin && (
+                  <UserButton.MenuItems>
+                    <UserButton.Link
+                      label="승인 관리"
+                      href="/admin"
+                      labelIcon={
+                        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                          <path d="M2 8.5l3.5 3.5L14 3.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      }
+                    />
+                  </UserButton.MenuItems>
+                )}
+              </UserButton>
+            </div>
+          )}
+          {auth.enabled && auth.isLoaded && !auth.isSignedIn && !hideTrading && (
+            // 처음 오는 사람이 헤매지 않도록 트레이딩 탭 위에 로그인·가입 링크
+            <div className="flex items-center gap-3 text-sm">
+              <button
+                type="button"
+                onClick={auth.openSignIn}
+                className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                로그인
+              </button>
+              <span className="text-zinc-300 dark:text-zinc-700">|</span>
+              <button
+                type="button"
+                onClick={() => setSignupOpen(true)}
+                className="text-zinc-600 hover:underline dark:text-zinc-400"
+              >
+                가입 신청
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
-      <Tabs
-        tabs={TABS}
-        active={tab}
-        onChange={changeTab}
-        className="print:hidden"
-        // 공유 링크 생성은 트레이딩 탭과 같은 줄의 독립 버튼. 고객 화면에선 없음.
-        trailing={!isSharedLink && !hideTrading ? <ShareLinkButton value={cfInput} /> : null}
-      />
+      <Tabs tabs={TABS} active={tab} onChange={changeTab} className="print:hidden" />
 
       {tab === "market" && (
         <>

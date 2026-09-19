@@ -83,16 +83,16 @@ function ReturnMatrix({
   parOnly?: boolean;
 }) {
   const th =
-    "px-1.5 py-1.5 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/60";
+    "px-1 py-1.5 sm:px-1.5 text-center font-semibold text-zinc-600 dark:text-zinc-300 leading-tight border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/60";
   const cell =
-    "px-1.5 py-1.5 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
+    "px-1 py-1.5 sm:px-1.5 text-right tabular-nums border border-zinc-200 dark:border-zinc-800";
 
   const colW = `${(100 / (2 + bonds.length * 2)).toFixed(3)}%`;
 
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] table-fixed border-collapse text-[13px]">
+        <table className="w-full min-w-0 sm:min-w-[560px] table-fixed border-collapse text-[11px] sm:text-[13px]">
           <colgroup>
             <col style={{ width: colW }} />
             <col style={{ width: colW }} />
@@ -273,15 +273,20 @@ export function DurationPanel({ bonds, fx, state, onChange }: Props) {
 
   // 요약표: 종목별 "현재 매수금리로 만기까지 보유 시 헤알 수익률" (금리 Δ 무관)
   // reinvest=false 일반형(쿠폰 현금수령) / true 재투자형(쿠폰을 매수금리로 복리 재투자)
+  // 예상수익률 표는 2031·2033·2037 3종목만 — 종목 수가 많으면 표가 좁아져
+  // 모바일에서 읽기 힘들다(오너 지시).
+  const MATRIX_YEARS = ["2031", "2033", "2037"];
   const matrixBonds: MatrixBond[] = useMemo(
     () =>
-      sorted.map((b) => ({
-        label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
-        hold:
-          b.buyYieldPct != null
-            ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0, reinvest)
-            : null,
-      })),
+      sorted
+        .filter((b) => MATRIX_YEARS.includes(b.maturityDate.slice(0, 4)))
+        .map((b) => ({
+          label: `NTN-F ${b.maturityDate.slice(0, 4)}`,
+          hold:
+            b.buyYieldPct != null
+              ? holdToMaturityBrl(b.maturityDate, b.buyYieldPct, 0, reinvest)
+              : null,
+        })),
     [sorted, reinvest]
   );
 
