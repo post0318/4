@@ -324,8 +324,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 const SLOT_ORDER = [
   "principal", "trustFee",   "backFee",    null,
   "bondA",     "bondB",      "buyDate",    "sellDate",
-  "fxRate",     "aYield",    "sellYield",  "bYield",
-  "exitFxRate", "buyPriceA", "sellPriceA", "buyPriceB",
+  "aYield",     "sellYield", "buyPriceA",  "sellPriceA",
+  "fxRate",     "bYield",    "exitFxRate", "buyPriceB",
 ] as const;
 
 type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
