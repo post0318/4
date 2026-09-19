@@ -851,17 +851,19 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           {/*
             table-fixed — 전략 열 폭은 재투자 표와 동일(30%)하게 맞춘다(오너 지시,
             두 표가 위아래로 붙어 있어 열이 어긋나면 어색하다. 노트 문구가
-            줄바꿈되지 않게 30%까지 넓힘). 나머지 4열은 같은 너비(17.5%×4=70%).
+            줄바꿈되지 않게 30%까지 넓힘). 세후 총수령은 "원"까지 한 줄에
+            들어가게 22%, 나머지 3열은 16%씩.
           */}
           <table className="w-full min-w-0 sm:min-w-[460px] table-fixed text-[10px] sm:text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
                 {/* 전략 열 — 노트 문구("A 중도매도로 종료" 등)가 줄바꿈 안 되게 넓힘(오너 지시) */}
                 <th className="w-[30%] py-1.5 pr-1 sm:pr-3 font-medium">전략</th>
-                <th className="w-[17.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
-                <th className="w-[17.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
-                <th className="w-[17.5%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
-                <th className="w-[17.5%] py-1.5 text-right font-medium">복리(연)</th>
+                {/* 세후 총수령 — "원"까지 한 줄에 들어가게 넓힘(오너 지시), 나머지 3열은 그만큼 좁힘 */}
+                <th className="w-[22%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
+                <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
+                <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
+                <th className="w-[16%] py-1.5 text-right font-medium">복리(연)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
