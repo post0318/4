@@ -857,10 +857,10 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
           <table className="w-full min-w-0 sm:min-w-[460px] table-fixed text-[10px] sm:text-xs">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                {/* 전략 열 — 노트 문구("A 중도매도로 종료" 등)가 줄바꿈 안 되게 넓힘(오너 지시) */}
-                <th className="w-[30%] py-1.5 pr-1 sm:pr-3 font-medium">전략</th>
-                {/* 세후 총수령 — "원"까지 한 줄에 들어가게 넓힘(오너 지시), 나머지 3열은 그만큼 좁힘 */}
-                <th className="w-[22%] py-1.5 pr-1 text-right font-medium sm:pr-3">세후 총수령</th>
+                {/* 전략 열 — 재투자 표와 모바일 기준 열 위치별로 폭을 맞춘다(오너 지시,
+                    26/26/16/16/16). 노트 문구도 이 폭에서 줄바꿈 안 됨 */}
+                <th className="w-[26%] py-1.5 pr-1 sm:w-[30%] sm:pr-3 font-medium">전략</th>
+                <th className="w-[26%] py-1.5 pr-1 text-right font-medium sm:w-[22%] sm:pr-3">세후 총수령</th>
                 <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:pr-3">총수익률</th>
                 <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:pr-3">단리(연)</th>
                 <th className="w-[16%] py-1.5 text-right font-medium">복리(연)</th>
@@ -918,18 +918,18 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             <table className="w-full min-w-0 sm:min-w-[560px] table-fixed text-[10px] sm:text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  {/* 전략 열 폭은 위 4전략 표와 동일(30%) */}
-                  <th className="w-[30%] py-1.5 pr-1 font-medium sm:pr-3">전략</th>
-                  {/* 좌수·세후총수령은 같은 폭, 나머지 3열(총수익률·복리연·반기지급대비)은
-                      그들끼리 동일한 폭으로(오너 지시) */}
-                  <th className="w-[28%] py-1.5 pr-1 font-medium sm:w-[20%] sm:pr-3">
+                  {/* 전략 열 폭은 위 4전략 표와 모바일 기준 동일(26%, sm은 30%) */}
+                  <th className="w-[26%] py-1.5 pr-1 font-medium sm:w-[30%] sm:pr-3">전략</th>
+                  {/* 좌수 = 위 표의 세후총수령과 같은 폭(모바일 26%, sm 20%), 나머지
+                      3열은 그것들끼리(위 표 나머지 3열과도) 동일 폭 16%/10%(오너 지시) */}
+                  <th className="w-[26%] py-1.5 pr-1 font-medium sm:w-[20%] sm:pr-3">
                     좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
                   </th>
                   {/* 세후 총수령은 태블릿 이상에서만 — 모바일은 좁아서 뺀다(오너 지시) */}
                   <th className="hidden py-1.5 pr-1 text-right font-medium sm:table-cell sm:w-[20%] sm:pr-3">세후 총수령</th>
-                  <th className="w-[14%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">총수익률</th>
-                  <th className="w-[14%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">복리(연)</th>
-                  <th className="w-[14%] py-1.5 text-right font-medium sm:w-[10%]">반기지급 대비</th>
+                  <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">총수익률</th>
+                  <th className="w-[16%] py-1.5 pr-1 text-right font-medium sm:w-[10%] sm:pr-3">복리(연)</th>
+                  <th className="w-[16%] py-1.5 text-right font-medium sm:w-[10%]">반기지급 대비</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
