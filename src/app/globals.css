@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  /* 페이지 바닥은 카드(흰색)가 떠 보이도록 살짝 낮춘 회색 */
-  --background: #f7f7f8;
+  /* 브라질 국기 초록을 기반으로 옅게(오너 지시) — 모바일·태블릿·PC 공통 */
+  --background: #eef8f0;
   --surface: #ffffff;
   --foreground: #18181b;
 }
@@ -20,22 +20,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b;
+    --background: #0a1710;
     --surface: #0c0c0e;
     --foreground: #ededed;
-  }
-}
-
-/* 모바일 전용 배경 — 브라질 국기 초록을 기반으로 옅게(오너 지시). 데스크톱은
-   위의 중립 회색 그대로 */
-@media (max-width: 639px) {
-  :root {
-    --background: #eef8f0;
-  }
-}
-@media (max-width: 639px) and (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a1710;
   }
 }
 
