@@ -323,7 +323,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  */
 const SLOT_ORDER = [
   "principal", "trustFee",   "backFee",    null,
-  "bondA",     "buyDate",    "sellDate",   "bondB",
+  "bondA",     "bondB",      "buyDate",    "sellDate",
   "fxRate",     "aYield",    "sellYield",  "bYield",
   "exitFxRate", "buyPriceA", "sellPriceA", "buyPriceB",
 ] as const;
@@ -331,11 +331,19 @@ const SLOT_ORDER = [
 type SlotKey = Exclude<(typeof SLOT_ORDER)[number], null>;
 
 /**
- * 모바일 전용 순서 — PC(4열, 신탁조건 3칸+빈칸으로 줄 구분)와 다르게, 빈칸 없이
- * 15개 항목을 위에서부터 2개씩 짝지어 배치한다(오너 지시, "1,2/3,4식").
- * PC의 lg:grid-cols-4 레이아웃과는 완전히 분리된 별도 블록으로 렌더링한다.
+ * 모바일 1행(신탁조건) — principal·trustFee·backFee 3개 + 빈칸 1개, PC와 동일한
+ * 구성·점선 구분을 유지한다(오너 지시, "1,2,3,공란 점선은 동일"). PC에서는 이
+ * 빈칸이 lg 미만에서 `hidden`이라 모바일에서 backFee가 혼자 남았던 것을,
+ * 여기서는 빈 칸을 그대로 보여줘 "1,2/3,(빈칸)"이 되게 한다.
  */
-const MOBILE_SLOT_ORDER = SLOT_ORDER.filter((k): k is SlotKey => k !== null);
+const MOBILE_ROW1: readonly (SlotKey | null)[] = SLOT_ORDER.slice(0, 4);
+/**
+ * 2행부터는 빈칸이 없어 위에서부터 2개씩 순서대로 짝지으면 된다
+ * (오너 지시, "1,2/3,4식"). PC의 lg:grid-cols-4 레이아웃과는 별도 블록.
+ */
+const MOBILE_REST: readonly SlotKey[] = SLOT_ORDER.slice(4).filter(
+  (k): k is SlotKey => k !== null
+);
 
 export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
   const sorted = useMemo(
@@ -787,15 +795,23 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         {/*
           입력부 전체에 옅은 배경을 깔아 결과(카드·표)와 눈으로 구분한다
           (오너 지시, 2026-09-17).
-          모바일은 PC와 완전히 다른 레이아웃 — 빈칸 없이 15개 항목을 위에서부터
-          2개씩 순서대로 짝지은 전용 블록(오너 지시). PC(sm 이상)는 기존
-          4열·신탁조건 구분 유지.
+          모바일은 PC와 완전히 다른 전용 블록(오너 지시) — 1행(신탁조건 3개+
+          공란)과 점선 구분은 PC와 동일하게 유지하고("1,2,3,공란 점선은 동일"),
+          공란은 숨기지 않고 빈 칸으로 보여준다. 2행부터는 빈칸이 없어 위에서부터
+          2개씩 순서대로 짝짓는다("1,2/3,4식").
         */}
         <div className="space-y-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
-          <div className="grid grid-cols-2 gap-3 sm:hidden">
-            {MOBILE_SLOT_ORDER.map((k) => (
-              <div key={k}>{slots[k]}</div>
-            ))}
+          <div className="sm:hidden">
+            <div className="grid grid-cols-2 gap-3">
+              {MOBILE_ROW1.map((k, i) => (
+                <div key={k ?? `blank-${i}`}>{k ? slots[k] : null}</div>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-dashed border-zinc-300 pt-3 dark:border-zinc-700">
+              {MOBILE_REST.map((k) => (
+                <div key={k}>{slots[k]}</div>
+              ))}
+            </div>
           </div>
           <div className="hidden sm:block">
             {[SLOT_ORDER.slice(0, 4), SLOT_ORDER.slice(4)].map((group, g) => (
