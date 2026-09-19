@@ -423,16 +423,18 @@ export function BondLayoutForm({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 print:grid-cols-3 print:gap-2">
         <GroupCard title="편입자산정보">
           <Row label="종목명" editable>
-            <input
-              className={inputClass}
-              type="text"
-              placeholder="예: KORELE 7.95 04/01/2096"
-              value={value.name}
-              disabled={locked}
-              onChange={(e) => update("name", e.target.value)}
-              onKeyDown={commitOnEnter}
-            />
-            <QuoteFreshnessNote quote={quote} compact />
+            <div className="flex w-full min-w-0 flex-col whitespace-normal">
+              <input
+                className={inputClass}
+                type="text"
+                placeholder="예: KORELE 7.95 04/01/2096"
+                value={value.name}
+                disabled={locked}
+                onChange={(e) => update("name", e.target.value)}
+                onKeyDown={commitOnEnter}
+              />
+              <QuoteFreshnessNote quote={quote} compact />
+            </div>
           </Row>
           <Row label="발행일" editable>
             <input
