@@ -1101,7 +1101,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
 
             <div className="hidden sm:block">
               <table className="w-full min-w-[700px] table-fixed text-xs">
-                {/* 위 4전략 표와 같은 7칸 격자 — 단리(연) 칸은 비워 두어 이름이 같은 열이 겹치게 한다 */}
+                {/* 위 4전략 표와 같은 7칸 격자 — 이름이 같은 열이 위아래로 겹친다 */}
                 <colgroup>
                   <col className="w-[16%]" />
                   <col className="w-[18%]" />
@@ -1119,7 +1119,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                     </th>
                     <th className="py-1.5 pr-3 text-right font-medium">세후 총수령</th>
                     <th className="py-1.5 pr-3 text-right font-medium">총수익률</th>
-                    <th className="py-1.5 pr-3" />
+                    <th className="py-1.5 pr-3 text-right font-medium">단리(연)</th>
                     <th className="py-1.5 pr-3 text-right font-medium">복리(연)</th>
                     <th className="py-1.5 text-right font-medium">
                       반기지급
@@ -1164,7 +1164,11 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                           <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                             {fmtNum(r.totalReturnPct, 2)}%
                           </td>
-                          <td />
+                          <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                            {r.days > 0
+                              ? `${fmtNum((r.totalReturnPct * 365) / r.days, 2)}%`
+                              : "-"}
+                          </td>
                           <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                             {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                           </td>
