@@ -948,25 +948,35 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
               삭제됐던 걸 PC에는 복원). 「종료」는 오너 지시로 뺐다. 「기간」은
               복리(연) 최고 배지 해석에 필요(CLAUDE.md — 기간이 짧을수록 복리가
               높게 나오니 기간 열을 함께 본다).
-              열 폭은 아래 재투자 표와 위치별로 동일(오너 지시, 2026-09-20):
-              전략만 넓게 20%, 나머지 5열은 16%씩 같은 폭 = 100. 세후 총수령은
-              「원」까지 한 줄.
+              열은 아래 재투자 표와 같은 7칸 격자를 공유해 이름이 같은 열
+              (세후 총수령·총수익률·복리(연))이 위아래로 정확히 겹친다(오너 지시,
+              2026-09-20). 4전략 표에는 「좌수」 칸이 없어 「전략」이 2칸을 쓴다.
+              세후 총수령은 「원」까지 한 줄.
             */}
             <table className="w-full min-w-[700px] table-fixed text-xs">
+              <colgroup>
+                <col className="w-[16%]" />
+                <col className="w-[18%]" />
+                <col className="w-[15%]" />
+                <col className="w-[13%]" />
+                <col className="w-[13%]" />
+                <col className="w-[13%]" />
+                <col className="w-[12%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  <th className="w-[20%] py-1.5 pr-3 font-medium">전략</th>
-                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">단리(연)</th>
-                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                  <th className="w-[16%] py-1.5 text-right font-medium">기간</th>
+                  <th colSpan={2} className="py-1.5 pr-3 font-medium">전략</th>
+                  <th className="py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                  <th className="py-1.5 pr-3 text-right font-medium">총수익률</th>
+                  <th className="py-1.5 pr-3 text-right font-medium">단리(연)</th>
+                  <th className="py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                  <th className="py-1.5 text-right font-medium">기간</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {rows.map(({ key, label, note, r, unavailable }) => (
                   <tr key={key}>
-                    <td className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
+                    <td colSpan={2} className="py-2 pr-3 text-zinc-800 dark:text-zinc-200">
                       {label}
                       {best === key && (
                         <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -1091,17 +1101,27 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
 
             <div className="hidden sm:block">
               <table className="w-full min-w-[700px] table-fixed text-xs">
+                {/* 위 4전략 표와 같은 7칸 격자 — 단리(연) 칸은 비워 두어 이름이 같은 열이 겹치게 한다 */}
+                <colgroup>
+                  <col className="w-[16%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[12%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                    {/* 열 폭은 위 4전략 표와 위치별로 동일(전략 20% + 나머지 5열 16%씩) */}
-                    <th className="w-[20%] py-1.5 pr-3 font-medium">전략</th>
-                    <th className="w-[16%] py-1.5 pr-3 font-medium">
+                    <th className="py-1.5 pr-3 font-medium">전략</th>
+                    <th className="py-1.5 pr-3 font-medium">
                       좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
                     </th>
-                    <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                    <th className="w-[16%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                    <th className="w-[16%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                    <th className="w-[16%] py-1.5 text-right font-medium">
+                    <th className="py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                    <th className="py-1.5 pr-3 text-right font-medium">총수익률</th>
+                    <th className="py-1.5 pr-3" />
+                    <th className="py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                    <th className="py-1.5 text-right font-medium">
                       반기지급
                       <br />
                       대비
@@ -1144,6 +1164,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                           <td className="py-2 pr-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                             {fmtNum(r.totalReturnPct, 2)}%
                           </td>
+                          <td />
                           <td className="py-2 pr-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
                             {r.cagrPct == null ? "-" : `${fmtNum(r.cagrPct, 2)}%`}
                           </td>
@@ -1154,7 +1175,7 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                           </td>
                         </>
                       ) : (
-                        <td colSpan={5} className="py-2 text-zinc-400">
+                        <td colSpan={6} className="py-2 text-zinc-400">
                           입력값을 확인하세요.
                         </td>
                       )}
