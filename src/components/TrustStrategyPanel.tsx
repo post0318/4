@@ -949,17 +949,18 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
               복리(연) 최고 배지 해석에 필요(CLAUDE.md — 기간이 짧을수록 복리가
               높게 나오니 기간 열을 함께 본다).
               열 폭은 아래 재투자 표와 위치별로 동일(오너 지시, 2026-09-20):
-              22/20/20/12/12/14 = 100. 세후 총수령은 「원」까지 한 줄.
+              전략만 넓게 20%, 나머지 5열은 16%씩 같은 폭 = 100. 세후 총수령은
+              「원」까지 한 줄.
             */}
-            <table className="w-full min-w-[640px] table-fixed text-xs">
+            <table className="w-full min-w-[700px] table-fixed text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                  <th className="w-[22%] py-1.5 pr-3 font-medium">전략</th>
-                  <th className="w-[20%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                  <th className="w-[20%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                  <th className="w-[12%] py-1.5 pr-3 text-right font-medium">단리(연)</th>
-                  <th className="w-[12%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                  <th className="w-[14%] py-1.5 text-right font-medium">기간</th>
+                  <th className="w-[20%] py-1.5 pr-3 font-medium">전략</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">단리(연)</th>
+                  <th className="w-[16%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                  <th className="w-[16%] py-1.5 text-right font-medium">기간</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -1089,18 +1090,18 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
             </div>
 
             <div className="hidden sm:block">
-              <table className="w-full min-w-[640px] table-fixed text-xs">
+              <table className="w-full min-w-[700px] table-fixed text-xs">
                 <thead>
                   <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                    {/* 열 폭은 위 4전략 표와 위치별로 동일(22/20/20/12/12/14) */}
-                    <th className="w-[22%] py-1.5 pr-3 font-medium">전략</th>
-                    <th className="w-[20%] py-1.5 pr-3 font-medium">
+                    {/* 열 폭은 위 4전략 표와 위치별로 동일(전략 20% + 나머지 5열 16%씩) */}
+                    <th className="w-[20%] py-1.5 pr-3 font-medium">전략</th>
+                    <th className="w-[16%] py-1.5 pr-3 font-medium">
                       좌수 (최초 → 청산직전 → 갈아탄직후 → 만기)
                     </th>
-                    <th className="w-[20%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
-                    <th className="w-[12%] py-1.5 pr-3 text-right font-medium">총수익률</th>
-                    <th className="w-[12%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
-                    <th className="w-[14%] py-1.5 text-right font-medium">
+                    <th className="w-[16%] py-1.5 pr-3 text-right font-medium">세후 총수령</th>
+                    <th className="w-[16%] py-1.5 pr-3 text-right font-medium">총수익률</th>
+                    <th className="w-[16%] py-1.5 pr-3 text-right font-medium">복리(연)</th>
+                    <th className="w-[16%] py-1.5 text-right font-medium">
                       반기지급
                       <br />
                       대비
