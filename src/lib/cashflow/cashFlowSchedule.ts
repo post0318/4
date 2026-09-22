@@ -13,7 +13,7 @@ import {
 import {
   anbimaCouponFactor,
   computeBondPricing,
-  computeBrazilDirtyPrice,
+  computePriceOn,
   roundDown,
 } from "@/lib/cashflow/bondPricing";
 import { isPlausibleYear } from "@/lib/cashflow/brazilCalendar";
@@ -297,15 +297,19 @@ export function generateFixCashFlow(
   if (exitSettle && input.earlyExit) {
     // 중도청산 회차 — 직전 이표일(없으면 신탁계약일)부터 청산 결제일까지.
     // 후취보수는 청산일까지만, 리드타임은 붙이지 않는다.
-    // 청산단가 — 매수단가와 같은 ANBIMA 식으로 구한다(현금흐름 탭과 동일 함수)
-    const exitPu = computeBrazilDirtyPrice(
-      exitSettle,
-      maturity,
-      rate,
-      Number(input.earlyExit.sellYieldPct) / 100,
-      FACE_PER_UNIT,
-      input.couponFrequency
-    );
+    // 청산단가 — 매수단가와 같은 함수·같은 규칙(6자리 절사)으로 구한다.
+    // 예전엔 여기만 `computeBrazilDirtyPrice` 를 생값으로 써서 청산단가만
+    // 절사되지 않았다(PRD 「PU 6자리 절사」과 어긋남).
+    const exitPu =
+      computePriceOn(
+        exitSettle,
+        maturity,
+        Number(input.couponRate),
+        Number(input.earlyExit.sellYieldPct),
+        input.couponFrequency,
+        input.calcBasis,
+        FACE_PER_UNIT
+      )?.dirtyPrice ?? null;
     if (exitPu == null || exitPu <= 0) return null;
 
     const stubDays = daysBetween(periodStart, exitSettle);

@@ -179,13 +179,12 @@ export function generateReinvestCashFlow(
       : rate / f;
 
   /**
-   * 해당 날짜의 매수단가(dirty). 재매수는 이표일 당일 결제로 본다.
-   * 예전에는 `computeNtnfPu`(연 10%·반기 고정)라 표면이율을 바꾸면
-   * 최초 매수단가와 기준이 어긋났다.
+   * 주어진 **결제일**의 매수단가(dirty) — 최초 매수와 같은 규칙
+   * (`computePriceOn`: 입력 표면이율·이자지급주기·계산기준, 6자리 절사).
    */
-  const puOn = (date: Date, yieldPct = yld) =>
+  const puOn = (settleDate: Date, yieldPct = yld) =>
     computePriceOn(
-      date,
+      settleDate,
       maturity,
       Number(input.couponRate),
       yieldPct,
@@ -193,6 +192,14 @@ export function generateReinvestCashFlow(
       input.calcBasis,
       FACE
     )?.dirtyPrice ?? null;
+
+  /**
+   * 재매수 결제일 — 쿠폰을 받은 이표일에 주문해 D+1 브라질 영업일에
+   * 결제한다. 최초 매수도 D+1 인데 재매수만 당일(D+0) 로 보던 것을
+   * 맞춘다(하루 차이가 단가로 약 0.05%).
+   */
+  const reinvestSettle = (couponDate: Date) =>
+    getSettlementDate(toISODate(couponDate));
 
   // 이표일: 결제일 이후 첫 이표일 ~ 만기 (날짜만 비교 — 시각차로 만기가 빠지지 않도록)
   const dates: Date[] = [];
@@ -265,7 +272,8 @@ export function generateReinvestCashFlow(
     // 단가는 최초 매수와 같은 규칙(`computePriceOn`) — 입력한 표면이율·
     // 이자지급주기·계산기준을 그대로 따른다.
     cashBrl += couponBrl;
-    const pu = puOn(date);
+    const settle = reinvestSettle(date);
+    const pu = settle ? puOn(settle) : null;
     if (pu == null || pu <= 0) {
       rows.push({
         date: toISODate(date),

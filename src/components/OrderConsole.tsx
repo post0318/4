@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
 import { Tabs } from "@/components/ui/Tabs";
 import { CalendarDays, CandlestickChart, Gauge, GitCompareArrows, Newspaper } from "lucide-react";
@@ -131,6 +131,20 @@ export function OrderConsole({
     setTabRestored(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [shareOk]);
+
+  /**
+   * 복원된 탭이 트레이딩인데 로그인 전이면 클릭했을 때처럼 로그인
+   * 팝업을 띄운다. 복원은 `changeTab` 을 거치지 않아 그 분기를 건너뛰었다.
+   * 한 번만 — 팝업을 닫은 사람에게 다시 들이밀지 않는다.
+   */
+  const restoreSignInShown = useRef(false);
+  useEffect(() => {
+    if (restoreSignInShown.current) return;
+    if (!tabRestored || tab !== "trading") return;
+    if (!auth.enabled || !auth.isLoaded || auth.isSignedIn) return;
+    restoreSignInShown.current = true;
+    auth.openSignIn();
+  }, [tabRestored, tab, auth]);
 
   // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
   // 탭 줄의 공유 링크 버튼이 같은 값을 쓴다.
