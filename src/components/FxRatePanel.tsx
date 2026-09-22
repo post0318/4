@@ -68,7 +68,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
           const last = new Date(s.dates[s.dates.length - 1]).getTime();
           if (Date.now() - last > 12 * 86_400_000) {
             setStaleWarning(
-              "국채금리 데이터가 12일 이상 갱신되지 않았습니다(주간 스냅샷 확인)."
+              "10년국채수익률 데이터가 12일 이상 갱신되지 않았습니다(주간 스냅샷 확인)."
             );
           }
         }
@@ -84,35 +84,32 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
 
   const selicNow = selic ? selic.values[selic.values.length - 1] : null;
 
+  // 카드는 이름·값 두 줄만 — "1 BRL"·"Selic meta" 같은 셋째 줄은 없앤다
+  // (오너 지시 2026-09-22)
   const cards: {
     key: CardKey;
     label: string;
     value: string;
-    hint: string;
   }[] = [
     {
       key: "krwBrl",
       label: "원/헤알",
       value: rates ? `₩ ${fmtNum(rates.krwBrl, 2)}` : "-",
-      hint: "1 BRL",
     },
     {
       key: "usdBrl",
       label: "달러/헤알",
       value: rates ? `R$ ${fmtNum(rates.usdBrl, 4)}` : "-",
-      hint: "1 USD",
     },
     {
       key: "usdKrw",
       label: "원/달러",
       value: rates ? `₩ ${fmtNum(rates.usdKrw, 2)}` : "-",
-      hint: "1 USD",
     },
     {
       key: "rates",
       label: "브라질 기준금리",
       value: selicNow != null ? `${fmtNum(selicNow, 2)}%` : "-",
-      hint: "Selic meta · 차트에 국채금리 함께",
     },
   ];
 
@@ -123,16 +120,19 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     digits: number;
     stepped?: boolean;
     series: ChartSeries;
+    yAxis?: { min: number; max: number; step: number };
     overlay?: { series: ChartSeries; label: string; stepped?: boolean };
     strength?: { name: string; invert?: boolean };
   } | null = null;
   if (selected === "rates" && ntnf) {
     chartProps = {
-      label: "국채금리(~10년)",
+      label: "10년국채수익률",
       unit: "",
       suffix: "%",
       digits: 2,
       series: ntnf,
+      // 두 선을 같은 눈금으로 보되, 0·8·16% 눈금으로 고정(오너 지시 2026-09-22)
+      yAxis: { min: 0, max: 16, step: 8 },
       overlay: selic
         ? { series: selic, label: "기준금리", stepped: true }
         : undefined,
@@ -206,7 +206,6 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
               <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-100">
                 {c.value}
               </p>
-              <p className="mt-0.5 text-[11px] text-zinc-400">{c.hint}</p>
             </button>
           );
         })}
@@ -234,7 +233,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
                 rates.rateDate ? `ECB 고시일 ${rates.rateDate} · ` : ""
               }조회 ${fmtTimestamp(
                 rates.asOf
-              )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 국채금리 재무부(주간)`
+              )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 10년국채수익률 재무부(주간)`
             : "환율을 불러오는 중입니다."}
       </p>
     </Card>

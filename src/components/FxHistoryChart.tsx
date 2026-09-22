@@ -25,7 +25,13 @@ interface FxHistoryChartProps {
   /** 계단식으로 그릴지 (기준금리처럼 회의 때만 바뀌는 값) */
   stepped?: boolean;
   series: ChartSeries;
-  /** 같은 축에 겹쳐 그릴 두 번째 선 (예: 국채금리 vs 기준금리) */
+  /**
+   * 눈금을 값 범위 대신 고정으로 박을 때(금리 차트 0~16% · 4% 단위).
+   * 겹쳐 그린 선도 같은 눈금을 쓴다 — 두 선의 높낮이를 그대로 비교하려면
+   * 축이 하나여야 한다(오너 지시 2026-09-22).
+   */
+  yAxis?: { min: number; max: number; step: number };
+  /** 같은 축에 겹쳐 그릴 두 번째 선 (예: 10년국채수익률 vs 기준금리) */
   overlay?: Overlay;
   /**
    * 오른쪽 위 변화율을 "통화 강세/약세" 관점으로 표시할 때 지정.
@@ -74,6 +80,7 @@ export function FxHistoryChart({
   digits,
   stepped = false,
   series,
+  yAxis,
   overlay,
   strength,
 }: FxHistoryChartProps) {
@@ -103,8 +110,15 @@ export function FxHistoryChart({
     const min = Math.min(...all);
     const max = Math.max(...all);
     const span = max - min || 1;
-    const yMin = min - span * 0.1;
-    const yMax = max + span * 0.1;
+    const yMin = yAxis ? yAxis.min : min - span * 0.1;
+    const yMax = yAxis ? yAxis.max : max + span * 0.1;
+    // 눈금 위치 — 고정축이면 step 마다, 아니면 위·가운데·아래 셋
+    const ticks = yAxis
+      ? Array.from(
+          { length: Math.round((yAxis.max - yAxis.min) / yAxis.step) + 1 },
+          (_, i) => 1 - (i * yAxis.step) / (yAxis.max - yAxis.min)
+        )
+      : [0, 0.5, 1];
     const y = (v: number) =>
       PAD.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
@@ -126,13 +140,25 @@ export function FxHistoryChart({
       if (time >= t0 && time <= t1) years.push({ x: px(time), label: `${yr}` });
     }
 
-    return { t0, t1, plotH, px, y, yMin, yMax, path, area, overlayPath, years };
-  }, [series, stepped, overlay]);
+    return { t0, t1, plotH, px, y, yMin, yMax, ticks, path, area, overlayPath, years };
+  }, [series, stepped, yAxis, overlay]);
 
   if (!chart) return null;
 
-  const { t0, t1, plotH, px, y, yMin, yMax, path, area, overlayPath, years } =
-    chart;
+  const {
+    t0,
+    t1,
+    plotH,
+    px,
+    y,
+    yMin,
+    yMax,
+    ticks,
+    path,
+    area,
+    overlayPath,
+    years,
+  } = chart;
   const first = series.values[0];
   const last = series.values[series.values.length - 1];
   const change = last - first;
@@ -216,19 +242,24 @@ export function FxHistoryChart({
           </linearGradient>
         </defs>
 
-        {[0, 0.5, 1].map((f) => {
+        {ticks.map((f) => {
           const v = yMax - f * (yMax - yMin);
           const gy = PAD.top + f * plotH;
+          // 가로선은 0 선 하나만 실선으로 남긴다(오너 지시 2026-09-22).
+          // 나머지 눈금은 숫자만, 시간축은 세로 연도 점선이 나눈다.
+          const zero = Math.abs(v) < 1e-9;
           return (
             <g key={f}>
-              <line
-                x1={PAD.left}
-                y1={gy}
-                x2={W - PAD.right}
-                y2={gy}
-                className="stroke-zinc-200 dark:stroke-zinc-800"
-                strokeWidth={1}
-              />
+              {zero && (
+                <line
+                  x1={PAD.left}
+                  y1={gy}
+                  x2={W - PAD.right}
+                  y2={gy}
+                  className="stroke-zinc-300 dark:stroke-zinc-700"
+                  strokeWidth={1}
+                />
+              )}
               <text
                 x={PAD.left - 5}
                 y={gy + 3}
@@ -241,16 +272,27 @@ export function FxHistoryChart({
           );
         })}
 
+        {/* 연도 경계도 세로 점선으로 나눈다(오너 지시 2026-09-22) */}
         {years.map((yr) => (
-          <text
-            key={yr.label}
-            x={yr.x}
-            y={H - 5}
-            textAnchor="middle"
-            className="fill-zinc-400 text-[9px] tabular-nums"
-          >
-            {yr.label}
-          </text>
+          <g key={yr.label}>
+            <line
+              x1={yr.x}
+              y1={PAD.top}
+              x2={yr.x}
+              y2={PAD.top + plotH}
+              className="stroke-zinc-300 dark:stroke-zinc-700"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+            />
+            <text
+              x={yr.x}
+              y={H - 5}
+              textAnchor="middle"
+              className="fill-zinc-400 text-[9px] tabular-nums"
+            >
+              {yr.label}
+            </text>
+          </g>
         ))}
 
         {!overlay && (
@@ -299,7 +341,11 @@ export function FxHistoryChart({
       <p className="mt-0.5 text-center text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
         {hDate && hv != null ? (
           <>
-            {hDate} · {fmtVal(hv)}
+            {hDate} ·{" "}
+            <span className="text-blue-600 dark:text-blue-400">
+              {overlay ? `${label} ` : ""}
+              {fmtVal(hv)}
+            </span>
             {hov != null && overlay && (
               <>
                 {" · "}

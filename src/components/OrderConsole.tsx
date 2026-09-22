@@ -19,6 +19,10 @@ import {
 
 /** 시뮬레이션 입력 보관 키 (탭 단위) */
 const SIM_STATE_KEY = "ntnf.simulation.v1";
+/** 마지막으로 보던 탭 보관 키 (탭 단위) */
+const TAB_KEY = "ntnf.tab.v1";
+const TAB_KEYS = ["market", "cashflow", "simulation", "duration", "trading"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
 import { DurationPanel, createDurationState } from "@/components/DurationPanel";
 import { BRAZIL_FLAG_DATA_URI } from "@/lib/brazilFlag";
 import { BrazilBriefing } from "@/components/BrazilBriefing";
@@ -93,13 +97,34 @@ export function OrderConsole({
           ? "공유 링크를 확인할 수 없습니다(서버 설정 누락). 관리자에게 문의하세요."
           : "공유 링크가 손상되었거나 변조되었습니다. 링크를 다시 확인하세요."
       : null;
-  const [tab, setTab] = useState<
-    | "market"
-    | "trading"
-    | "cashflow"
-    | "simulation"
-    | "duration"
-  >("cashflow"); // 첫 화면은 현금흐름 (고객 공유 링크도 동일)
+  /**
+   * 탭 위치 — 처음 들어오면 시장정보, 새로고침하면 보던 탭으로
+   * 돌아온다(오너 지시 2026-09-22 — 전에는 늘 현금흐름이었다).
+   * 시뮬레이션 입력과 같은 sessionStorage·브라우저 탭 단위.
+   *
+   * 공유 링크로 들어오면 링크가 담은 현금흐름부터 보여준다.
+   */
+  const [tab, setTab] = useState<TabKey>(shareOk ? "cashflow" : "market");
+
+  /**
+   * 저장된 탭 복원은 마운트 뒤에 한다 — 초기값에서 sessionStorage 를
+   * 읽으면 서버 HTML 과 어긋난다. 고객 공유 링크는 복원하지 않는다
+   * (받은 사람엔 늘 현금흐름부터).
+   */
+  useEffect(() => {
+    if (shareOk) return;
+    try {
+      const saved = sessionStorage.getItem(TAB_KEY);
+      if (saved && (TAB_KEYS as readonly string[]).includes(saved)) {
+        // 서버 HTML 과 같은 값으로 그린 뒤 한 번 맞춰 주는 것이라
+        // 캐스케이딩 렌더링이 아니다 — 이 규칙은 여기서 끄다.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTab(saved as TabKey);
+      }
+    } catch {
+      // 시크릿 모드·저장 차단 — 기본 탭 그대로
+    }
+  }, [shareOk]);
 
   // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
   // 탭 줄의 공유 링크 버튼이 같은 값을 쓴다.
@@ -140,9 +165,17 @@ export function OrderConsole({
   const [durState, setDurState] = useState(createDurationState);
   // 가입 신청 팝업 (헤더 링크·트레이딩 안내·/?signup=1 에서 연다)
   const [signupOpen, setSignupOpen] = useState(openSignup);
-  // 트레이딩 탭을 눌렀는데 로그인 전이면 로그인 팝업을 바로 띄운다
-  const changeTab = (k: typeof tab) => {
+  // 트레이딩 탭을 눌렀는데 로그인 전이면 로그인 팝업을 바로 띄운다.
+  // 새로고침하면 돌아오도록 고른 탭을 남긴다(고객 공유 링크는 제외).
+  const changeTab = (k: TabKey) => {
     setTab(k);
+    if (!shareOk) {
+      try {
+        sessionStorage.setItem(TAB_KEY, k);
+      } catch {
+        // 저장 실패는 무시 — 이번 새로고침에서 기억만 안 될 뿐
+      }
+    }
     if (k === "trading" && auth.enabled && auth.isLoaded && !auth.isSignedIn) auth.openSignIn();
   };
 
@@ -495,7 +528,7 @@ export function OrderConsole({
             {/* 제목 클릭 → 첫 화면(현금흐름) 탭으로 */}
             <button
               type="button"
-              onClick={() => setTab("cashflow")}
+              onClick={() => changeTab("market")}
               className="flex items-center gap-2 rounded-md outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
               aria-label="처음 화면으로"
             >

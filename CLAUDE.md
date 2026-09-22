@@ -108,7 +108,7 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - `src/app/api/br-daily-report` — 한국브라질소사이어티(KOBRAS) 「브라질 데일리
   리포트」 최신호. 네이버 블로그 `dari0202` RSS에서 최신 글을 찾아 PostView 본문의
   [KOBRAS Daily Brief](핵심 분석) 섹션만 파싱. 1h 재검증
-- `src/app/api/br-agenda` — 15일 전 ~ 2개월 후 경제지표(IBGE 캘린더)·시장 휴장일·
+- `src/app/api/br-agenda` — 한 달 전 ~ 2개월 후 경제지표(IBGE 캘린더)·시장 휴장일·
   대선 일정
 - `src/app/api/br-bond-search` — 스냅샷 + 메타 머지 + 신선도(ageDays·stale, 10일 초과 시 화면 경고).
   현금흐름 탭 `api/cashflow/br-bond-search`도 **같은** 스냅샷을 읽는다(사본 폴더 제거됨)

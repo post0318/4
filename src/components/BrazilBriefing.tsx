@@ -288,9 +288,9 @@ function AgendaBody({ agenda }: { agenda: AgendaItem[] | null }) {
   const past = rest.filter((a) => a.date < today);
   const upcoming = rest.filter((a) => a.date >= today);
 
-  // br-agenda 라우트의 조회 범위(과거 15일 · 향후 60일)와 맞춘 대상기간 주석
+  // br-agenda 라우트의 조회 범위(과거 30일 · 향후 60일)와 맞춘 대상기간 주석
   const back = new Date(now);
-  back.setDate(back.getDate() - 15);
+  back.setDate(back.getDate() - 30);
   const fwd = new Date(now);
   fwd.setDate(fwd.getDate() + 60);
 
