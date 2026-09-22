@@ -184,47 +184,6 @@ export function computeCleanPrice(
   );
 }
 
-/**
- * computeCleanPrice의 역산(가격→수익률). 가격은 수익률에 대해 단조감소이므로
- * 이분탐색으로 목표가(clean price)에 대응하는 연수익률을 찾는다. 종목검색
- * (Frankfurt) 상세조회에서 lastPrice만 주고 수익률은 안 줄 때, 이 앱의
- * 기본 날짜계산기준(미국 30/360 — computeCleanPrice 자체가 이 기준 고정)과
- * 기본 이자지급주기(6개월)를 가정해 근사 수익률을 구하는 용도. 실제 채권의
- * 날짜계산기준/주기가 다르면 오차가 있을 수 있는 추정치다.
- */
-export function impliedYieldFromPrice(
-  settlement: Date,
-  maturity: Date,
-  annualRate: number,
-  targetPrice: number,
-  redemption: number,
-  frequency: CouponFrequency
-): number | null {
-  if (settlement >= maturity) return null;
-
-  let lo = -0.5;
-  let hi = 2;
-  const priceAt = (y: number) =>
-    computeCleanPrice(settlement, maturity, annualRate, y, redemption, frequency);
-
-  const priceLo = priceAt(lo);
-  const priceHi = priceAt(hi);
-  if (priceLo === null || priceHi === null) return null;
-  if (!(priceLo >= targetPrice && targetPrice >= priceHi)) return null;
-
-  for (let i = 0; i < 100; i++) {
-    const mid = (lo + hi) / 2;
-    const priceMid = priceAt(mid);
-    if (priceMid === null) return null;
-    if (priceMid > targetPrice) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-  return (lo + hi) / 2;
-}
-
 /** settlement 이후 다음 이표일부터 만기까지의 명목상(달력) 이표일 목록 */
 function brazilCouponDates(
   settlement: Date,
@@ -455,7 +414,7 @@ export function computeBondPricing(
  * 시뮬레이션에서 「A 매수가격(R$)」처럼 단가를 직접 지정했을 때, 그 단가를 내는
  * 수익률로 바꿔 엔진에 넣기 위해 쓴다. 엔진이 수익률만 받기 때문에 가격을
  * 따로 흘려보내면 현금흐름 탭과 규칙이 갈라진다(2026-09-17 결정).
- * 기존 `impliedYieldFromPrice`는 엑셀 PRICE 방식이라 여기엔 쓸 수 없다.
+ * 엑셀 PRICE 방식(미국 30/360)은 여기에 맞지 않아 쓰지 않는다.
  */
 export function impliedYieldFromBrazilPrice(
   settlement: Date,

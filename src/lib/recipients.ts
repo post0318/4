@@ -16,7 +16,7 @@ export function parseRecipients(raw: string): string[] {
     .filter(Boolean);
 }
 
-export function isEmail(value: string): boolean {
+function isEmail(value: string): boolean {
   return EMAIL_RE.test(value);
 }
 

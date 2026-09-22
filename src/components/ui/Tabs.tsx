@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ComponentType, SVGProps } from "react";
 import { cn } from "@/lib/ui";
 
 interface TabsProps<K extends string> {
@@ -11,8 +11,6 @@ interface TabsProps<K extends string> {
   active: K;
   onChange: (key: K) => void;
   className?: string;
-  /** 탭 줄 오른쪽 끝에 놓을 요소(예: 공유 링크 버튼) */
-  trailing?: ReactNode;
 }
 
 /** 밑줄형 탭 바. */
@@ -21,7 +19,6 @@ export function Tabs<K extends string>({
   active,
   onChange,
   className,
-  trailing,
 }: TabsProps<K>) {
   return (
     <div
@@ -52,7 +49,6 @@ export function Tabs<K extends string>({
           </button>
         );
       })}
-      {trailing && <div className="ml-auto flex items-center pb-1.5 pl-2">{trailing}</div>}
     </div>
   );
 }

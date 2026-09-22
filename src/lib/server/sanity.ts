@@ -40,14 +40,6 @@ export function sanitizeSeries(
   return { dates: outD, values: outV, dropped };
 }
 
-/** as-of 날짜가 maxAgeDays 보다 오래됐는지 */
-export function isStale(asOfIso: string | null, maxAgeDays: number): boolean {
-  if (!asOfIso) return true;
-  const t = new Date(asOfIso).getTime();
-  if (Number.isNaN(t)) return true;
-  return Date.now() - t > maxAgeDays * 86_400_000;
-}
-
 /** 스냅샷을 "오래됨"으로 보는 기준(일). 주간 갱신이므로 한 주기 + 여유. */
 export const SNAPSHOT_STALE_DAYS = 10;
 

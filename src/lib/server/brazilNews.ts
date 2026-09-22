@@ -24,15 +24,6 @@ const GN = (path: string, locale = "hl=pt-BR&gl=BR&ceid=BR:pt-419") =>
   }${locale}`;
 const EN_LOCALE = "hl=en-US&gl=US&ceid=US:en";
 
-// 라운드로빈으로 한 건씩 뽑아 경제·정치·사회를 고르게 섞는다
-const MACRO_QUERY =
-  "(economia OR juros OR inflação OR Copom OR fiscal OR dólar OR \"Banco Central\") Brasil";
-const FEEDS: { url: string; category: string }[] = [
-  { url: GN(`search?q=${encodeURIComponent(MACRO_QUERY)}`), category: "경제" },
-  { url: GN("headlines/section/topic/NATION"), category: "정치·사회" },
-  { url: GN(""), category: "주요" },
-];
-
 export interface NewsItem {
   titleKo: string;
   titlePt: string;
@@ -106,35 +97,6 @@ async function fetchFeed(url: string, category: string): Promise<RawItem[]> {
   } catch {
     return [];
   }
-}
-
-export async function fetchBrazilNews(limit = 5): Promise<NewsItem[]> {
-  const feeds = await Promise.all(FEEDS.map((f) => fetchFeed(f.url, f.category)));
-
-  // 피드별 큐를 만들어 라운드로빈으로 뽑는다(카테고리 균형). 링크·제목 중복 제거.
-  const queues = feeds.map((list) =>
-    list.filter((it) => !NOISE.test(it.title))
-  );
-  const seenLink = new Set<string>();
-  const seenTitle = new Set<string>();
-  const picked: RawItem[] = [];
-  let progressed = true;
-  while (picked.length < limit && progressed) {
-    progressed = false;
-    for (const q of queues) {
-      if (picked.length >= limit) break;
-      const item = q.shift();
-      if (!item) continue;
-      progressed = true;
-      const tkey = item.title.toLowerCase().slice(0, 40);
-      if (seenLink.has(item.link) || seenTitle.has(tkey)) continue;
-      seenLink.add(item.link);
-      seenTitle.add(tkey);
-      picked.push(item);
-    }
-  }
-
-  return translateItems(picked, "pt");
 }
 
 const GLOBAL_QUERY =

@@ -21,29 +21,8 @@ export const cardPad = "p-4 sm:p-5";
 export const sectionTitle =
   "text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100";
 
-/** 입력 라벨 (작은 대문자 느낌) */
-export const label =
-  "block text-xs font-medium text-zinc-500 dark:text-zinc-400";
-
-/** 텍스트 입력·select 공통 */
-export const input =
-  "w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/25 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:disabled:bg-zinc-900";
-
-/** 숫자 입력 (우측정렬 + 등폭숫자) */
-export const numInput = `${input} text-right tabular-nums`;
-
-/** 표 헤더 셀 */
-export const th =
-  "px-2.5 py-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 whitespace-nowrap";
-
-/** 표 본문 셀 */
-export const td = "px-2.5 py-2 text-[13px] whitespace-nowrap tabular-nums";
-
 /** 보조 설명·각주 */
 export const hint = "text-[11px] leading-relaxed text-zinc-400";
-
-/** 등폭 숫자 */
-export const tnum = "tabular-nums";
 
 type BtnVariant = "primary" | "secondary" | "ghost";
 type BtnSize = "sm" | "md";
