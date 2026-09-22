@@ -799,8 +799,9 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         </div>
 
         {/*
-          입력부 전체에 옅은 배경을 깔아 결과(카드·표)와 눈으로 구분한다
-          (오너 지시, 2026-09-17).
+          입력부 전체에 옅은 회색 배경을 깔아 결과(카드·표)와 눈으로 구분한다
+          (오너 지시 2026-09-17, 2026-09-22 유지 확인 — 걷어내야 할 것은 페이지
+          전체의 옅은 녹색 배경이었다).
           모바일은 PC와 완전히 다른 전용 블록(오너 지시) — 1행(신탁조건 3개+
           공란)과 점선 구분은 PC와 동일하게 유지하고("1,2,3,공란 점선은 동일"),
           공란은 숨기지 않고 빈 칸으로 보여준다. 2행부터는 빈칸이 없어 위에서부터
@@ -830,7 +831,9 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
                 className={
                   g === 0
                     ? "grid grid-cols-4 gap-3"
-                    : "grid grid-cols-4 gap-3 border-t border-dashed border-zinc-300 pt-3 dark:border-zinc-700"
+                    : // 위아래 같은 여백(mt-3/pt-3)을 줘야 점선이 1행 입력칸에
+                      // 붙지 않고 두 행 사이 가운데에 온다(오너 지시, 2026-09-22)
+                      "mt-3 grid grid-cols-4 gap-3 border-t border-dashed border-zinc-300 pt-3 dark:border-zinc-700"
                 }
               >
                 {group.map((k, i) => (

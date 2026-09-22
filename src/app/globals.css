@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  /* 브라질 국기 초록을 기반으로 옅게(오너 지시) — 모바일·태블릿·PC 공통 */
-  --background: #eef8f0;
+  /* 얙은 녹색 배경은 걷어냈다(오너 지시 2026-09-22) — 카드(흰색)가
+     떠 보이도록 중성 회색만 남긴다. */
+  --background: #f7f7f8;
   --surface: #ffffff;
   --foreground: #18181b;
 }
@@ -20,7 +21,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a1710;
+    --background: #0a0a0b;
     --surface: #0c0c0e;
     --foreground: #ededed;
   }
