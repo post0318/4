@@ -26,7 +26,7 @@ interface FxHistoryChartProps {
   stepped?: boolean;
   series: ChartSeries;
   /**
-   * 눈금을 값 범위 대신 고정으로 박을 때(금리 차트 0~16% · 4% 단위).
+   * 눈금을 값 범위 대신 고정으로 박을 때(금리 차트 0~16% · 8% 단위).
    * 겹쳐 그린 선도 같은 눈금을 쓴다 — 두 선의 높낮이를 그대로 비교하려면
    * 축이 하나여야 한다(오너 지시 2026-09-22).
    */
@@ -245,21 +245,10 @@ export function FxHistoryChart({
         {ticks.map((f) => {
           const v = yMax - f * (yMax - yMin);
           const gy = PAD.top + f * plotH;
-          // 가로선은 0 선 하나만 실선으로 남긴다(오너 지시 2026-09-22).
-          // 나머지 눈금은 숫자만, 시간축은 세로 연도 점선이 나눈다.
-          const zero = Math.abs(v) < 1e-9;
+          // 가로선은 0 선까지 모두 없앤다(오너 지시 2026-09-22) — 눈금은
+          // 숫자로 읽고, 시간축은 세로 연도 점선이 나눈다.
           return (
             <g key={f}>
-              {zero && (
-                <line
-                  x1={PAD.left}
-                  y1={gy}
-                  x2={W - PAD.right}
-                  y2={gy}
-                  className="stroke-zinc-300 dark:stroke-zinc-700"
-                  strokeWidth={1}
-                />
-              )}
               <text
                 x={PAD.left - 5}
                 y={gy + 3}
