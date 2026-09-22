@@ -17,6 +17,7 @@ import { computeOrder, isValidOrderInputs } from "@/lib/quantity";
 import { allValidEmails, parseRecipients } from "@/lib/recipients";
 import { BOUNDS } from "@/lib/server/sanity";
 import { getLatestNtnF } from "@/lib/server/brazilBondData";
+import { fetchFxRate } from "@/lib/server/fxRate";
 import { truncDecimals } from "@/lib/format";
 import {
   allowedEmailDomains,
@@ -37,6 +38,12 @@ const inBounds = (v: number, [lo, hi]: readonly [number, number]) =>
 const YIELD_EPSILON = 0.0001;
 /** 달러 합계 대사 허용오차 — 2자리 절사 후 비교(화면과 같은 규칙) */
 const USD_TOTAL_EPSILON = 0.005;
+/**
+ * 화면이 보낸 환율과 서버가 직접 조회한 시세의 허용 차이(비율).
+ * 고시환율은 사용자가 고쳐 넣는 값이라 완전 고정할 수 없지만, 오타·뭵은
+ * 탭은 이 폭을 벗어난다. 시세 조회가 실패하면 검사를 건너뛰고 발송은 막지 않는다.
+ */
+const FX_TOLERANCE = 0.05;
 
 /**
  * 매수 주문 이메일 발송 (요구사항 4·5).
@@ -221,6 +228,45 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // 환전금액은 화면이 항상 보낸다. 빠진 요청은 합계 대사를 통짜로 건너뛰게
+  // 되므로 받을 때 막는다(감사 ⑤ 중2 의 빈틈).
+  if (
+    !exchange ||
+    typeof exchange !== "object" ||
+    !Number.isFinite(Number(exchange.krwTotal)) ||
+    !Number.isFinite(Number(exchange.usdTotal)) ||
+    Number(exchange.krwTotal) < 0 ||
+    Number(exchange.usdTotal) < 0
+  ) {
+    return NextResponse.json(
+      { error: "환전금액 정보가 없거나 올바르지 않습니다." },
+      { status: 400 }
+    );
+  }
+
+  // 매수수익률은 스냅샷과 대조하면서 환율은 화면 값을 그대로 써서,
+  // "서버 재계산"이 사실상 내부 일관성 검사에 그치던 것을 보완한다.
+  // 고시환율은 사용자가 고치는 값이라 ±FX_TOLERANCE 만큼만 허용한다.
+  const [marketUsdKrw, marketUsdBrl] = await Promise.all([
+    fetchFxRate("USD", "KRW"),
+    fetchFxRate("USD", "BRL"),
+  ]);
+  const farFromMarket = (client: number, market: number | null) =>
+    market != null && market > 0 && Math.abs(client - market) / market > FX_TOLERANCE;
+  if (
+    farFromMarket(fx.usdKrw, marketUsdKrw) ||
+    farFromMarket(fx.usdBrl, marketUsdBrl)
+  ) {
+    return NextResponse.json(
+      {
+        error: `환율이 시세와 너무 다릅니다(허용 ±${FX_TOLERANCE * 100}%). 입력한 고시환율을 확인하세요.`,
+        market: { usdKrw: marketUsdKrw, usdBrl: marketUsdBrl },
+        client: { usdKrw: fx.usdKrw, usdBrl: fx.usdBrl },
+      },
+      { status: 422 }
+    );
+  }
+
   const settlement = getOrderSettlementDate();
   const settlementDate = toISODate(settlement);
 
@@ -349,7 +395,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 환전금액 합계 대사 (PRD §5). 화면에서만 하던 검사를 서버도 한다 — 직접 POST 로
-  // 우회할 수 없게(감사 ⑤ 중2). 환전금액을 입력하지 않은 경우(0)는 화면과 같이 건너뛴다.
+  // 우회할 수 없게(감사 ⑤ 중2). 환전금액을 입력하지 않은 경우(0)는 화면과 같이
+  // 건너뛰되, 필드 자체가 없는 요청은 위에서 이미 400 으로 돌려보냈다.
   const exKrw = Number(exchange?.krwTotal) || 0;
   const exUsd = Number(exchange?.usdTotal) || 0;
   if (exKrw > 0 && Math.round(krwSum) !== Math.round(exKrw)) {

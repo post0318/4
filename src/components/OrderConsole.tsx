@@ -437,18 +437,33 @@ export function OrderConsole({
   ]);
 
   // 종목별 합계 vs 환전금액 — 원화·달러 모두 일치해야 발송 가능
-  const checkedKrwTotal = useMemo(
+  /**
+   * 합계 대사는 **실제로 발송되는 줄**(`pendingLines` 조건)만 더한다.
+   * 체크는 했지만 수량이 0이라 빠지는 종목까지 더하면, 화면엔 합계가
+   * 맞아 발송이 될 듯하다가 서버가 받은 줄만 더해 422 로 돌려보낸다
+   * (사용자에겐 원인 불명 오류). 서버와 같은 기준으로 미리 잡는다.
+   */
+  const sendableRows = useMemo(
     () =>
-      rows.reduce((s, r) => s + (r.checked ? Number(r.krwInput) || 0 : 0), 0),
+      rows.filter(
+        (r) =>
+          r.checked &&
+          r.order &&
+          r.effectiveQty >= 1 &&
+          !r.orderQtyExceeds &&
+          r.pu !== null &&
+          r.bond.buyYieldPct !== null
+      ),
     [rows]
+  );
+  const checkedKrwTotal = useMemo(
+    () => sendableRows.reduce((s, r) => s + (Number(r.krwInput) || 0), 0),
+    [sendableRows]
   );
   const checkedUsdTotal = useMemo(
     () =>
-      rows.reduce(
-        (s, r) => s + (r.checked ? parseFloat(r.usdInput || "0") || 0 : 0),
-        0
-      ),
-    [rows]
+      sendableRows.reduce((s, r) => s + (parseFloat(r.usdInput || "0") || 0), 0),
+    [sendableRows]
   );
   const exchangeKrwTotal = derivedExchange.krwTotal;
   const exchangeUsdTotal = derivedExchange.usdTotal;
@@ -468,16 +483,7 @@ export function OrderConsole({
     exchangeKrwTotal === 0 && anyChecked && checkedKrwTotal > 0;
 
   const pendingLines: PendingLine[] = useMemo(() => {
-    return rows
-      .filter(
-        (r) =>
-          r.checked &&
-          r.order &&
-          r.effectiveQty >= 1 &&
-          !r.orderQtyExceeds &&
-          r.pu !== null &&
-          r.bond.buyYieldPct !== null
-      )
+    return sendableRows
       .map((r) => {
         const order = r.order as NonNullable<BondRow["order"]>;
         return {
@@ -495,7 +501,7 @@ export function OrderConsole({
           bufferPct: Number(buffer) || 0,
         };
       });
-  }, [rows, buffer]);
+  }, [sendableRows, buffer]);
 
   const incompleteCount = useMemo(
     () =>
