@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FxRatePanel } from "@/components/FxRatePanel";
 import { Tabs } from "@/components/ui/Tabs";
+import { CalendarDays, CandlestickChart, Gauge, GitCompareArrows, Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   CurrencyExchange,
@@ -467,13 +468,14 @@ export function OrderConsole({
     [rows]
   );
 
+  // 탭마다 성격에 맞는 lucide 아이콘 (5번 프로젝트와 같은 방식, 오너 지시 2026-09-22)
   const TABS = [
-    { key: "market" as const, label: "시장정보" },
-    { key: "cashflow" as const, label: "현금흐름" },
-    { key: "simulation" as const, label: "시뮬레이션" },
+    { key: "market" as const, label: "시장정보", icon: Newspaper },
+    { key: "cashflow" as const, label: "현금흐름", icon: CalendarDays },
+    { key: "simulation" as const, label: "시뮬레이션", icon: GitCompareArrows },
     // 현금흐름 기반으로 다시 만들기 전 계산을 보존한 사본. 같은 입력을 공유한다.
-    { key: "duration" as const, label: "금리/환율 민감도" },
-    { key: "trading" as const, label: "트레이딩" },
+    { key: "duration" as const, label: "금리/환율 민감도", icon: Gauge },
+    { key: "trading" as const, label: "트레이딩", icon: CandlestickChart },
   ].filter((t) => !(hideTrading && t.key === "trading"));
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Link2 } from "lucide-react";
 import { useAppAuth } from "@/components/auth/AppAuth";
 import type { BondLayoutInput } from "@/lib/cashflow/bondLayout";
 
@@ -99,14 +100,15 @@ export function ShareLinkButton({ value }: ShareLinkButtonProps) {
 
   return (
     <div ref={rootRef} className="relative print:hidden">
+      {/* 테두리·배경 없이 탭 줄의 글자처럼 (오너 지시 2026-09-22) */}
       <button
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+        className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        <span aria-hidden="true">🔗</span>
+        <Link2 aria-hidden="true" className="size-3.5 shrink-0" />
         공유 링크
       </button>
 
