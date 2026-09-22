@@ -111,19 +111,25 @@ export function OrderConsole({
    * 읽으면 서버 HTML 과 어긋난다. 고객 공유 링크는 복원하지 않는다
    * (받은 사람엔 늘 현금흐름부터).
    */
+  const [tabRestored, setTabRestored] = useState(false);
   useEffect(() => {
-    if (shareOk) return;
+    /* eslint-disable react-hooks/set-state-in-effect --
+       서버 HTML 과 같은 값으로 그린 뒤 마운트 직후 한 번 맞춰 주는
+       것이라 캐스케이딩 렌더링이 아니다. */
+    if (shareOk) {
+      setTabRestored(true);
+      return;
+    }
     try {
       const saved = sessionStorage.getItem(TAB_KEY);
       if (saved && (TAB_KEYS as readonly string[]).includes(saved)) {
-        // 서버 HTML 과 같은 값으로 그린 뒤 한 번 맞춰 주는 것이라
-        // 캐스케이딩 렌더링이 아니다 — 이 규칙은 여기서 끄다.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTab(saved as TabKey);
       }
     } catch {
       // 시크릿 모드·저장 차단 — 기본 탭 그대로
     }
+    setTabRestored(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [shareOk]);
 
   // 현금흐름 입력값·잠금 — 여기서 보유해 탭을 옮겨도 유지되고(감사 ⑤ 중7),
@@ -600,7 +606,13 @@ export function OrderConsole({
 
       <Tabs tabs={TABS} active={tab} onChange={changeTab} className="print:hidden" />
 
-      {tab === "market" && (
+      {/*
+        시장정보 패널은 탭 복원이 끝난 뒤에만 그린다. 복원 전에 그리면
+        다른 탭으로 돌아갈 사람에게도 화면이 한 번 번쩍이고, 그사이 환율추이·
+        Selic·국채금리·뉴스·데일리리포트·일정 요청이 헛되이 나간다
+        (뉴스·리포트는 캐시가 비면 외부 수집까지 한다).
+      */}
+      {tab === "market" && tabRestored && (
         <>
           <FxRatePanel
             rates={fx}

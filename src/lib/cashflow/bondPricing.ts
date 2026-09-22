@@ -282,6 +282,72 @@ function accruedInterestFor(
     : notional * couponRateDec * accrualFrac;
 }
 
+/**
+ * 주어진 결제일의 매수단가(clean·dirty) — **단가 규칙은 여기 하나다.**
+ * 최초 매수(`computeBondPricing`)와 재투자형의 재매수·중도청산이
+ * 같은 함수를 써야 한다 — 예전에 재매수만 연 10%·반기 고정인
+ * `computeNtnfPu` 를 써서, 표면이율이나 이자지급주기를 바꾸면 같은
+ * 채권을 두 가지 쿠폰으로 평가했다.
+ *
+ * 브라질(Business/252)은 ANBIMA 관행대로 dirty 를 먼저 구해 6자리 절사하고,
+ * 그 밖의 기준은 clean 을 먼저 구해 4자리 올림한다.
+ */
+export function computePriceOn(
+  settlement: Date,
+  maturity: Date,
+  couponRatePct: number,
+  purchaseYieldPct: number,
+  frequency: CouponFrequency,
+  basis: CalcBasis,
+  redemptionBasis: number
+): { cleanPrice: number; dirtyPrice: number; accrualFraction: number } | null {
+  const isBrazil = basis === "Business/252";
+  const recentCoupon = getCouponPeriod(maturity, frequency, settlement)
+    .previousCouponDate;
+  const accrualFrac = yearFrac(recentCoupon, settlement, BASIS_INDEX[basis]);
+  const rate = couponRatePct / 100;
+  const yld = purchaseYieldPct / 100;
+
+  if (isBrazil) {
+    const dirtyRaw = computeBrazilDirtyPrice(
+      settlement,
+      maturity,
+      rate,
+      yld,
+      redemptionBasis,
+      frequency
+    );
+    if (dirtyRaw === null) return null;
+    const dirtyPrice = truncPu(dirtyRaw);
+    return {
+      dirtyPrice,
+      cleanPrice: truncPu(
+        dirtyPrice - accruedInterestFor(redemptionBasis, rate, accrualFrac, true)
+      ),
+      accrualFraction: accrualFrac,
+    };
+  }
+
+  const cleanRaw = computeCleanPrice(
+    settlement,
+    maturity,
+    rate,
+    yld,
+    redemptionBasis,
+    frequency
+  );
+  if (cleanRaw === null) return null;
+  const cleanPrice = roundUp(cleanRaw, 4);
+  return {
+    cleanPrice,
+    dirtyPrice: roundUp(
+      cleanPrice + accruedInterestFor(redemptionBasis, rate, accrualFrac, false),
+      4
+    ),
+    accrualFraction: accrualFrac,
+  };
+}
+
 /** 채권권면액/매수단가(clean·dirty)/경과이자/결제금액/현금잔액을 fix.xlsx 수식과 동일한 순서로 계산한다 */
 export function computeBondPricing(
   input: BondPricingInputs
@@ -322,42 +388,17 @@ export function computeBondPricing(
   const recentCoupon = getCouponPeriod(maturity, input.couponFrequency, settlement)
     .previousCouponDate;
 
-  const basis = BASIS_INDEX[input.calcBasis];
-  const accrualFrac = yearFrac(recentCoupon, settlement, basis);
-
-  let cleanPrice: number;
-  let dirtyPrice: number;
-
-  if (isBrazil) {
-    const dirtyRaw = computeBrazilDirtyPrice(
-      settlement,
-      maturity,
-      rate / 100,
-      yld / 100,
-      redemptionBasis,
-      input.couponFrequency
-    );
-    if (dirtyRaw === null) return null;
-    dirtyPrice = truncPu(dirtyRaw);
-    cleanPrice = truncPu(
-      dirtyPrice - accruedInterestFor(redemptionBasis, rate / 100, accrualFrac, true)
-    );
-  } else {
-    const cleanRaw = computeCleanPrice(
-      settlement,
-      maturity,
-      rate / 100,
-      yld / 100,
-      redemptionBasis,
-      input.couponFrequency
-    );
-    if (cleanRaw === null) return null;
-    cleanPrice = roundUp(cleanRaw, 4);
-    dirtyPrice = roundUp(
-      cleanPrice + accruedInterestFor(redemptionBasis, rate / 100, accrualFrac, false),
-      4
-    );
-  }
+  const price = computePriceOn(
+    settlement,
+    maturity,
+    rate,
+    yld,
+    input.couponFrequency,
+    input.calcBasis,
+    redemptionBasis
+  );
+  if (!price) return null;
+  const { cleanPrice, dirtyPrice, accrualFraction: accrualFrac } = price;
 
   const needsFx = input.tradeCurrency !== input.custodyCurrency;
   const fxRate = needsFx ? Number(input.purchaseFxRate) : 1;

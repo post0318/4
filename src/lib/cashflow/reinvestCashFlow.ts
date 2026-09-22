@@ -20,9 +20,10 @@ import {
 import {
   anbimaCouponFactor,
   computeBondPricing,
+  computePriceOn,
   roundDown,
 } from "@/lib/cashflow/bondPricing";
-import { computeNtnfPu, parseIsoDate, toISODate } from "@/lib/ntnfPricing";
+import { parseIsoDate, toISODate } from "@/lib/ntnfPricing";
 import { getEffectiveIncomeTaxRate } from "@/lib/cashflow/taxRules";
 
 const FACE = 1000;
@@ -177,6 +178,22 @@ export function generateReinvestCashFlow(
       ? anbimaCouponFactor(rate, f)
       : rate / f;
 
+  /**
+   * 해당 날짜의 매수단가(dirty). 재매수는 이표일 당일 결제로 본다.
+   * 예전에는 `computeNtnfPu`(연 10%·반기 고정)라 표면이율을 바꾸면
+   * 최초 매수단가와 기준이 어긋났다.
+   */
+  const puOn = (date: Date, yieldPct = yld) =>
+    computePriceOn(
+      date,
+      maturity,
+      Number(input.couponRate),
+      yieldPct,
+      input.couponFrequency,
+      input.calcBasis,
+      FACE
+    )?.dirtyPrice ?? null;
+
   // 이표일: 결제일 이후 첫 이표일 ~ 만기 (날짜만 비교 — 시각차로 만기가 빠지지 않도록)
   const dates: Date[] = [];
   const recentCoupon =
@@ -244,9 +261,11 @@ export function generateReinvestCashFlow(
       return;
     }
 
-    // 재투자: 쿠폰 + 잔여현금으로 정수 좌수 매수 (매수금리 = 최초 그대로)
+    // 재투자: 쿠폰 + 잔여현금으로 정수 좌수 매수 (매수금리 = 최초 그대로).
+    // 단가는 최초 매수와 같은 규칙(`computePriceOn`) — 입력한 표면이율·
+    // 이자지급주기·계산기준을 그대로 따른다.
     cashBrl += couponBrl;
-    const pu = computeNtnfPu(input.maturityDate, yld, date);
+    const pu = puOn(date);
     if (pu == null || pu <= 0) {
       rows.push({
         date: toISODate(date),
@@ -280,11 +299,7 @@ export function generateReinvestCashFlow(
   // 쿠폰이 전부 신탁 안에 남아 채권이 된 상태라 따로 지급된 돈이 없다.
   let exit: ReinvestExitResult | undefined;
   if (exitSettle && input.earlyExit) {
-    const exitPu = computeNtnfPu(
-      input.maturityDate,
-      Number(input.earlyExit.sellYieldPct),
-      exitSettle
-    );
+    const exitPu = puOn(exitSettle, Number(input.earlyExit.sellYieldPct));
     if (exitPu == null || exitPu <= 0) return null;
     const exitFx =
       needsFx && Number(input.earlyExit.fxRate) > 0
