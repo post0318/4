@@ -1,0 +1,49 @@
+name: Refresh COPOM calendar
+
+# 브라질 중앙은행(BCB)이 다음 해 COPOM(통화정책위원회) 회의 일정을 발표하면
+# (매년 대개 전년도 6월 말경, 정확한 날짜는 해마다 다름) src/lib/server/
+# copom-calendar.json 을 자동으로 갱신·커밋한다 — 오너 지시(2026-09-23 —
+# "손으로 하드코딩을 내가하는거는 아니겠지?... 매일 확인하여 업데이트할 수
+# 있는 방향"): 사람이 매년 표를 손으로 채우지 않고, 이 워크플로가 매일
+# 발표 여부를 확인해 나오는 즉시 반영한다.
+#
+# 정확한 발표일을 모르므로 넉넉하게 4~9월 매일 확인(refresh-ntnf.yml과
+# 마찬가지로 "변경 없으면 커밋 생략" 로직이 있어 매일 돌아도 대부분은
+# 아무 일도 안 하고 끝난다 — 불필요한 재배포 없음).
+
+on:
+  schedule:
+    - cron: "30 21 * 4-9 *" # 4~9월 매일 21:30 UTC (06:30 KST 익일)
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Check for new COPOM calendar
+        run: node scripts/fetch-copom-calendar.mjs
+
+      - name: Commit if data changed
+        run: |
+          FILE=src/lib/server/copom-calendar.json
+          CHANGES=$(git diff -U0 -- "$FILE" \
+            | grep -E '^[+-]' | grep -vE '^[+-]{3} ' \
+            | grep -vE '"(generatedAt|source)"' || true)
+          if [ -z "$CHANGES" ]; then
+            echo "새 캘린더 없음 - 커밋 생략"
+            git checkout -- "$FILE"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$FILE"
+          git commit -m "chore : COPOM 캘린더 자동 갱신 ($(date -u +%Y-%m-%d))"
+          git push

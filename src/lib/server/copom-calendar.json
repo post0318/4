@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-09-23T00:00:00Z",
+  "source": "BC 공개 캘린더(뉴스 보도 교차확인, 2026-09-23) — 2026년 8회분. 매년 요약: bcb.gov.br/api/servico/sitebcb/copom/atas 로 확정분 재검증, 다음 해분은 scripts/fetch-copom-calendar.mjs 가 발표 즉시 자동 추가",
+  "meetings": [
+    { "year": 2026, "nro": 276, "start": "2026-01-27", "end": "2026-01-28", "decisionDate": "2026-01-28" },
+    { "year": 2026, "nro": 277, "start": "2026-03-17", "end": "2026-03-18", "decisionDate": "2026-03-18" },
+    { "year": 2026, "nro": 278, "start": "2026-04-28", "end": "2026-04-29", "decisionDate": "2026-04-29" },
+    { "year": 2026, "nro": 279, "start": "2026-06-16", "end": "2026-06-17", "decisionDate": "2026-06-17" },
+    { "year": 2026, "nro": 280, "start": "2026-08-04", "end": "2026-08-05", "decisionDate": "2026-08-05" },
+    { "year": 2026, "nro": 281, "start": "2026-09-15", "end": "2026-09-16", "decisionDate": "2026-09-16" },
+    { "year": 2026, "nro": 282, "start": "2026-11-03", "end": "2026-11-04", "decisionDate": "2026-11-04" },
+    { "year": 2026, "nro": 283, "start": "2026-12-08", "end": "2026-12-09", "decisionDate": "2026-12-09" }
+  ]
+}

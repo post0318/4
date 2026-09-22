@@ -1,6 +1,7 @@
 import { brazilHolidayList } from "@/lib/brazilCalendar";
 import { fetchOrNull } from "@/lib/server/fetchWithTimeout";
-import { inRange } from "@/lib/server/sanity";
+import { inRange, BOUNDS } from "@/lib/server/sanity";
+import copomCalendar from "@/lib/server/copom-calendar.json";
 
 /**
  * 브라질 주요일정 — 조회일 기준 전후 15일의 "중요한" 경제지표 발표와 시장 휴장일.
@@ -329,6 +330,126 @@ function brazilElectionItems(): AgendaItem[] {
   ];
 }
 
+// ── COPOM 기준금리 결정 ──────────────────────────────────────────────
+// 기존 "경제지표" 항목은 전부 IBGE 캘린더(통계청)에서만 왔는데, 금리결정은
+// IBGE가 아니라 중앙은행(BCB) COPOM 소관이라 애초에 이 소스에 없었다(오너
+// 지적, 2026-09-23 — "주요일정에 금리결정에 대한 일정은 없는데"). 과거
+// 결정은 BCB 사이트 자체 API로 정확한 결정일을 받고, 그 결정으로 바뀐
+// Selic 값은 SGS 일별시계열(432)에서 결정일 전/후 값을 대조해 계산한다
+// (동결도 여기서 자연스럽게 "동결 X%"로 표시됨 — 값이 안 바뀌는 결정도
+// 놓치지 않음, 시계열 변화만 보는 방식의 약점을 피함).
+
+interface BcbAtaItem {
+  nroReuniao: number;
+  dataReferencia: string; // "YYYY-MM-DD", 실제 결정일(이틀째 저녁 발표일)
+  dataPublicacao: string;
+}
+
+function toBrDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 결정일 전후 Selic(SGS 432, 일별) 값 — before=결정일 이전 마지막 값,
+ * after=결정일 이후 첫 값(보통 결정 다음 영업일부터 반영). */
+async function selicAround(decisionDateIso: string): Promise<{ before: number | null; after: number | null }> {
+  try {
+    const res = await fetchOrNull(
+      `https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados?dataInicial=${toBrDate(addDaysIso(decisionDateIso, -5))}&dataFinal=${toBrDate(addDaysIso(decisionDateIso, 7))}&formato=json`
+    );
+    if (!res) return { before: null, after: null };
+    const rows = (await res.json()) as { data: string; valor: string }[];
+    const num = (s: string | undefined) => {
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    };
+    let before: number | null = null;
+    let after: number | null = null;
+    for (const r of rows) {
+      const m = r.data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!m) continue;
+      const iso = `${m[3]}-${m[2]}-${m[1]}`;
+      if (iso <= decisionDateIso) before = num(r.valor);
+      else if (after == null) after = num(r.valor);
+    }
+    return { before, after };
+  } catch {
+    return { before: null, after: null };
+  }
+}
+
+async function fetchCopomDecisions(from: string, to: string): Promise<AgendaItem[]> {
+  let atas: BcbAtaItem[] = [];
+  try {
+    // 창(최대 backDays+forwardDays≈1개월)에 걸리는 회차만 있으면 되지만, 발표
+    // 지연·재조회 여유로 최근 6회분을 넉넉히 받는다(호출 1번, 비용 없음).
+    const res = await fetchOrNull("https://www.bcb.gov.br/api/servico/sitebcb/copom/atas?quantidade=6");
+    if (res) atas = ((await res.json()) as { conteudo?: BcbAtaItem[] }).conteudo ?? [];
+  } catch {
+    return [];
+  }
+
+  const inWindow = atas.filter((a) => a.dataReferencia >= from && a.dataReferencia <= to);
+  if (inWindow.length === 0) return [];
+
+  return Promise.all(
+    inWindow.map(async (a): Promise<AgendaItem> => {
+      const { before, after } = await selicAround(a.dataReferencia);
+      const b = inRange(before, BOUNDS.ratePct) ? before : null;
+      const af = inRange(after, BOUNDS.ratePct) ? after : null;
+      const bp = b != null && af != null ? Math.round((af - b) * 100) : null;
+      const actual =
+        af != null
+          ? bp === 0
+            ? `동결 ${af.toFixed(2)}%`
+            : `${af.toFixed(2)}% (${bp! > 0 ? "+" : ""}${bp}bp)`
+          : null;
+      return {
+        date: a.dataReferencia,
+        titleKo: `COPOM 기준금리(Selic) 결정 — ${a.nroReuniao}차`,
+        category: "경제지표",
+        released: true,
+        guidance: null,
+        actual,
+        prior: b != null ? `${b.toFixed(2)}%` : null,
+      };
+    })
+  );
+}
+
+interface CopomMeeting {
+  year: number;
+  nro: number;
+  start: string;
+  end: string;
+  decisionDate: string;
+}
+
+/** 아직 안 열린(미래) COPOM 회의만 — 이미 열린 회차는 fetchCopomDecisions가
+ * BCB API로 정확한 결과와 함께 다룬다(중복 방지). 매년 새 캘린더가 나오면
+ * scripts/fetch-copom-calendar.mjs 가 이 JSON에 자동으로 추가한다. */
+function copomCalendarItems(from: string, to: string): AgendaItem[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const meetings = (copomCalendar as { meetings: CopomMeeting[] }).meetings;
+  return meetings
+    .filter((m) => m.decisionDate > today && m.decisionDate >= from && m.decisionDate <= to)
+    .map((m) => ({
+      date: m.decisionDate,
+      titleKo: `COPOM 기준금리(Selic) 결정 예정 — ${m.nro}차 (${m.start.slice(5)}~${m.end.slice(5)})`,
+      category: "경제지표",
+      released: false,
+      guidance: null,
+      actual: null,
+      prior: null,
+    }));
+}
+
 function holidaysInRange(fromIso: string, toIso: string): AgendaItem[] {
   const from = new Date(fromIso);
   const to = new Date(toIso);
@@ -364,10 +485,11 @@ export async function fetchBrazilAgenda(
   const from = iso(start);
   const to = iso(end);
 
-  const [ibge] = await Promise.all([fetchIbge(from, to)]);
+  const [ibge, copomPast] = await Promise.all([fetchIbge(from, to), fetchCopomDecisions(from, to)]);
+  const copomFuture = copomCalendarItems(from, to);
   const holidays = holidaysInRange(from, to);
 
-  const windowed = [...ibge, ...holidays].sort(
+  const windowed = [...ibge, ...copomPast, ...copomFuture, ...holidays].sort(
     (a, b) => a.date.localeCompare(b.date) || a.category.localeCompare(b.category)
   );
 
