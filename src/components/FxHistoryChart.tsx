@@ -26,11 +26,12 @@ interface FxHistoryChartProps {
   stepped?: boolean;
   series: ChartSeries;
   /**
-   * 눈금을 값 범위 대신 고정으로 박을 때(금리 차트 0~16% · 8% 단위).
-   * 겹쳐 그린 선도 같은 눈금을 쓴다 — 두 선의 높낮이를 그대로 비교하려면
-   * 축이 하나여야 한다(오너 지시 2026-09-22).
+   * 눈금의 **기준** 범위(금리 차트 0~17%). 값이 이 범위를 벗어나면 정수 단위로
+   * 그만큼만 넓힌다 — 넓게 잡아두면 선이 평탄해 보이고, 좁게 고정하면 말없이
+   * 잘린다(오너 지시 2026-09-22). 겹쳐 그린 선도 같은 눈금을 쓴다 — 두 선의
+   * 높낮이를 그대로 비교하려면 축이 하나여야 한다.
    */
-  yAxis?: { min: number; max: number; step: number };
+  yAxis?: { min: number; max: number };
   /** 같은 축에 겹쳐 그릴 두 번째 선 (예: 10년국채수익률 vs 기준금리) */
   overlay?: Overlay;
   /**
@@ -110,15 +111,15 @@ export function FxHistoryChart({
     const min = Math.min(...all);
     const max = Math.max(...all);
     const span = max - min || 1;
-    const yMin = yAxis ? yAxis.min : min - span * 0.1;
-    const yMax = yAxis ? yAxis.max : max + span * 0.1;
-    // 눈금 위치 — 고정축이면 step 마다, 아니면 위·가운데·아래 셋
-    const ticks = yAxis
-      ? Array.from(
-          { length: Math.round((yAxis.max - yAxis.min) / yAxis.step) + 1 },
-          (_, i) => 1 - (i * yAxis.step) / (yAxis.max - yAxis.min)
-        )
-      : [0, 0.5, 1];
+    /*
+     * 고정 눈금(yAxis)은 **기준일 뿐** 상한이 아니다 — 값이 넘으면 딱 그만큼만
+     * 넓힌다(오너 지시 2026-09-22). 넉넉하게 잡아두면 선이 가운데 눌려 평탄해
+     * 보이고, 좁게 고정하면 넘는 순간 말없이 잘린다. 그 사이를 취한다.
+     */
+    const yMin = yAxis ? Math.min(yAxis.min, Math.floor(min)) : min - span * 0.1;
+    const yMax = yAxis ? Math.max(yAxis.max, Math.ceil(max)) : max + span * 0.1;
+    // 눈금 위치 — 고정축이면 위·가운데·아래(0·중간·상한), 아니면 같은 셋
+    const ticks = [0, 0.5, 1];
     const y = (v: number) =>
       PAD.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
@@ -284,7 +285,12 @@ export function FxHistoryChart({
           </g>
         ))}
 
-        {!overlay && (
+        {/*
+          아래를 칠하는 건 축이 값 범위에 붙어 있는 환율 차트에서만 뜻이 있다.
+          고정 기준축(금리 차트)은 바닥이 0% 라, Selic 조회가 실패해 선이 하나만
+          남으면 14% 선부터 0 까지 통째로 칠해졌다(점검 C).
+        */}
+        {!overlay && !yAxis && (
           <path d={area} fill="url(#fxArea)" className="text-blue-500" />
         )}
         <path
@@ -332,7 +338,8 @@ export function FxHistoryChart({
           <>
             {hDate} ·{" "}
             <span className="text-blue-600 dark:text-blue-400">
-              {overlay ? `${label} ` : ""}
+              {/* 이름은 항상 붙인다 — 겹선이 사라져도(조회 실패) 무슨 값인지 남게 */}
+              {`${label} `}
               {fmtVal(hv)}
             </span>
             {hov != null && overlay && (

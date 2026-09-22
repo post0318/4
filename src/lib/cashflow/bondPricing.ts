@@ -48,12 +48,15 @@ export function truncPu(value: number): number {
 
 /** 30/360 (미국 NASD) 방식 일수 */
 function days360Us(start: Date, end: Date): number {
-  const y1 = start.getFullYear();
-  const m1 = start.getMonth() + 1;
-  let d1 = start.getDate();
-  const y2 = end.getFullYear();
-  const m2 = end.getMonth() + 1;
-  let d2 = end.getDate();
+  // 날짜는 전부 UTC 자정으로 만들어지므로 읽을 때도 UTC 로 읽는다 —
+  // 로컬 게터를 쓰면 UTC 보다 늦은 지역(브라질·미국) 브라우저에서
+  // 하루씩 밀린다(점검 L6). Business/252 경로는 이미 UTC 라 영향이 없었다.
+  const y1 = start.getUTCFullYear();
+  const m1 = start.getUTCMonth() + 1;
+  let d1 = start.getUTCDate();
+  const y2 = end.getUTCFullYear();
+  const m2 = end.getUTCMonth() + 1;
+  let d2 = end.getUTCDate();
 
   if (d1 === 31) d1 = 30;
   if (d2 === 31 && d1 === 30) d2 = 30;
@@ -63,12 +66,12 @@ function days360Us(start: Date, end: Date): number {
 
 /** 30/360 (유럽) 방식 일수 */
 function days360Eu(start: Date, end: Date): number {
-  const y1 = start.getFullYear();
-  const m1 = start.getMonth() + 1;
-  const d1 = Math.min(start.getDate(), 30);
-  const y2 = end.getFullYear();
-  const m2 = end.getMonth() + 1;
-  const d2 = Math.min(end.getDate(), 30);
+  const y1 = start.getUTCFullYear();
+  const m1 = start.getUTCMonth() + 1;
+  const d1 = Math.min(start.getUTCDate(), 30);
+  const y2 = end.getUTCFullYear();
+  const m2 = end.getUTCMonth() + 1;
+  const d2 = Math.min(end.getUTCDate(), 30);
 
   return (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1);
 }
@@ -87,22 +90,22 @@ function yearFracActAct(start: Date, end: Date): number {
     sign = -1;
   }
 
-  const y1 = s.getFullYear();
-  const y2 = e.getFullYear();
+  const y1 = s.getUTCFullYear();
+  const y2 = e.getUTCFullYear();
 
   if (y1 === y2) {
     return (sign * actualDays(s, e)) / (isLeapYear(y1) ? 366 : 365);
   }
 
   let sum = 0;
-  const endOfY1 = new Date(y1, 11, 31);
+  const endOfY1 = new Date(Date.UTC(y1, 11, 31));
   sum += (actualDays(s, endOfY1) + 1) / (isLeapYear(y1) ? 366 : 365);
 
   for (let y = y1 + 1; y < y2; y++) {
     sum += 1;
   }
 
-  const startOfY2 = new Date(y2, 0, 1);
+  const startOfY2 = new Date(Date.UTC(y2, 0, 1));
   sum += actualDays(startOfY2, e) / (isLeapYear(y2) ? 366 : 365);
 
   return sign * sum;

@@ -103,12 +103,16 @@ export interface ReinvestCashFlowSummary {
   addedUnits: number;
   /** 수령 쿠폰 총액 (BRL, 재투자분 포함) */
   totalCouponBrl: number;
-  /** 세전 만기 회수액 (KRW) */
-  preTaxMaturityKrw: number;
-  /** 세후 만기 회수액 (KRW) */
-  postTaxMaturityKrw: number;
-  /** 세후수익률 (단리, 365/투자일수) */
-  postTaxYield: number;
+  /**
+   * 세전 만기 회수액 (KRW). **중도청산이면 null** — 만기까지 가지
+   * 않았으므로 만기 기준 수치가 없다. 그때는 `exit` 을 본다.
+   * 예전엔 0·음수를 넣어 세후수익률이 −100% 로 찍혔다(점검 L4).
+   */
+  preTaxMaturityKrw: number | null;
+  /** 세후 만기 회수액 (KRW). 중도청산이면 null */
+  postTaxMaturityKrw: number | null;
+  /** 세후수익률 (단리, 365/투자일수). 중도청산이면 null */
+  postTaxYield: number | null;
   /**
    * 세후 복리수익률(CAGR) = (만기회수액/원금)^(365/투자일수) − 1.
    * 재투자형은 쿠폰이 신탁 안에 남아 채권을 다시 사므로 복리가 상품 안에서
@@ -118,7 +122,8 @@ export interface ReinvestCashFlowSummary {
    * (출금한 돈의 운용은 상품 밖의 일) → 그쪽에는 만들지 않는다.
    */
   postTaxCagr: number | null;
-  bankEquivalentYield: number;
+  /** 은행환산수익률. 중도청산이면 null */
+  bankEquivalentYield: number | null;
   /** 후취보수 산출: 신탁투자금액 × 요율 ÷ 365 × 투자일수 (만기 회수 시 차감) */
   backFee: {
     base: number; // 신탁투자금액 (KRW)
@@ -342,14 +347,17 @@ export function generateReinvestCashFlow(
     };
   }
 
+  // 중도청산이면 만기 회수가 없다 — 만기 기준 지표를 0 으로 두고 계산하면
+  // 세후수익률이 −100% 로 찍힌다. 아예 null 로 둠(점검 L4).
   const maturityRow = rows[rows.length - 1];
-  const preTaxMaturityKrw = maturityRow.maturityKrw ?? 0;
+  const preTaxMaturityKrw = exit ? null : maturityRow.maturityKrw ?? 0;
 
   // 채권이자 과세분(일반과세면 14%). 브라질 국채이자는 비과세 조약이면 0.
   const bondTaxRate = getEffectiveIncomeTaxRate(input.taxStatus);
   const taxBrl = totalCouponBrl * bondTaxRate;
   const taxKrw = roundDown(taxBrl * maturityFx, 2);
-  const postTaxMaturityKrw = roundDown(preTaxMaturityKrw - taxKrw, 2);
+  const postTaxMaturityKrw =
+    preTaxMaturityKrw === null ? null : roundDown(preTaxMaturityKrw - taxKrw, 2);
 
   const investmentDays =
     getInvestmentDays(
@@ -362,9 +370,11 @@ export function generateReinvestCashFlow(
     2
   );
   const postTaxYield =
-    investmentDays > 0
-      ? ((postTaxMaturityKrw - trustAmount) / trustAmount) * (365 / investmentDays)
-      : 0;
+    postTaxMaturityKrw === null
+      ? null
+      : investmentDays > 0
+        ? ((postTaxMaturityKrw - trustAmount) / trustAmount) * (365 / investmentDays)
+        : 0;
 
   const parsedComp = Number(input.comprehensiveTaxRate);
   const comprehensiveTaxRate =
@@ -385,10 +395,14 @@ export function generateReinvestCashFlow(
       postTaxMaturityKrw,
       postTaxYield,
       postTaxCagr:
-        trustAmount > 0 && investmentDays > 0 && postTaxMaturityKrw > 0
+        postTaxMaturityKrw !== null &&
+        trustAmount > 0 &&
+        investmentDays > 0 &&
+        postTaxMaturityKrw > 0
           ? Math.pow(postTaxMaturityKrw / trustAmount, 365 / investmentDays) - 1
           : null,
-      bankEquivalentYield: postTaxYield / (1 - comprehensiveTaxRate),
+      bankEquivalentYield:
+        postTaxYield === null ? null : postTaxYield / (1 - comprehensiveTaxRate),
       backFee: {
         base: trustAmount,
         ratePct: backFeeRate,

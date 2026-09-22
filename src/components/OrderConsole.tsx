@@ -551,12 +551,16 @@ export function OrderConsole({
       <header className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            {/* 제목 클릭 → 첫 화면(현금흐름) 탭으로 */}
+            {/*
+              제목 클릭 → 그 화면의 첫 탭으로. 공유 링크를 받은 사람에게 첫 화면은
+              링크가 담은 현금흐름이라, 시장정보로 보내면 받은 자료 밖으로 나간다
+              (점검 D). 접근성 이름도 실제 가는 곳과 맞춘다.
+            */}
             <button
               type="button"
-              onClick={() => changeTab("market")}
+              onClick={() => changeTab(shareOk ? "cashflow" : "market")}
               className="flex items-center gap-2 rounded-md outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
-              aria-label="처음 화면으로"
+              aria-label={shareOk ? "현금흐름으로" : "시장정보로"}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

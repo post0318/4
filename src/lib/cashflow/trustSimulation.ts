@@ -553,6 +553,9 @@ function runReinvestLeg(
       exitPrice: r.exit.pu,
     };
   }
+  // 중도청산은 위에서 끝냈으므로 여기는 만기 보유다 — 만기값이 없으면
+  // 계산이 성립하지 않는다(점검 L4 이후 summary 는 null 을 낼 수 있다).
+  if (r.summary.postTaxMaturityKrw === null) return null;
   return {
     bondMaturity: bond.maturityDate,
     contractDate,

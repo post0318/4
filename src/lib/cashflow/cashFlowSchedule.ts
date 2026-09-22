@@ -330,7 +330,9 @@ export function generateFixCashFlow(
     const unitsHeld = pricing.faceValue / FACE_PER_UNIT;
     const proceeds = truncByCurrency(unitsHeld * exitPu * exitFx);
 
-    // 청산대금에 섞인 경과이자는 채권이자 성격이라 과세여부를 따른다.
+    // 청산대금에 섞인 경과이자는 **과세하지 않는다** — 매수 때 내 돈을 주고 산
+    // 몫이라 소득이 아니다(오너 판단 2026-09-22). 코드는 원래부터 현금이자만
+    // 과세했고 주석만 어긋나 있었다(점검 L2).
     // 보유 구간 현금이자는 언제나 과세(CASH_INTEREST_TAX_RATE).
     const cashTaxBase = Math.max(0, cashInterest - totalDeduction);
     const incomeTaxRaw = cashTaxBase * CASH_INTEREST_TAX_RATE;

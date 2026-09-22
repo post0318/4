@@ -961,10 +961,12 @@ export function BondLayoutForm({
           <Row label="만기시 세후금액">
             {summary ? (
               <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                {formatSettlementAmount(
-                  summary.postTaxMaturityAmount,
-                  value.custodyCurrency === "KRW"
-                )}
+                {summary.postTaxMaturityAmount === null
+                  ? "-"
+                  : formatSettlementAmount(
+                      summary.postTaxMaturityAmount,
+                      value.custodyCurrency === "KRW"
+                    )}
               </span>
             ) : (
               <ComputedValue />
@@ -1010,7 +1012,9 @@ export function BondLayoutForm({
                 )
               ) : (
                 <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                  {(summary.postTaxYield * 100).toFixed(2)}%
+                  {summary.postTaxYield === null
+                    ? "-"
+                    : `${(summary.postTaxYield * 100).toFixed(2)}%`}
                 </span>
               )
             ) : (
@@ -1038,7 +1042,9 @@ export function BondLayoutForm({
           <Row label="은행환산수익률">
             {summary ? (
               <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                {(summary.bankEquivalentYield * 100).toFixed(2)}%
+                {summary.bankEquivalentYield === null
+                  ? "-"
+                  : `${(summary.bankEquivalentYield * 100).toFixed(2)}%`}
               </span>
             ) : (
               <ComputedValue />

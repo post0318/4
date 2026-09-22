@@ -120,7 +120,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     digits: number;
     stepped?: boolean;
     series: ChartSeries;
-    yAxis?: { min: number; max: number; step: number };
+    yAxis?: { min: number; max: number };
     overlay?: { series: ChartSeries; label: string; stepped?: boolean };
     strength?: { name: string; invert?: boolean };
   } | null = null;
@@ -131,8 +131,9 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       suffix: "%",
       digits: 2,
       series: ntnf,
-      // 두 선을 같은 눈금으로 보되, 0·8·16% 눈금으로 고정(오너 지시 2026-09-22)
-      yAxis: { min: 0, max: 16, step: 8 },
+      // 두 선을 같은 눈금으로 본다. 0~17% 를 기준으로 두고 값이 넘으면 그만큼만
+      // 넓힌다(오너 지시 2026-09-22 — 넓게 잡으면 평탄해 보인다)
+      yAxis: { min: 0, max: 17 },
       overlay: selic
         ? { series: selic, label: "기준금리", stepped: true }
         : undefined,
