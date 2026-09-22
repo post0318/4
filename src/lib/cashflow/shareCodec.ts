@@ -21,7 +21,8 @@ import type {
  *
  * 형식(v1, big-endian):
  *   u8  version=1
- *   u8  flags   bit0 client, bit1 hasName, bit2 hasRating, bit3 hasTrustMaturity
+ *   u8  flags   bit0 client, bit1 hasName, bit2 hasRating, bit3 hasTrustMaturity,
+ *               bit4 hasYield4
  *   u16 issued  (2000-01-01 기준 일수, 0xFFFF=없음)
  *   u16 ×4      issueDate, maturityDate, recentCouponDate, trustContractDate
  *   u8  ×7      couponFrequency, taxStatus, calcBasis, tradeCurrency,
@@ -33,6 +34,9 @@ import type {
  *   [u8 len + utf8] creditRating (hasRating 일 때)
  *   [u8 len + utf8] name (hasName 일 때 — 기본 "NTN-F 10% 만기일"과 다를 때만)
  *   u16 trustMaturityDate (hasTrustMaturity 일 때 — 신탁만기일 수기 지정)
+ *   i32 purchaseYield4 (hasYield4 일 때 — ×10000. 매수수익률이 소수 셋째 자리
+ *       이상이면 i16(×100) 칸이 반올림돼 13.325% 가 13.33% 로 열렸다(점검 L8).
+ *       그럴 때만 덧붙이고, 읽을 때 i16 값을 덮어쓴다)
  *
  * 후행 필드는 flags 비트로 있을 때만 읽으므로, 비트가 꺼진 옛 링크도 그대로
  * 해석된다(버전 올릴 필요 없음).
@@ -140,11 +144,20 @@ export function packShare(payload: SharePayload): Uint8Array {
   const hasName = !!input.name && input.name !== defaultBondName(input.maturityDate);
   const hasRating = !!input.creditRating;
   const hasTrustMaturity = !!input.trustMaturityDate;
+  // 매수수익률이 소수 둘째 자리를 넘으면 i16(×100) 칸으로는 못 담는다 — 그때만
+  // ×10000 칸을 덧붙인다(점검 L8). 스냅샷 금리는 2자리라 대개 붙지 않는다.
+  const yieldNum = Number(input.purchaseYield);
+  const hasYield4 =
+    input.purchaseYield !== "" &&
+    Number.isFinite(yieldNum) &&
+    Math.abs(Math.round(yieldNum * 10000)) <= 2147483647 &&
+    Math.round(yieldNum * 10000) % 100 !== 0;
   const flags =
     (meta.client ? 1 : 0) |
     (hasName ? 2 : 0) |
     (hasRating ? 4 : 0) |
-    (hasTrustMaturity ? 8 : 0);
+    (hasTrustMaturity ? 8 : 0) |
+    (hasYield4 ? 16 : 0);
 
   const head = new ArrayBuffer(4 + 8 + 7 + 14 + 8 + 8);
   const dv = new DataView(head);
@@ -183,6 +196,10 @@ export function packShare(payload: SharePayload): Uint8Array {
     const d = dateToDays(input.trustMaturityDate);
     out.push((d >> 8) & 0xff, d & 0xff);
   }
+  if (hasYield4) {
+    const v = Math.round(yieldNum * 10000);
+    out.push((v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);
+  }
   return Uint8Array.from(out);
 }
 
@@ -218,6 +235,12 @@ export function unpackShare(bytes: Uint8Array): SharePayload | null {
       trustMaturityDate = daysToDate((bytes[o] << 8) | bytes[o + 1]);
       o += 2;
     }
+    // 매수수익률 정밀칸(있을 때만) — i16 자리의 2자리 값을 덮어쓴다
+    let purchaseYield = pcts[1];
+    if (flags & 16) {
+      purchaseYield = (dv.getInt32(o) / 10000).toFixed(4).replace(/\.?0+$/, "");
+      o += 4;
+    }
     if (o !== bytes.byteLength) return null;
 
     const input: BondLayoutInput = {
@@ -236,7 +259,7 @@ export function unpackShare(bytes: Uint8Array): SharePayload | null {
       distributionType: fromCode(DISTRIBUTION, codes[6]) ?? "반기",
       creditRating,
       couponRate: pcts[0],
-      purchaseYield: pcts[1],
+      purchaseYield,
       frontFeeRate: pcts[2],
       backFeeRate: pcts[3],
       incomeTaxRate: pcts[4],

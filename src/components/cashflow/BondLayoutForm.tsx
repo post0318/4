@@ -223,12 +223,18 @@ export function BondLayoutForm({
   // (사용자 지적 2026-09-17: 종목·금리는 채워지는데 환율만 빈칸).
   // 여기서 직접 조회하면 비어 있을 때마다 스스로 채우고, 실패해도 다음 기회에
   // 다시 시도한다. 사용자가 이미 입력한 값은 건드리지 않는다.
+  /*
+   * 공유 링크 화면에서도 **잠금이 풀린 뒤에는** 환율을 채운다(오너 신고
+   * 2026-09-22). 링크를 종목 없이 만들어 보내면, 받은 사람이 종목을 골라도
+   * 환율이 빈칸으로 남아 현금흐름표가 아예 안 그려졌다 — 종목이 담긴 링크는
+   * 환율도 함께 담겨 있어 멀쩡해 보였다. 링크를 그대로 보는 동안은 locked 라
+   * 자동 조회가 돌지 않아 고객이 받은 숫자는 그대로다.
+   */
   const needFx =
     value.tradeCurrency !== value.custodyCurrency &&
     !!value.maturityDate &&
     value.purchaseFxRate.trim() === "" &&
-    !locked &&
-    !lockToggleDisabled;
+    !locked;
   const fxFetchedRef = useRef(false);
   useEffect(() => {
     if (!needFx || fxFetchedRef.current) return;
