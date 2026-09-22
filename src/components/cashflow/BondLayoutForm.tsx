@@ -364,7 +364,8 @@ export function BondLayoutForm({
         <>
           <p className="hidden print:block text-[10pt]">&nbsp;</p>
           <p className="mb-4 print:mb-0 text-center text-[18pt] print:text-[30pt] print:tracking-normal font-bold underline text-zinc-900 dark:text-zinc-100">
-            {`(${value.tradeCurrency}) ${value.name}`}
+            {/* 거래통화 표기 (BRL) 는 뺐다 — 브라질 국채 전용이라 늘 같다(오너 지시 2026-09-22) */}
+            {value.name}
           </p>
           <p className="hidden print:block text-[10pt]">&nbsp;</p>
           <p className="hidden print:block text-[10pt]">&nbsp;</p>
