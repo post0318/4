@@ -157,7 +157,16 @@ export function generateReinvestCashFlow(
   const yld = Number(input.purchaseYield);
   const backFeeRate = Number(input.backFeeRate);
   const trustAmount = Number(input.trustInvestmentAmount);
-  if (Number.isNaN(rate) || Number.isNaN(yld) || Number.isNaN(backFeeRate)) {
+  // 값 범위 방어(점검 L5). 원금·선취보수는 computeBondPricing 이 걸러낸다.
+  if (
+    !Number.isFinite(rate) ||
+    rate < 0 ||
+    !Number.isFinite(yld) ||
+    yld <= 0 ||
+    !Number.isFinite(backFeeRate) ||
+    backFeeRate < 0 ||
+    !(trustAmount > 0)
+  ) {
     return null;
   }
 

@@ -358,14 +358,21 @@ export function computeBondPricing(
   const principal = Number(input.trustInvestmentAmount);
   const frontFeeRate = Number(input.frontFeeRate);
 
+  // 값 범위 방어(점검 L5) — 문자열 "0" 은 truthy 라 예전엔 빈값 검사를
+  // 그대로 통과했다. 원금 0 이면 전부 0 인 표와 NaN 수익률이 나오고,
+  // 수익률·보수 음수는 수식이 그대로 돌아 그럴듯한 거짓값을 낸다.
   if (
     !isPlausibleYear(maturity) ||
-    Number.isNaN(rate) ||
-    Number.isNaN(yld) ||
+    !Number.isFinite(rate) ||
+    rate < 0 ||
+    !Number.isFinite(yld) ||
+    yld <= 0 ||
     !input.trustInvestmentAmount ||
-    Number.isNaN(principal) ||
+    !Number.isFinite(principal) ||
+    principal <= 0 ||
     !input.frontFeeRate ||
-    Number.isNaN(frontFeeRate)
+    !Number.isFinite(frontFeeRate) ||
+    frontFeeRate < 0
   ) {
     return null;
   }

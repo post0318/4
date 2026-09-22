@@ -89,6 +89,14 @@ export function isBrazilBusinessDay(date: Date): boolean {
  * 관행(결제일 포함 ~ 현금흐름일 제외)과 일치한다. start > end면 음수를 반환한다
  * (다른 yearFrac 구현들과의 부호 규칙 일치).
  */
+/**
+ * 같은 구간을 반복해 세지 않게 기억해 둔다(현금흐름 사본과 같은 방식).
+ * 재투자처럼 이표일마다 단가를 구하는 경로는 같은 날짜 쌍을 수십 번
+ * 다시 묻는다. 공휴일표가 고정이라 같은 입력이면 항상 같은 답이다.
+ */
+const duCache = new Map<string, number>();
+const DU_CACHE_MAX = 20000;
+
 export function brazilBusinessDaysBetween(start: Date, end: Date): number {
   let s = start;
   let e = end;
@@ -97,6 +105,10 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
     [s, e] = [e, s];
     sign = -1;
   }
+
+  const key = `${s.getTime()}|${e.getTime()}`;
+  const hit = duCache.get(key);
+  if (hit !== undefined) return sign * hit;
 
   // 잘못된 입력 방어: Invalid Date거나, NTN-F 최장 만기(~15년)를 훨씬 넘는
   // 100년+ 구간(직접 타이핑 중인 미완성 날짜 등). 하루씩 걷는 아래 루프가
@@ -113,5 +125,7 @@ export function brazilBusinessDaysBetween(start: Date, end: Date): number {
     if (isBrazilBusinessDay(cursor)) count++;
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
+  if (duCache.size >= DU_CACHE_MAX) duCache.clear();
+  duCache.set(key, count);
   return sign * count;
 }

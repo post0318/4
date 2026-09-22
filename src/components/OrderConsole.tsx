@@ -654,20 +654,35 @@ export function OrderConsole({
             <span className="font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
               환율
             </span>
-            {fx ? (
+            {/*
+              표·서버 대조와 같은 값(effectiveFx)을 보인다 — 고시환율을 고치면
+              계산은 수정값을 쓰는데 여기만 API 원본을 보여줘 기준이 엇갈렸다
+              (오너 지시 2026-09-22 · 점검 L7). 수정한 상태면 원본값을 괄호로 같이 적는다.
+            */}
+            {effectiveFx ? (
               <>
                 <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
                   원/달러{" "}
                   <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    ₩{fx.usdKrw.toLocaleString("ko-KR", {
+                    ₩{effectiveFx.usdKrw.toLocaleString("ko-KR", {
                       maximumFractionDigits: 2,
                     })}
                   </span>
+                  {fx && effectiveFx.usdKrw !== fx.usdKrw && (
+                    <span className="text-zinc-400">
+                      {" "}
+                      (수정 · 고시 ₩
+                      {fx.usdKrw.toLocaleString("ko-KR", {
+                        maximumFractionDigits: 2,
+                      })}
+                      )
+                    </span>
+                  )}
                 </span>
                 <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
                   원/헤알{" "}
                   <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    ₩{fx.krwBrl.toLocaleString("ko-KR", {
+                    ₩{effectiveFx.krwBrl.toLocaleString("ko-KR", {
                       maximumFractionDigits: 2,
                     })}
                   </span>
@@ -675,7 +690,7 @@ export function OrderConsole({
                 <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
                   달러/헤알{" "}
                   <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    R${fx.usdBrl.toLocaleString("ko-KR", {
+                    R${effectiveFx.usdBrl.toLocaleString("ko-KR", {
                       maximumFractionDigits: 4,
                     })}
                   </span>

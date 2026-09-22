@@ -64,11 +64,15 @@ export function computeMaturitySummary(
 
   const principal = Number(input.trustInvestmentAmount);
   const backFeeRate = Number(input.backFeeRate);
+  // 원금 0·음수, 후취보수 음수를 막는다(점검 L5 — 문자열 "0" 은 truthy).
+  // 후취보수가 음수면 차감이 가산이 돼 수령액이 늘어난다.
   if (
     !input.trustInvestmentAmount ||
-    Number.isNaN(principal) ||
+    !Number.isFinite(principal) ||
+    principal <= 0 ||
     !input.backFeeRate ||
-    Number.isNaN(backFeeRate) ||
+    !Number.isFinite(backFeeRate) ||
+    backFeeRate < 0 ||
     rows.length === 0
   ) {
     return null;
