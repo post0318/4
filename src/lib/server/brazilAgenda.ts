@@ -431,22 +431,40 @@ interface CopomMeeting {
   decisionDate: string;
 }
 
+/** 최신 Selic 값(SGS 432) — 아직 안 열린 회의의 "이전" 칸에 쓴다. 다음 결정이
+ * 나오기 전까지는 이미 발표된 현재 금리가 곧 "이전 값"이다(오너 지적,
+ * 2026-09-23 — "11월4일 282차에 이전 수치가 안나온다. 이전은 이미 발표한거니"). */
+async function latestSelicRate(): Promise<number | null> {
+  try {
+    const res = await fetchOrNull(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json`);
+    if (!res) return null;
+    const rows = (await res.json()) as { valor: string }[];
+    const v = Number(rows?.[0]?.valor);
+    return inRange(v, BOUNDS.ratePct) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 아직 안 열린(미래) COPOM 회의만 — 이미 열린 회차는 fetchCopomDecisions가
  * BCB API로 정확한 결과와 함께 다룬다(중복 방지). 매년 새 캘린더가 나오면
  * scripts/fetch-copom-calendar.mjs 가 이 JSON에 자동으로 추가한다. */
-function copomCalendarItems(from: string, to: string): AgendaItem[] {
+async function copomCalendarItems(from: string, to: string): Promise<AgendaItem[]> {
   const today = new Date().toISOString().slice(0, 10);
   const meetings = (copomCalendar as { meetings: CopomMeeting[] }).meetings;
-  return meetings
-    .filter((m) => m.decisionDate > today && m.decisionDate >= from && m.decisionDate <= to)
-    .map((m) => ({
-      date: m.decisionDate,
-      titleKo: `COPOM 기준금리(Selic) 결정 예정 — ${m.nro}차 (${m.start.slice(5)}~${m.end.slice(5)})`,
-      category: "경제지표",
-      released: false,
-      guidance: null,
-      actual: null,
-      prior: null,
+  const upcoming = meetings.filter(
+    (m) => m.decisionDate > today && m.decisionDate >= from && m.decisionDate <= to
+  );
+  if (upcoming.length === 0) return [];
+  const current = await latestSelicRate();
+  return upcoming.map((m) => ({
+    date: m.decisionDate,
+    titleKo: `COPOM 기준금리(Selic) 결정 예정 — ${m.nro}차 (${m.start.slice(5)}~${m.end.slice(5)})`,
+    category: "경제지표",
+    released: false,
+    guidance: null,
+    actual: null,
+    prior: current != null ? `${current.toFixed(2)}%` : null,
     }));
 }
 
@@ -485,8 +503,11 @@ export async function fetchBrazilAgenda(
   const from = iso(start);
   const to = iso(end);
 
-  const [ibge, copomPast] = await Promise.all([fetchIbge(from, to), fetchCopomDecisions(from, to)]);
-  const copomFuture = copomCalendarItems(from, to);
+  const [ibge, copomPast, copomFuture] = await Promise.all([
+    fetchIbge(from, to),
+    fetchCopomDecisions(from, to),
+    copomCalendarItems(from, to),
+  ]);
   const holidays = holidaysInRange(from, to);
 
   const windowed = [...ibge, ...copomPast, ...copomFuture, ...holidays].sort(
