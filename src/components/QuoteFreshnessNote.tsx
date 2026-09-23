@@ -15,6 +15,12 @@ interface Props {
 export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
   if (!quote?.asOfDate) return null;
   const tail = settlementDate ? ` · 결제일 ${settlementDate}` : "";
+  // 거래 플랫폼 실시간 보정 — 매도가는 전종목, 매수가는 신규모집 종목만 반영된다
+  // (오너 지시, 2026-09-24). 「보정」이지 전체 최신화가 아니므로 문구로 명시한다.
+  const liveTail =
+    quote.liveAsOfDate && quote.liveAsOfDate !== quote.asOfDate
+      ? ` · 매도가 실시간 보정(${quote.liveAsOfDate})`
+      : "";
   if (quote.stale) {
     return (
       <p
@@ -22,7 +28,7 @@ export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
         className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
       >
         ⚠ 시세가 {quote.ageDays ?? "?"}일 전({quote.asOfDate}) 기준입니다. 주간 갱신이
-        실패했을 수 있으니 확인 후 사용하세요.{tail}
+        실패했을 수 있으니 확인 후 사용하세요.{liveTail}{tail}
       </p>
     );
   }

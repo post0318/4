@@ -38,12 +38,14 @@ jobs:
         run: |
           SNAP=src/lib/server/ntnf-snapshot.json
           HIST=src/lib/server/ntnf-yield-history.json
-          # generatedAt/source 줄만 바뀐 경우는 실질 변경이 아니므로 커밋하지 않는다
-          # (매주 불필요한 재배포 방지). 스냅샷 시세 또는 금리추이 데이터가 실제로
+          # generatedAt/source/liveSource 줄만 바뀐 경우는 실질 변경이 아니므로
+          # 커밋하지 않는다(매일 불필요한 재배포 방지). liveAsOfDate는 제외하지
+          # 않는다 — 거래 플랫폼 실제 기준일(오너 지시, 2026-09-24)이라 이 값이
+          # 바뀌면 시세도 같이 바뀐 것. 스냅샷 시세 또는 금리추이 데이터가 실제로
           # 바뀐 경우에만 두 파일을 함께 커밋한다.
           SNAP_CHANGES=$(git diff -U0 -- "$SNAP" \
             | grep -E '^[+-]' | grep -vE '^[+-]{3} ' \
-            | grep -vE '"(generatedAt|source)"' || true)
+            | grep -vE '"(generatedAt|source|liveSource)"' || true)
           HIST_CHANGES=$(git diff -U0 -- "$HIST" \
             | grep -E '^[+-]' | grep -vE '^[+-]{3} ' \
             | grep -vE '"(generatedAt)"' || true)

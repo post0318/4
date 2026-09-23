@@ -10,6 +10,10 @@ interface BrazilBondItem {
   sellRate: number | null;
   buyPrice: number | null;
   sellPrice: number | null;
+  /** true면 buyRate가 거래 플랫폼 실시간 보정값(신규모집 종목만) */
+  buyLive?: boolean;
+  /** true면 sellRate가 거래 플랫폼 실시간 보정값(6종목 다) */
+  sellLive?: boolean;
 }
 
 /** NTN-F는 2015년 이후 표면이율 연 10.00% 단일금리로 통일 발행된다 */
@@ -103,11 +107,11 @@ export function BrazilBondSearchBox({
       setError(null);
       fetch("/api/cashflow/br-bond-search")
         .then((res) => res.json())
-        .then((data: { asOfDate?: string; ageDays?: number | null; stale?: boolean; bonds?: BrazilBondItem[] }) => {
+        .then((data: { asOfDate?: string; ageDays?: number | null; stale?: boolean; liveAsOfDate?: string | null; bonds?: BrazilBondItem[] }) => {
           const today = new Date().toISOString().slice(0, 10);
           const all = Array.isArray(data.bonds) ? data.bonds : [];
           setAsOfDate(data.asOfDate ?? null);
-          onQuote?.({ asOfDate: data.asOfDate ?? null, ageDays: data.ageDays ?? null, stale: data.stale === true });
+          onQuote?.({ asOfDate: data.asOfDate ?? null, ageDays: data.ageDays ?? null, stale: data.stale === true, liveAsOfDate: data.liveAsOfDate ?? null });
           setBonds(all.filter((b) => b.maturityDate >= today));
         })
         .catch(() => setError("조회 중 오류가 발생했습니다."))
@@ -168,9 +172,9 @@ export function BrazilBondSearchBox({
     didAutoRef.current = true;
     fetch("/api/cashflow/br-bond-search")
       .then((res) => res.json())
-      .then((data: { asOfDate?: string; ageDays?: number | null; stale?: boolean; bonds?: BrazilBondItem[] }) => {
+      .then((data: { asOfDate?: string; ageDays?: number | null; stale?: boolean; liveAsOfDate?: string | null; bonds?: BrazilBondItem[] }) => {
         const today = new Date().toISOString().slice(0, 10);
-        onQuote?.({ asOfDate: data.asOfDate ?? null, ageDays: data.ageDays ?? null, stale: data.stale === true });
+        onQuote?.({ asOfDate: data.asOfDate ?? null, ageDays: data.ageDays ?? null, stale: data.stale === true, liveAsOfDate: data.liveAsOfDate ?? null });
         const all = (Array.isArray(data.bonds) ? data.bonds : []).filter(
           (b) => b.maturityDate >= today
         );

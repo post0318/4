@@ -8,7 +8,7 @@ import { snapshotFreshness } from "@/lib/server/sanity";
  * (감사 ⑤ 중1). 요청 시점에 외부 소스를 받지 않으므로 항상 즉시 응답한다.
  */
 export async function GET() {
-  const { asOfDate, items } = getLatestNtnF();
+  const { asOfDate, liveAsOfDate, items } = getLatestNtnF();
   const { ageDays, stale } = snapshotFreshness(asOfDate);
-  return NextResponse.json({ asOfDate, ageDays, stale, bonds: items });
+  return NextResponse.json({ asOfDate, ageDays, stale, liveAsOfDate, bonds: items });
 }

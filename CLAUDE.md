@@ -16,8 +16,15 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 - Tailwind CSS 4
 - Vercel 배포
 - NTN-F 시세는 레포에 커밋된 스냅샷(`src/lib/server/ntnf-snapshot.json`)을 쓰고,
-  GitHub Actions가 주간 갱신한다(`scripts/fetch-ntnf-snapshot.mjs`). 원본 CSV가
+  GitHub Actions가 매일 갱신한다(`scripts/fetch-ntnf-snapshot.mjs`). 원본 CSV가
   14MB라 요청 시점에 못 받는다.
+- 정부 CSV(tesourotransparente.gov.br)가 2026-09-19부터 며칠씩 멈추는 사고가
+  있어(파일은 재발행돼도 속 데이터 Data Base가 안 바뀜), 스크립트가 거래
+  플랫폼(tesourodireto.com.br) 실시간 API로 값을 보정한다(오너 지시,
+  2026-09-24) — 매도가(6종목)·매수가(신규모집 중인 종목만, 보통 1개)만.
+  `buyLive`/`sellLive`·`liveAsOfDate`로 화면에 구분 표시. 옛 JSON API
+  (`treasurybondsinfo.json`)는 2025-08부터 410 Gone, 그 후속인
+  `/o/rentabilidade/{resgatar,investir}`가 지금 쓰는 경로다.
 - 환율은 Frankfurter.dev(ECB 기준, 무인증) — 중간환율, 참고용.
 
 ## 코드규칙

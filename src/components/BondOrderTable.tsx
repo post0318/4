@@ -231,6 +231,14 @@ export function BondOrderTable({
                       {bond.buyYieldPct !== null
                         ? `연 ${fmtNum(bond.buyYieldPct, 2)}%`
                         : "-"}
+                      {bond.buyYieldLive && (
+                        <span
+                          title="거래 플랫폼 실시간 보정값(신규모집 종목만)"
+                          className="ml-1 rounded bg-emerald-100 px-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        >
+                          실시간
+                        </span>
+                      )}
                     </td>
                     <td className={`${td} text-right`}>
                       <input

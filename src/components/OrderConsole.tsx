@@ -270,6 +270,7 @@ export function OrderConsole({
               asOfDate: d.asOfDate ?? null,
               ageDays: d.ageDays ?? null,
               stale: d.stale === true,
+              liveAsOfDate: d.liveAsOfDate ?? null,
             });
           }
         }
