@@ -1,56 +1,56 @@
 {
-  "asOfDate": "2026-09-25",
-  "generatedAt": "2026-09-29T01:41:02.817Z",
+  "asOfDate": "2026-09-28",
+  "generatedAt": "2026-09-30T01:10:56.989Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
-  "liveAsOfDate": "2026-09-28",
+  "liveAsOfDate": "2026-09-29",
   "liveSource": "https://www.tesourodireto.com.br/o/rentabilidade/{resgatar,investir}",
   "bonds": [
     {
       "maturityDate": "2027-01-01",
-      "buyRate": 13.29,
-      "sellRate": 13.39,
-      "buyPrice": 1015.58,
-      "sellPrice": 1015.86,
+      "buyRate": 13.3,
+      "sellRate": 13.36,
+      "buyPrice": 1016.07,
+      "sellPrice": 1016.43,
       "sellLive": true
     },
     {
       "maturityDate": "2029-01-01",
-      "buyRate": 13.69,
-      "sellRate": 13.81,
-      "buyPrice": 959.15,
-      "sellPrice": 957.62,
+      "buyRate": 13.72,
+      "sellRate": 13.74,
+      "buyPrice": 959.14,
+      "sellPrice": 959.29,
       "sellLive": true
     },
     {
       "maturityDate": "2031-01-01",
-      "buyRate": 14.09,
-      "sellRate": 14.24,
-      "buyPrice": 904.6,
-      "sellPrice": 901.03,
+      "buyRate": 14.11,
+      "sellRate": 14.19,
+      "buyPrice": 904.54,
+      "sellPrice": 902.85,
       "sellLive": true
     },
     {
       "maturityDate": "2033-01-01",
-      "buyRate": 14.15,
-      "sellRate": 14.28,
-      "buyPrice": 864.97,
-      "sellPrice": 860.98,
+      "buyRate": 14.16,
+      "sellRate": 14.23,
+      "buyPrice": 865.08,
+      "sellPrice": 863.14,
       "sellLive": true
     },
     {
       "maturityDate": "2035-01-01",
-      "buyRate": 14.13,
-      "sellRate": 14.24,
-      "buyPrice": 837.52,
-      "sellPrice": 833.63,
+      "buyRate": 14.14,
+      "sellRate": 14.21,
+      "buyPrice": 837.56,
+      "sellPrice": 835.25,
       "sellLive": true
     },
     {
       "maturityDate": "2037-01-01",
-      "buyRate": 14.1,
-      "sellRate": 14.22,
-      "buyPrice": 817.18,
-      "sellPrice": 812.04,
+      "buyRate": 14.07,
+      "sellRate": 14.19,
+      "buyPrice": 818.9,
+      "sellPrice": 813.75,
       "sellLive": true,
       "buyLive": true
     }
