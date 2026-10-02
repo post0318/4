@@ -1,15 +1,10 @@
 {
   "label": "브라질 국채금리 (NTN-F ~10년)",
-  "asOfDate": "2026-09-29",
-  "generatedAt": "2026-10-01T01:10:05.751Z",
+  "asOfDate": "2026-09-30",
+  "generatedAt": "2026-10-02T01:28:58.587Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "note": "매 영업일 만기가 (해당일+10년)에 가장 가까운 NTN-F의 Taxa Venda",
   "points": [
-    {
-      "date": "2019-10-01",
-      "ytm": 7.17,
-      "maturityYear": 2029
-    },
     {
       "date": "2019-10-02",
       "ytm": 7.13,
@@ -8713,6 +8708,11 @@
     {
       "date": "2026-09-29",
       "ytm": 14.14,
+      "maturityYear": 2037
+    },
+    {
+      "date": "2026-09-30",
+      "ytm": 14.11,
       "maturityYear": 2037
     }
   ]
