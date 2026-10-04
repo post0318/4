@@ -1,47 +1,47 @@
 {
-  "asOfDate": "2026-10-01",
-  "generatedAt": "2026-10-03T01:01:07.930Z",
+  "asOfDate": "2026-10-02",
+  "generatedAt": "2026-10-04T00:26:00.538Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "liveAsOfDate": "2026-10-02",
   "liveSource": "https://www.tesourodireto.com.br/o/rentabilidade/{resgatar,investir}",
   "bonds": [
     {
       "maturityDate": "2027-01-01",
-      "buyRate": 13.28,
+      "buyRate": 13.29,
       "sellRate": 13.4,
-      "buyPrice": 1017.62,
+      "buyPrice": 1018.1,
       "sellPrice": 1017.87,
       "sellLive": true
     },
     {
       "maturityDate": "2029-01-01",
-      "buyRate": 13.65,
+      "buyRate": 13.62,
       "sellRate": 13.75,
-      "buyPrice": 961.78,
+      "buyPrice": 962.78,
       "sellPrice": 960.59,
       "sellLive": true
     },
     {
       "maturityDate": "2031-01-01",
-      "buyRate": 14.1,
+      "buyRate": 14.11,
       "sellRate": 14.27,
-      "buyPrice": 906.23,
+      "buyPrice": 906.43,
       "sellPrice": 902.13,
       "sellLive": true
     },
     {
       "maturityDate": "2033-01-01",
-      "buyRate": 14.13,
+      "buyRate": 14.19,
       "sellRate": 14.39,
-      "buyPrice": 867.48,
+      "buyPrice": 865.88,
       "sellPrice": 859.08,
       "sellLive": true
     },
     {
       "maturityDate": "2035-01-01",
-      "buyRate": 14.12,
+      "buyRate": 14.19,
       "sellRate": 14.42,
-      "buyPrice": 839.67,
+      "buyPrice": 837.36,
       "sellPrice": 828.4,
       "sellLive": true
     },
