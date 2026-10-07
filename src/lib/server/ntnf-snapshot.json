@@ -1,49 +1,59 @@
 {
   "asOfDate": "2026-10-05",
-  "generatedAt": "2026-10-07T01:20:03.316Z",
+  "generatedAt": "2026-10-07T05:25:07.923Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "liveAsOfDate": "2026-10-06",
   "liveSource": "https://www.tesourodireto.com.br/o/rentabilidade/{resgatar,investir}",
   "bonds": [
     {
       "maturityDate": "2027-01-01",
-      "buyRate": 13.16,
+      "buyRate": 13.19,
       "sellRate": 13.31,
-      "buyPrice": 1018.88,
+      "buyPrice": null,
       "sellPrice": 1019.07,
-      "sellLive": true
+      "sellLive": true,
+      "buyEstimated": true,
+      "buySpread": 0.12
     },
     {
       "maturityDate": "2029-01-01",
-      "buyRate": 12.55,
+      "buyRate": 12.39,
       "sellRate": 12.51,
-      "buyPrice": 981.55,
+      "buyPrice": null,
       "sellPrice": 982.7,
-      "sellLive": true
+      "sellLive": true,
+      "buyEstimated": true,
+      "buySpread": 0.12
     },
     {
       "maturityDate": "2031-01-01",
-      "buyRate": 12.91,
+      "buyRate": 12.71,
       "sellRate": 12.83,
-      "buyPrice": 940.13,
+      "buyPrice": null,
       "sellPrice": 942.86,
-      "sellLive": true
+      "sellLive": true,
+      "buyEstimated": true,
+      "buySpread": 0.12
     },
     {
       "maturityDate": "2033-01-01",
-      "buyRate": 13,
+      "buyRate": 12.82,
       "sellRate": 12.94,
-      "buyPrice": 908.41,
+      "buyPrice": null,
       "sellPrice": 911.05,
-      "sellLive": true
+      "sellLive": true,
+      "buyEstimated": true,
+      "buySpread": 0.12
     },
     {
       "maturityDate": "2035-01-01",
-      "buyRate": 13.02,
+      "buyRate": 12.85,
       "sellRate": 12.97,
-      "buyPrice": 885.64,
+      "buyPrice": null,
       "sellPrice": 888.2,
-      "sellLive": true
+      "sellLive": true,
+      "buyEstimated": true,
+      "buySpread": 0.12
     },
     {
       "maturityDate": "2037-01-01",

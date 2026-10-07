@@ -37,11 +37,14 @@ export async function GET() {
         sellYieldPct: b.sellRate,
         buyYieldLive: b.buyLive === true,
         sellYieldLive: b.sellLive === true,
+        buyYieldEstimated: b.buyEstimated === true,
       };
     });
 
-  // 주간 갱신이 실패해도 앱은 옛 금리로 계속 계산하므로, 경과일수·노후 여부를
+  // 일일 갱신이 실패해도 앱은 옛 금리로 계속 계산하므로, 경과일수·노후 여부를
   // 같이 내려 화면이 경고를 띄우게 한다(감사 ⑤ 중3).
-  const { ageDays, stale } = snapshotFreshness(asOfDate);
+  // CSV가 며칠 늦어도 실시간 기준일이 최근이면 최신으로 본다(둘 중 더 늦은 날짜 기준)
+  const newest = liveAsOfDate && liveAsOfDate > asOfDate ? liveAsOfDate : asOfDate;
+  const { ageDays, stale } = snapshotFreshness(newest);
   return NextResponse.json({ asOfDate, ageDays, stale, liveAsOfDate, bonds });
 }

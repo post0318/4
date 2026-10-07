@@ -14,6 +14,8 @@ interface BrazilBondItem {
   buyLive?: boolean;
   /** true면 sellRate가 거래 플랫폼 실시간 보정값(6종목 다) */
   sellLive?: boolean;
+  /** true면 buyRate가 실시간 매도에서 호가차를 뺀 참고 추정값 */
+  buyEstimated?: boolean;
 }
 
 /** NTN-F는 2015년 이후 표면이율 연 10.00% 단일금리로 통일 발행된다 */
@@ -235,7 +237,7 @@ export function BrazilBondSearchBox({
                       NTN-F {NTNF_COUPON_RATE}% {b.maturityDate}
                     </span>
                     <span className="text-xs text-zinc-400">
-                      {b.buyRate !== null ? `매수 ${b.buyRate}%` : ""}
+                      {b.buyRate !== null ? `매수 ${b.buyRate}%${b.buyEstimated ? "(추정)" : ""}` : ""}
                       {b.sellRate !== null ? ` · 매도 ${b.sellRate}%` : ""}
                     </span>
                   </button>

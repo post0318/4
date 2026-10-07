@@ -37,6 +37,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState<string | null>(null);
   const [staleWarning, setStaleWarning] = useState<string | null>(null);
+  const [chartNote, setChartNote] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,12 +66,26 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
         ) {
           const s = ntnfRes.value as ChartSeries;
           setNtnf(s);
+          const meta = ntnfRes.value as { liveDates?: string[]; anbimaDates?: string[]; csvAsOfDate?: string; lastMove?: number | null };
           const last = new Date(s.dates[s.dates.length - 1]).getTime();
-          if (Date.now() - last > 12 * 86_400_000) {
-            setStaleWarning(
-              "10년국채수익률 데이터가 12일 이상 갱신되지 않았습니다(주간 스냅샷 확인)."
+          const notes: string[] = [];
+          if (Date.now() - last > 5 * 86_400_000) {
+            notes.push("10년국채수익률 데이터가 5일 넘게 갱신되지 않았습니다(일일 갱신 확인).");
+          }
+          setChartNote(
+            meta.anbimaDates && meta.anbimaDates.length > 0
+              ? `차트 기준: ${meta.anbimaDates[0]} 이후는 ANBIMA 기관 간 지표금리(종가), 그 이전은 재무부 매수·매도 호가의 중간값입니다.`
+              : "차트 기준: 재무부 매수·매도 호가의 중간값입니다."
+          );
+          if (meta.liveDates && meta.liveDates.length > 0) {
+            notes.push(
+              `최근 ${meta.liveDates.length}일(${meta.liveDates[0]}~${meta.liveDates[meta.liveDates.length - 1]})은 재무부 실시간 호가의 중간값(임시)입니다. 기관 지표나 재무부 확정 자료가 올라오면 자동 교체됩니다.`
             );
           }
+          if (typeof meta.lastMove === "number" && Math.abs(meta.lastMove) >= 0.5) {
+            notes.push(`마지막 하루 변동 ${meta.lastMove > 0 ? "+" : ""}${meta.lastMove}%p — 큰 변동입니다. 시장 움직임인지 확인하세요.`);
+          }
+          if (notes.length) setStaleWarning(notes.join(" "));
         }
       })
       .finally(() => {
@@ -220,6 +235,10 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       )}
       {chartProps && <FxHistoryChart {...chartProps} />}
 
+      {chartNote && (
+        <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{chartNote}</p>
+      )}
+
       {staleWarning && (
         <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
           ⚠ {staleWarning}
@@ -234,7 +253,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
                 rates.rateDate ? `ECB 고시일 ${rates.rateDate} · ` : ""
               }조회 ${fmtTimestamp(
                 rates.asOf
-              )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 10년국채수익률 재무부(주간)`
+              )} Frankfurter(ECB) · 기준금리 브라질 중앙은행 · 10년국채수익률 ANBIMA 기관 지표·재무부(일일)`
             : "환율을 불러오는 중입니다."}
       </p>
     </Card>

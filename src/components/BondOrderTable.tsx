@@ -231,6 +231,14 @@ export function BondOrderTable({
                       {bond.buyYieldPct !== null
                         ? `연 ${fmtNum(bond.buyYieldPct, 2)}%`
                         : "-"}
+                      {bond.buyYieldEstimated && (
+                        <span
+                          title="이 종목은 지금 신규 판매 중이 아니라 실제 매수 호가가 없습니다. 실시간 매도수익률에서 호가차를 뺀 참고 추정값입니다."
+                          className="ml-1 rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                        >
+                          추정
+                        </span>
+                      )}
                       {bond.buyYieldLive && (
                         <span
                           title="거래 플랫폼 실시간 보정값(신규모집 종목만)"
