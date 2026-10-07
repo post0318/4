@@ -40,8 +40,8 @@ export function sanitizeSeries(
   return { dates: outD, values: outV, dropped };
 }
 
-/** 스냅샷을 "오래됨"으로 보는 기준(일). 주간 갱신이므로 한 주기 + 여유. */
-export const SNAPSHOT_STALE_DAYS = 10;
+/** 스냅샷을 "오래됨"으로 보는 기준(일). 일일 갱신이므로 긴 연휴(3~4일) + 여유. */
+export const SNAPSHOT_STALE_DAYS = 5;
 
 /** 스냅샷 기준일의 경과일수와 노후 여부 (감사 ⑤ 중3) */
 export function snapshotFreshness(asOfIso: string | null): {

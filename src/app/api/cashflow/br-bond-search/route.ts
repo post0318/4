@@ -9,6 +9,6 @@ import { snapshotFreshness } from "@/lib/server/sanity";
  */
 export async function GET() {
   const { asOfDate, liveAsOfDate, items } = getLatestNtnF();
-  const { ageDays, stale } = snapshotFreshness(asOfDate);
+  const { ageDays, stale } = snapshotFreshness(liveAsOfDate && liveAsOfDate > asOfDate ? liveAsOfDate : asOfDate);
   return NextResponse.json({ asOfDate, ageDays, stale, liveAsOfDate, bonds: items });
 }

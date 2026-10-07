@@ -32,6 +32,10 @@ export interface BrazilBondItem {
   buyLive?: boolean;
   /** true면 sellRate/sellPrice가 거래 플랫폼 실시간 값(liveAsOfDate 기준) */
   sellLive?: boolean;
+  /** true면 buyRate가 실시간 매도수익률에서 호가차를 뺀 추정값(실제 매수 호가가 없는 종목) */
+  buyEstimated?: boolean;
+  /** 추정에 쓴 호가차(%p) */
+  buySpread?: number;
 }
 
 export interface NtnFSnapshot {

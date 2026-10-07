@@ -22,6 +22,8 @@ export interface BondItem {
   buyYieldLive?: boolean;
   /** true면 sellYieldPct가 CSV가 아니라 거래 플랫폼 실시간 보정값(liveAsOfDate 기준) */
   sellYieldLive?: boolean;
+  /** true면 buyYieldPct가 실시간 매도수익률 − 호가차로 추정한 참고값(해당 종목은 지금 신규 판매 중이 아님) */
+  buyYieldEstimated?: boolean;
 }
 
 export interface BondSearchResponse {
