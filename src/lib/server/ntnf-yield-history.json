@@ -22,7 +22,7 @@
     "2026-10-05",
     "2026-10-06"
   ],
-  "generatedAt": "2026-10-07T05:39:23.884Z",
+  "generatedAt": "2026-10-07T05:40:50.905Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "note": "매 영업일 만기가 (해당일+10년)에 가장 가까운 NTN-F의 중간값. ANBIMA 기관 지표(종가, src:anbima) > CSV (Taxa Compra+Taxa Venda)/2(오전 호가) > 실시간 임시(live:true, 확정 자료가 올라오면 교체)",
   "points": [
