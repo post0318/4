@@ -65,11 +65,24 @@ async function fetchLiveNtnf(path) {
  * 반환한다 — CSV 스냅샷 생성 자체를 막으면 안 되기 때문.
  */
 async function fetchLiveOverlay() {
-  const [resgatar, investir] = await Promise.all([
-    fetchLiveNtnf("/o/rentabilidade/resgatar"),
-    fetchLiveNtnf("/o/rentabilidade/investir"),
-  ]);
-  if (resgatar.size === 0 && investir.size === 0) return null;
+  // 거래 플랫폼이 가끔 빈 목록을 돌려준다(특히 자동 실행 서버에서). 매도가 비면 몇 번 다시 시도한다.
+  let resgatar = new Map();
+  let investir = new Map();
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      [resgatar, investir] = await Promise.all([
+        fetchLiveNtnf("/o/rentabilidade/resgatar"),
+        fetchLiveNtnf("/o/rentabilidade/investir"),
+      ]);
+    } catch (err) {
+      console.log(`[fetch-ntnf-snapshot] 실시간 시세 조회 ${attempt}회 실패: ${err.message}`);
+    }
+    if (resgatar.size > 0) break;
+    console.log(`[fetch-ntnf-snapshot] 실시간 매도 시세가 비어 있음(${attempt}/4)`);
+    if (attempt < 4) await new Promise((r) => setTimeout(r, 5000 * attempt));
+  }
+  // 매도 시세가 없으면 매수만 실시간으로 섞이지 않게 전체를 건너뛴다(CSV 한 날짜 기준으로 일관되게 유지).
+  if (resgatar.size === 0) return null;
 
   let liveAsOfDate = null;
   for (const x of [...resgatar.values(), ...investir.values()]) {
