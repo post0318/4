@@ -1,67 +1,51 @@
 {
   "asOfDate": "2026-10-05",
-  "generatedAt": "2026-10-07T05:25:07.923Z",
+  "generatedAt": "2026-10-07T05:39:22.727Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "liveAsOfDate": "2026-10-06",
   "liveSource": "https://www.tesourodireto.com.br/o/rentabilidade/{resgatar,investir}",
   "bonds": [
     {
       "maturityDate": "2027-01-01",
-      "buyRate": 13.19,
-      "sellRate": 13.31,
-      "buyPrice": null,
-      "sellPrice": 1019.07,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "buyRate": 13.16,
+      "sellRate": 13.28,
+      "buyPrice": 1018.88,
+      "sellPrice": 1018.12
     },
     {
       "maturityDate": "2029-01-01",
-      "buyRate": 12.39,
-      "sellRate": 12.51,
-      "buyPrice": null,
-      "sellPrice": 982.7,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "buyRate": 12.55,
+      "sellRate": 12.67,
+      "buyPrice": 981.55,
+      "sellPrice": 979
     },
     {
       "maturityDate": "2031-01-01",
-      "buyRate": 12.71,
-      "sellRate": 12.83,
-      "buyPrice": null,
-      "sellPrice": 942.86,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "buyRate": 12.91,
+      "sellRate": 13.03,
+      "buyPrice": 940.13,
+      "sellPrice": 936.28
     },
     {
       "maturityDate": "2033-01-01",
-      "buyRate": 12.82,
-      "sellRate": 12.94,
-      "buyPrice": null,
-      "sellPrice": 911.05,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "buyRate": 13,
+      "sellRate": 13.12,
+      "buyPrice": 908.41,
+      "sellPrice": 903.59
     },
     {
       "maturityDate": "2035-01-01",
-      "buyRate": 12.85,
-      "sellRate": 12.97,
-      "buyPrice": null,
-      "sellPrice": 888.2,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "buyRate": 13.02,
+      "sellRate": 13.14,
+      "buyPrice": 885.64,
+      "sellPrice": 880.12
     },
     {
       "maturityDate": "2037-01-01",
       "buyRate": 12.81,
-      "sellRate": 12.93,
+      "sellRate": 13.12,
       "buyPrice": 878.33,
-      "sellPrice": 872.61,
-      "sellLive": true,
+      "sellPrice": 862.84,
       "buyLive": true
     }
   ]
