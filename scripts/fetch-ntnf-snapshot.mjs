@@ -17,16 +17,16 @@
  * 값)는 신규모집 종목만 최신화된다. 이 API 자체가 죽어도(옛 경로처럼) 전체
  * 스냅샷 생성은 실패하지 않는다 — try/catch 로 감싸 실패 시 CSV·ANBIMA 로만 만든다.
  *
- * ── 중간값 ± 호가차(오너 지시, 2026-10-09) ──
- * 스냅샷의 buyRate/sellRate 는 원값이 아니라 종목마다 같은 기준일의
- * 중간값 ∓ 호가차/2 다(scripts/lib/ntnf-quote.mjs). 중간값은 금리 차트와 같은 우선순위
- * (ANBIMA 기관 지표 > CSV 평균 > 실시간), 호가차는 같은 시점·같은 출처의 매도 − 매수.
- * 원값은 종목별 inputs 에 남긴다. --out-dir=<폴더> 를 주면 그 폴더에 쓴다(비교용).
+ * ── 주문용 매수·매도수익률(오너 결정, 2026-10-09) ──
+ * 스냅샷의 buyRate/sellRate 는 같은 기준 시각의 매수·매도 쌍이다(scripts/lib/ntnf-quote.mjs):
+ * 실시간 호가(같은 시각 같은 종목, 매수 호가가 없으면 다른 종목 호가차로 추정) > 최신 CSV 같은
+ * 기준일 원값(실시간 없음 경고). ANBIMA 는 주문 계산에 쓰지 않고 10년물 차트에만 쓴다.
+ * --out-dir=<폴더> 를 주면 그 폴더에 쓴다(비교용).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { buildMidSpreadQuotes } from "./lib/ntnf-quote.mjs";
+import { buildOrderQuotes } from "./lib/ntnf-quote.mjs";
 
 const CSV_URL =
   "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv";
@@ -142,7 +142,7 @@ function pickTenYear(date, items) {
  * ANBIMA 기관 간 2차시장 지표금리(Tx. Indicativas) — 매수·매도 구분 없는 중간값.
  * 공개 일일 파일(msYYMMDD.txt)은 최근 3주 안팎만 남으므로, 받을 수 있는 날만 받아 history에 누적한다.
  * 실패하면 빈 결과를 돌려준다(차트는 CSV 중간값·실시간 임시 값으로 계속 만들어진다).
- * 날짜 → { point: 10년물 차트 점, byMaturity: 만기 → 지표금리(전 종목, 스냅샷 중간값용) }
+ * 날짜 → 10년물 차트 점
  */
 async function fetchAnbimaRecent(days = 28) {
   const out = new Map();
@@ -173,10 +173,7 @@ async function fetchAnbimaRecent(days = 28) {
       }
       const best = date && items.length ? pickTenYear(date, items) : null;
       if (best) {
-        out.set(date, {
-          point: { date, ytm: best.ind, maturityYear: Number(best.maturityDate.slice(0, 4)), src: "anbima" },
-          byMaturity: new Map(items.map((it) => [it.maturityDate, it.ind])),
-        });
+        out.set(date, { date, ytm: best.ind, maturityYear: Number(best.maturityDate.slice(0, 4)), src: "anbima" });
       }
     } catch {
       /* 이 날은 건너뜀 */
@@ -222,20 +219,10 @@ async function main() {
 
   const maturities = [...new Set(rows.filter((r) => r.dataBase === asOfDate).map((r) => r.maturityDate))].sort();
 
-  // CSV 최근 기준일들(중간값·호가차를 같은 기준일에서 맞추기 위해 날짜별로 보관)
+  // CSV 최근 기준일들(매수·매도를 같은 기준일 쌍으로 쓰기 위해 날짜별로 보관)
   const csvDates = [...new Set(rows.map((r) => r.dataBase))].sort().slice(-30);
   const csvByDate = new Map(csvDates.map((d) => [d, new Map()]));
   for (const r of rows) csvByDate.get(r.dataBase)?.set(r.maturityDate, { buy: r.buyRate, sell: r.sellRate });
-
-  // ANBIMA 기관 지표 — 스냅샷 중간값과 금리 차트가 같은 값을 쓴다
-  let anbimaFresh = new Map();
-  try {
-    anbimaFresh = await fetchAnbimaRecent();
-  } catch (err) {
-    console.log(`[fetch-ntnf-snapshot] ANBIMA 조회 실패: ${err.message}`);
-  }
-  const anbimaByDate = new Map([...anbimaFresh].map(([d, v]) => [d, v.byMaturity]));
-  const anbimaAsOfDate = [...anbimaByDate.keys()].sort().pop() ?? null;
 
   // 실시간(거래 플랫폼) — 같은 시각 매수·매도수익률만. 단가는 쓰지 않는다(화면이 수익률로 다시 계산).
   let live = null;
@@ -264,7 +251,7 @@ async function main() {
     console.log(`[fetch-ntnf-snapshot] 실시간 조회 실패: ${err.message}`);
   }
 
-  const quotes = buildMidSpreadQuotes({ maturities, csvByDate, anbimaByDate, live });
+  const quotes = buildOrderQuotes({ maturities, csvByDate, live });
   const bonds = maturities.map((m) => quotes.get(m));
   const quoteDates = bonds.map((b) => b.quoteDate).filter(Boolean).sort();
 
@@ -274,11 +261,10 @@ async function main() {
     source: CSV_URL,
     liveAsOfDate,
     liveSource: liveAsOfDate ? `${LIVE_ORIGIN}/o/rentabilidade/{resgatar,investir}` : null,
-    anbimaAsOfDate,
     /** 종목 시세 기준일 중 가장 이른 날(노후 판정용) */
     quoteAsOfDate: quoteDates[0] ?? null,
     quoteRule:
-      "매수·매도수익률 = 중간값 ∓ 호가차/2, 종목마다 같은 기준일. 중간값: ANBIMA 기관 지표 > 재무부 CSV (매수+매도)/2 > 실시간. 호가차: 같은 기준일 CSV 매도−매수 > 실시간 같은 시각 매도−매수(다른 종목이면 추정).",
+      "매수·매도수익률 = 같은 기준 시각의 쌍. 재무부 실시간 호가(같은 시각 같은 종목, 매수 호가가 없으면 같은 시각 다른 종목 호가차로 추정) > 최신 재무부 CSV 같은 기준일 원값(실시간 없음). ANBIMA 는 주문 계산에 쓰지 않는다(10년물 차트 전용).",
     bonds,
   };
 
@@ -295,7 +281,7 @@ async function main() {
   const outPath = join(outDir, "ntnf-snapshot.json");
   writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + "\n");
   console.log(
-    `[fetch-ntnf-snapshot] 저장 완료: ${outPath}\n  CSV 기준일 ${asOfDate}, ANBIMA ${anbimaAsOfDate}, 실시간 ${liveAsOfDate}, 종목 ${bonds.length}개`
+    `[fetch-ntnf-snapshot] 저장 완료: ${outPath}\n  CSV 기준일 ${asOfDate}, 실시간 ${liveAsOfDate}, 종목 ${bonds.length}개`
   );
   for (const b of bonds) {
     console.log(`  ${b.maturityDate}  매수 ${b.buyRate}%  매도 ${b.sellRate}%  ${b.note}`);
@@ -354,28 +340,33 @@ async function main() {
   }
   const anbima = new Map(previous.filter((p) => p.src === "anbima").map((p) => [p.date, p]));
   let anbimaNew = 0;
-  for (const [d, v] of anbimaFresh) {
-    if (!anbima.has(d)) anbimaNew++;
-    anbima.set(d, v.point);
+  try {
+    const fresh = await fetchAnbimaRecent();
+    for (const [d, p] of fresh) {
+      if (!anbima.has(d)) anbimaNew++;
+      anbima.set(d, p);
+    }
+    console.log(`[fetch-ntnf-snapshot] ANBIMA 기관 지표: 이번에 받은 ${fresh.size}일(신규 ${anbimaNew}일), 누적 ${anbima.size}일`);
+  } catch (err) {
+    console.log(`[fetch-ntnf-snapshot] ANBIMA 조회 실패, 저장된 값만 사용: ${err.message}`);
   }
-  console.log(`[fetch-ntnf-snapshot] ANBIMA 기관 지표: 이번에 받은 ${anbimaFresh.size}일(신규 ${anbimaNew}일), 누적 ${anbima.size}일`);
   const byDateMerged = new Map(points.map((p) => [p.date, p]));
   for (const [d, p] of anbima) byDateMerged.set(d, p);
   const lastKnown = [...byDateMerged.keys()].sort().pop() ?? "0000-00-00";
 
-  // 실시간 임시 점: 확정 자료(ANBIMA·CSV)가 아직 없는 날짜만. 스냅샷과 같은 중간값(실시간 기준일 종목).
+  // 실시간 임시 점: 확정 자료(ANBIMA·CSV)가 아직 없는 날짜만. 스냅샷 실시간 쌍의 중간값 = (매수+매도)/2.
   const livePoints = new Map(
     previous.filter((p) => p.live === true && p.date > lastKnown).map((p) => [p.date, p])
   );
   if (liveAsOfDate && liveAsOfDate > lastKnown) {
     const liveList = bonds.filter(
-      (b) => b.quoteDate === liveAsOfDate && (b.midSource === "live" || b.midSource === "live-sell")
+      (b) => b.quoteDate === liveAsOfDate && (b.source === "live" || b.source === "live-est")
     );
     const best = liveList.length ? pickTenYear(liveAsOfDate, liveList) : null;
     if (best) {
       livePoints.set(liveAsOfDate, {
         date: liveAsOfDate,
-        ytm: best.midRate,
+        ytm: Math.round(((best.buyRate + best.sellRate) / 2) * 1e4) / 1e4,
         maturityYear: Number(best.maturityDate.slice(0, 4)),
         live: true,
       });

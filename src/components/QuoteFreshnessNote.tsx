@@ -15,10 +15,10 @@ interface Props {
 export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
   if (!quote?.asOfDate) return null;
   const tail = settlementDate ? ` · 결제일 ${settlementDate}` : "";
-  // 수익률 기준(오너 지시, 2026-10-09): 종목마다 같은 기준일의 중간값 ∓ 호가차/2.
-  // 금리 차트와 같은 중간값 우선순위라 화면 사이 숫자가 어긋나지 않는다.
+  // 수익률 기준(오너 결정, 2026-10-09): 매수·매도는 같은 기준 시각의 쌍 — 재무부 실시간 호가 우선,
+  // 없으면 전일 CSV 원값(종목별로 '실시간 없음' 경고). ANBIMA 는 10년물 차트에만 쓴다.
   const liveTail =
-    " · 매수·매도수익률 = 중간값 ∓ 호가차/2(중간값: ANBIMA 기관 지표 > 재무부 CSV 평균 > 실시간, 호가차: 같은 기준일·같은 출처 매도−매수)";
+    " · 매수·매도수익률 = 재무부 실시간 호가(같은 시각 쌍, 매수 호가 없는 종목은 다른 종목 호가차로 추정) > 없으면 전일 CSV(실시간 없음)";
   if (quote.stale) {
     return (
       <p

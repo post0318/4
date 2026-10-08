@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
   const settlement = getOrderSettlementDate();
   const settlementDate = toISODate(settlement);
 
-  // 서버가 직접 스냅샷을 열어 만기일→매수수익률(중간값 − 호가차/2, 화면과 같은 값)을 확인한다. 예전에는
+  // 서버가 직접 스냅샷을 열어 만기일→매수수익률(실시간 호가 > 전일 CSV, 화면과 같은 값)을 확인한다. 예전에는
   // 화면이 보낸 금리로 PU 를 계산한 뒤 같은 화면 값과 비교해 언제나 통과했다
   // (감사 ⑤ 중2). 묵은 탭·없는 종목·조작된 금리가 모두 여기서 걸린다.
   const snapshot = getLatestNtnF();

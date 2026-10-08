@@ -14,19 +14,19 @@ export interface BondItem {
   namePt: string;
   isin: string | null;
   isinVerified: boolean;
-  /** 매수수익률(연 %) = 중간값 − 호가차/2 (투자자 매수 금리, Taxa Compra 쪽). 못 구하면 null */
+  /** 매수수익률(연 %, 투자자 매수 금리 Taxa Compra 쪽). 못 구하면 null */
   buyYieldPct: number | null;
-  /** 매도수익률(연 %) = 중간값 + 호가차/2 (투자자 환매 금리, Taxa Venda 쪽) — 참고용 */
+  /** 매도수익률(연 %, 투자자 환매 금리 Taxa Venda 쪽) — 같은 기준 시각 쌍, 참고용 */
   sellYieldPct: number | null;
-  /** 중간값(연 %) — ANBIMA 기관 지표 > 재무부 CSV 평균 > 실시간 */
-  midYieldPct?: number | null;
-  /** 호가차(%p) — 같은 시점·같은 출처의 매도 − 매수 */
+  /** 호가차(%p) = 매도 − 매수 */
   spreadPct?: number | null;
-  /** 중간값·호가차 기준일 */
+  /** 매수·매도 쌍 기준일 */
   quoteDate?: string | null;
-  /** 출처 조합 설명(또는 수익률을 비운 사유) */
+  /** live = 재무부 실시간 같은 종목 쌍, live-est = 실시간 매도 − 다른 종목 호가차(추정), csv = 실시간 없음(CSV 원값) */
+  quoteSource?: "live" | "live-est" | "csv" | null;
+  /** 출처 설명(또는 수익률을 비운 사유) */
   quoteNote?: string;
-  /** true면 다른 종목 호가차 또는 실시간 매도만으로 만든 추정값 */
+  /** true면 다른 종목 호가차로 만든 추정 매수수익률 */
   buyYieldEstimated?: boolean;
 }
 

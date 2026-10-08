@@ -6,14 +6,15 @@ import { BondLayoutInput, CalcBasis, Currency, TaxStatus } from "@/lib/cashflow/
 
 interface BrazilBondItem {
   maturityDate: string;
-  /** 매수수익률 = 중간값 − 호가차/2 (서버 스냅샷, 2026-10-09 기준 통일) */
+  /** 매수수익률(서버 스냅샷 — 트레이딩·주문과 같은 값, 같은 기준 시각 쌍) */
   buyRate: number | null;
-  /** 매도수익률 = 중간값 + 호가차/2 */
+  /** 매도수익률(같은 기준 시각) */
   sellRate: number | null;
-  midRate?: number | null;
   spread?: number | null;
   quoteDate?: string | null;
-  /** true면 다른 종목 호가차 또는 실시간 매도만으로 만든 추정값 */
+  /** live = 실시간 같은 종목 쌍, live-est = 추정, csv = 실시간 없음(CSV 원값) */
+  source?: "live" | "live-est" | "csv" | null;
+  /** true면 다른 종목 호가차로 만든 추정 매수수익률 */
   estimated?: boolean;
   /** 출처 조합 설명(또는 수익률을 비운 사유) */
   note?: string;
@@ -141,12 +142,11 @@ export function BrazilBondSearchBox({
       // 새 종목을 반영하면 이전 종목에 걸어둔 신탁만기일 수기값은 의미가 없다
       trustMaturityDate: "",
     };
-    // 매수금리: buyRate(= 중간값 − 호가차/2, 투자자 매수 쪽)를 반영한다. 트레이딩 탭·주문
-    // 서버 검증과 같은 값이어야 하므로 자릿수를 줄이지 않는다(ANBIMA 지표는 소수 4자리).
+    // 매수금리: buyRate(투자자 매수 쪽 — 트레이딩 탭·주문 서버 검증과 같은 값)를 반영한다.
     // sellRate 는 되파는 쪽이라 매수 단가 계산에 맞지 않는다(감사 ⑤ 높음1). 값이 없으면
     // 이전에 선택한 종목의 매수금리가 남지 않도록 0으로 되돌린다.
     fields.purchaseYield =
-      typeof bond.buyRate === "number" ? String(bond.buyRate) : "0.00";
+      typeof bond.buyRate === "number" ? bond.buyRate.toFixed(2) : "0.00";
 
     onApply(fields);
     setOpen(false);
@@ -240,9 +240,11 @@ export function BrazilBondSearchBox({
                     <span className="text-xs text-zinc-400">
                       {b.buyRate !== null ? `매수 ${b.buyRate}%${b.estimated ? "(추정)" : ""}` : ""}
                       {b.sellRate !== null ? ` · 매도 ${b.sellRate}%` : ""}
-                      {b.buyRate !== null && b.midRate != null && b.spread != null
-                        ? ` · 중간 ${b.midRate}% ∓ ${b.spread}%p/2 (${b.quoteDate ?? ""})`
-                        : (b.note ?? "")}
+                      {b.buyRate === null
+                        ? (b.note ?? "")
+                        : b.source === "csv"
+                          ? ` · ⚠ 기준일 ${b.quoteDate ?? ""}(전일 오전 호가) — 실시간 없음`
+                          : ` · 실시간 ${b.quoteDate ?? ""}`}
                     </span>
                   </button>
                 </li>
