@@ -15,12 +15,10 @@ interface Props {
 export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
   if (!quote?.asOfDate) return null;
   const tail = settlementDate ? ` · 결제일 ${settlementDate}` : "";
-  // 거래 플랫폼 실시간 보정 — 매도가는 전종목, 매수가는 신규모집 종목만 반영된다
-  // (오너 지시, 2026-09-24). 「보정」이지 전체 최신화가 아니므로 문구로 명시한다.
+  // 수익률 기준(오너 지시, 2026-10-09): 종목마다 같은 기준일의 중간값 ∓ 호가차/2.
+  // 금리 차트와 같은 중간값 우선순위라 화면 사이 숫자가 어긋나지 않는다.
   const liveTail =
-    quote.liveAsOfDate && quote.liveAsOfDate !== quote.asOfDate
-      ? ` · 매도수익률 실시간(${quote.liveAsOfDate}, 재무부 오전 호가) · 실제 판매 중이 아닌 종목의 매수수익률은 추정`
-      : "";
+    " · 매수·매도수익률 = 중간값 ∓ 호가차/2(중간값: ANBIMA 기관 지표 > 재무부 CSV 평균 > 실시간, 호가차: 같은 기준일·같은 출처 매도−매수)";
   if (quote.stale) {
     return (
       <p

@@ -233,18 +233,20 @@ export function BondOrderTable({
                         : "-"}
                       {bond.buyYieldEstimated && (
                         <span
-                          title="이 종목은 지금 신규 판매 중이 아니라 실제 매수 호가가 없습니다. 실시간 매도수익률에서 호가차를 뺀 참고 추정값입니다."
+                          title="같은 시각 다른 종목의 실시간 호가차(또는 실시간 매도수익률만)로 만든 추정값입니다. 이 종목은 지금 실제 매수 호가가 없습니다."
                           className="ml-1 rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
                         >
                           추정
                         </span>
                       )}
-                      {bond.buyYieldLive && (
+                      {bond.quoteNote && (
                         <span
-                          title="거래 플랫폼 실시간 보정값(신규모집 종목만)"
-                          className="ml-1 rounded bg-emerald-100 px-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          className="block text-[10px] font-normal text-zinc-500 dark:text-zinc-400"
+                          title={bond.quoteNote}
                         >
-                          실시간
+                          {bond.buyYieldPct !== null && bond.midYieldPct != null && bond.spreadPct != null
+                            ? `중간 ${fmtNum(bond.midYieldPct, 2)}% − 호가차 ${fmtNum(bond.spreadPct, 2)}%p/2 · ${bond.quoteDate ?? ""}`
+                            : bond.quoteNote}
                         </span>
                       )}
                     </td>

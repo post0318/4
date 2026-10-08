@@ -8,17 +8,13 @@ import { snapshotFreshness } from "@/lib/server/sanity";
  * 레포에 커밋된 스냅샷(src/lib/server/ntnf-snapshot.json)을 그대로 반환하되,
  * ISIN·종목명 메타데이터를 머지한다. 스냅샷 갱신은 GitHub Actions(주간) → 재배포.
  *
- * 매수수익률(buyYieldPct)은 스냅샷의 buyRate(Taxa Compra Manhã)를 쓴다.
- * Tesouro Direto 정의상 Taxa Compra = 투자자가 매수할 때 금리, Taxa Venda =
- * 투자자가 만기 전 국고에 되팔 때 금리(항상 0.12%p 높음). 공시 PU Compra는
- * Taxa Compra + D+1 결제로 정확히 재현된다(감사 ⑤ 높음1). 예전에는 Venda를
- * 써서 PU가 낮게, 수량이 최대 0.6% 많게 산출됐다.
- *
- * buyYieldLive/sellYieldLive: true면 해당 값이 CSV가 아니라 거래 플랫폼
- * 실시간 보정값(liveAsOfDate 기준)이다(오너 지시, 2026-09-24 — CSV 정지 대응).
+ * 매수·매도수익률은 스냅샷의 buyRate/sellRate = 같은 기준일의 중간값 ∓ 호가차/2
+ * (오너 지시, 2026-10-09 — 금리 차트와 같은 기준). 출처 조합은 quoteNote 로 내린다.
+ * 매수 쪽은 Tesouro 정의상 Taxa Compra(투자자 매수 금리)가 매도(Taxa Venda)보다
+ * 낮으므로 중간값 − 호가차/2 다. 공시 PU Compra 는 Taxa Compra + D+1 결제로 재현된다.
  */
 export async function GET() {
-  const { asOfDate, liveAsOfDate, items } = getLatestNtnF();
+  const { asOfDate, liveAsOfDate, quoteAsOfDate, items } = getLatestNtnF();
   const today = new Date().toISOString().slice(0, 10);
 
   const bonds = items
@@ -35,16 +31,17 @@ export async function GET() {
         isinVerified: meta?.isinVerified ?? false,
         buyYieldPct: b.buyRate,
         sellYieldPct: b.sellRate,
-        buyYieldLive: b.buyLive === true,
-        sellYieldLive: b.sellLive === true,
-        buyYieldEstimated: b.buyEstimated === true,
+        midYieldPct: b.midRate,
+        spreadPct: b.spread,
+        quoteDate: b.quoteDate,
+        quoteNote: b.note,
+        buyYieldEstimated: b.estimated,
       };
     });
 
   // 일일 갱신이 실패해도 앱은 옛 금리로 계속 계산하므로, 경과일수·노후 여부를
-  // 같이 내려 화면이 경고를 띄우게 한다(감사 ⑤ 중3).
-  // CSV가 며칠 늦어도 실시간 기준일이 최근이면 최신으로 본다(둘 중 더 늦은 날짜 기준)
-  const newest = liveAsOfDate && liveAsOfDate > asOfDate ? liveAsOfDate : asOfDate;
-  const { ageDays, stale } = snapshotFreshness(newest);
-  return NextResponse.json({ asOfDate, ageDays, stale, liveAsOfDate, bonds });
+  // 같이 내려 화면이 경고를 띄우게 한다(감사 ⑤ 중3). 기준은 종목 시세 기준일 중 가장 이른 날.
+  const quoteDay = quoteAsOfDate ?? asOfDate;
+  const { ageDays, stale } = snapshotFreshness(quoteDay);
+  return NextResponse.json({ asOfDate: quoteDay, csvAsOfDate: asOfDate, ageDays, stale, liveAsOfDate, bonds });
 }

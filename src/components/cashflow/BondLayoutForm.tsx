@@ -105,6 +105,8 @@ const inputClass =
   "w-full bg-transparent text-sm text-zinc-900 outline-none disabled:cursor-not-allowed disabled:text-zinc-400 dark:text-zinc-100 dark:disabled:text-zinc-600";
 
 const PERCENT_INPUT_PATTERN = /^\d*(\.\d{0,2})?$/;
+/** 매수금리는 소수 4자리까지 — 종목 선택 시 들어오는 중간값 ∓ 호가차/2 (ANBIMA 지표 정밀도)를 그대로 받는다 */
+const YIELD_INPUT_PATTERN = /^\d*(\.\d{0,4})?$/;
 
 function selectAllOnFocus(e: FocusEvent<HTMLInputElement>) {
   e.target.select();
@@ -129,6 +131,15 @@ function formatTwoDecimals(raw: string): string {
   if (raw === "") return raw;
   const num = Number(raw);
   return Number.isNaN(num) ? raw : num.toFixed(2);
+}
+
+/** 매수금리 표시 — 최소 2자리, 넣은 자릿수(최대 4자리)는 그대로 둔다(반올림으로 값이 바뀌지 않게) */
+function formatYieldDecimals(raw: string): string {
+  if (raw === "") return raw;
+  const num = Number(raw);
+  if (Number.isNaN(num)) return raw;
+  const decimals = (raw.split(".")[1] ?? "").length;
+  return num.toFixed(Math.min(4, Math.max(2, decimals)));
 }
 
 /** 선취보수(차감) = 신탁투자금액 x 선취보수율 */
@@ -678,10 +689,10 @@ export function BondLayoutForm({
               onFocus={selectAllOnFocus}
               onChange={(e) => {
                 const _v = normalizeDecimalInput(e.target.value);
-                  if (PERCENT_INPUT_PATTERN.test(_v)) update("purchaseYield", _v);
+                  if (YIELD_INPUT_PATTERN.test(_v)) update("purchaseYield", _v);
               }}
               onBlur={(e) =>
-                update("purchaseYield", formatTwoDecimals(e.target.value))
+                update("purchaseYield", formatYieldDecimals(e.target.value))
               }
               onKeyDown={commitOnEnter}
             />
