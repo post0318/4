@@ -15,27 +15,32 @@ import snapshot from "@/lib/server/ntnf-snapshot.json";
  * NTN-F 종목 목록 자체는 1년에 한두 번만 바뀌고, 표면이율은 연 10% 고정,
  * 매수금리(YTM)는 사용자가 화면에서 직접 조정하므로 주간 갱신으로 충분하다.
  *
- * 실시간 보정(오너 지시, 2026-09-24): CSV가 며칠씩 멈추는 사고를 겪어,
- * scripts/fetch-ntnf-snapshot.mjs 가 거래 플랫폼(tesourodireto.com.br) 실시간
- * API로 값을 덮어쓴다 — 매도가(sellRate/sellPrice)는 6종목 다, 매수가
- * (buyRate/buyPrice)는 재무부가 신규모집 중인 종목만(보통 1개). `sellLive`/
- * `buyLive` 가 true인 필드만 asOfDate가 아니라 liveAsOfDate 기준이다.
+ * 주문용 매수·매도수익률(오너 결정, 2026-10-09): buyRate/sellRate 는 같은 기준 시각의 쌍이다
+ * (scripts/lib/ntnf-quote.mjs) — 재무부 실시간 호가(같은 시각 같은 종목, 매수 호가가 없으면 같은
+ * 시각 다른 종목 호가차로 추정) > 최신 재무부 CSV 같은 기준일 원값(실시간 없음 경고).
+ * ANBIMA 는 쓰지 않는다(10년물 차트 전용). 옛 형식 스냅샷(quoteDate 없음)은 수익률을 비운다.
  */
+
+/** live = 실시간 같은 종목 쌍, live-est = 실시간 매도 − 다른 종목 호가차(추정), csv = 실시간 없음 */
+export type QuoteSource = "live" | "live-est" | "csv";
 
 export interface BrazilBondItem {
   maturityDate: string; // ISO (YYYY-MM-DD)
-  buyRate: number | null; // Taxa Compra Manha (%) — sellLive 없으면 asOfDate 기준, 있으면 liveAsOfDate 기준
-  sellRate: number | null; // Taxa Venda Manha (%)
-  buyPrice: number | null; // PU Compra Manha
-  sellPrice: number | null; // PU Venda Manha
-  /** true면 buyRate/buyPrice가 거래 플랫폼 실시간 값(liveAsOfDate 기준) */
-  buyLive?: boolean;
-  /** true면 sellRate/sellPrice가 거래 플랫폼 실시간 값(liveAsOfDate 기준) */
-  sellLive?: boolean;
-  /** true면 buyRate가 실시간 매도수익률에서 호가차를 뺀 추정값(실제 매수 호가가 없는 종목) */
-  buyEstimated?: boolean;
-  /** 추정에 쓴 호가차(%p) */
-  buySpread?: number;
+  /** 매수수익률(%, Taxa Compra 쪽). 못 구하면 null(사유는 note) */
+  buyRate: number | null;
+  /** 매도수익률(%, Taxa Venda 쪽) */
+  sellRate: number | null;
+  /** 호가차(%p) = 매도 − 매수 */
+  spread: number | null;
+  /** 매수·매도 쌍의 기준일 */
+  quoteDate: string | null;
+  source: QuoteSource | null;
+  /** source 가 live-est 일 때 호가차를 가져온 종목 만기 */
+  spreadRef: string[] | null;
+  /** true면 다른 종목 호가차로 만든 추정 매수수익률 */
+  estimated: boolean;
+  /** 출처 설명(화면 주석) 또는 비운 사유 */
+  note: string;
 }
 
 export interface NtnFSnapshot {
@@ -43,16 +48,55 @@ export interface NtnFSnapshot {
   asOfDate: string;
   /** 스냅샷을 만든 시각(ISO) */
   generatedAt: string;
-  /** 거래 플랫폼 실시간 보정이 반영된 기준일. 보정 실패/없음이면 null */
+  /** 거래 플랫폼 실시간 기준일. 없으면 null */
   liveAsOfDate: string | null;
+  /** 종목 시세 기준일 중 가장 이른 날 — 노후 판정·화면 기준일 */
+  quoteAsOfDate: string | null;
   items: BrazilBondItem[];
 }
 
+const LEGACY_NOTE =
+  "시세 파일이 옛 형식이라 수익률을 비웠습니다. 시세 갱신(Refresh NTN-F snapshot)을 다시 실행하세요.";
+
 export function getLatestNtnF(): NtnFSnapshot {
+  const raw = snapshot as unknown as {
+    asOfDate: string;
+    generatedAt: string;
+    liveAsOfDate?: string | null;
+    quoteAsOfDate?: string | null;
+    bonds: Array<Partial<BrazilBondItem> & { maturityDate: string }>;
+  };
+  const items: BrazilBondItem[] = raw.bonds.map((b) => {
+    if (!("quoteDate" in b) || !("source" in b)) {
+      return {
+        maturityDate: b.maturityDate,
+        buyRate: null,
+        sellRate: null,
+        spread: null,
+        quoteDate: null,
+        source: null,
+        spreadRef: null,
+        estimated: false,
+        note: LEGACY_NOTE,
+      };
+    }
+    return {
+      maturityDate: b.maturityDate,
+      buyRate: b.buyRate ?? null,
+      sellRate: b.sellRate ?? null,
+      spread: b.spread ?? null,
+      quoteDate: b.quoteDate ?? null,
+      source: b.source ?? null,
+      spreadRef: b.spreadRef ?? null,
+      estimated: b.estimated === true,
+      note: b.note ?? "",
+    };
+  });
   return {
-    asOfDate: snapshot.asOfDate,
-    generatedAt: snapshot.generatedAt,
-    liveAsOfDate: snapshot.liveAsOfDate ?? null,
-    items: snapshot.bonds as BrazilBondItem[],
+    asOfDate: raw.asOfDate,
+    generatedAt: raw.generatedAt,
+    liveAsOfDate: raw.liveAsOfDate ?? null,
+    quoteAsOfDate: raw.quoteAsOfDate ?? null,
+    items,
   };
 }

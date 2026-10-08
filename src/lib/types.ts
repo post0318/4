@@ -14,20 +14,27 @@ export interface BondItem {
   namePt: string;
   isin: string | null;
   isinVerified: boolean;
-  /** 매수수익률 (Taxa Compra = 투자자 매수 금리, 연 %) */
+  /** 매수수익률(연 %, 투자자 매수 금리 Taxa Compra 쪽). 못 구하면 null */
   buyYieldPct: number | null;
-  /** 매도수익률 (Taxa Venda = 투자자 환매 금리, 연 %) — 참고용 */
+  /** 매도수익률(연 %, 투자자 환매 금리 Taxa Venda 쪽) — 같은 기준 시각 쌍, 참고용 */
   sellYieldPct: number | null;
-  /** true면 buyYieldPct가 CSV가 아니라 거래 플랫폼 실시간 보정값(liveAsOfDate 기준) */
-  buyYieldLive?: boolean;
-  /** true면 sellYieldPct가 CSV가 아니라 거래 플랫폼 실시간 보정값(liveAsOfDate 기준) */
-  sellYieldLive?: boolean;
-  /** true면 buyYieldPct가 실시간 매도수익률 − 호가차로 추정한 참고값(해당 종목은 지금 신규 판매 중이 아님) */
+  /** 호가차(%p) = 매도 − 매수 */
+  spreadPct?: number | null;
+  /** 매수·매도 쌍 기준일 */
+  quoteDate?: string | null;
+  /** live = 재무부 실시간 같은 종목 쌍, live-est = 실시간 매도 − 다른 종목 호가차(추정), csv = 실시간 없음(CSV 원값) */
+  quoteSource?: "live" | "live-est" | "csv" | null;
+  /** 출처 설명(또는 수익률을 비운 사유) */
+  quoteNote?: string;
+  /** true면 다른 종목 호가차로 만든 추정 매수수익률 */
   buyYieldEstimated?: boolean;
 }
 
 export interface BondSearchResponse {
+  /** 종목 시세 기준일(가장 이른 종목) */
   asOfDate: string;
+  /** 재무부 CSV 기준일 */
+  csvAsOfDate?: string;
   /** 기준일 경과일수 (서버 계산) */
   ageDays?: number | null;
   /** 거래 플랫폼 실시간 보정이 반영된 기준일. 없으면 null */

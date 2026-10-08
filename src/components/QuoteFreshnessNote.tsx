@@ -15,12 +15,10 @@ interface Props {
 export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
   if (!quote?.asOfDate) return null;
   const tail = settlementDate ? ` · 결제일 ${settlementDate}` : "";
-  // 거래 플랫폼 실시간 보정 — 매도가는 전종목, 매수가는 신규모집 종목만 반영된다
-  // (오너 지시, 2026-09-24). 「보정」이지 전체 최신화가 아니므로 문구로 명시한다.
+  // 수익률 기준(오너 결정, 2026-10-09): 매수·매도는 같은 기준 시각의 쌍 — 재무부 실시간 호가 우선,
+  // 없으면 전일 CSV 원값(종목별로 '실시간 없음' 경고). ANBIMA 는 10년물 차트에만 쓴다.
   const liveTail =
-    quote.liveAsOfDate && quote.liveAsOfDate !== quote.asOfDate
-      ? ` · 매도수익률 실시간(${quote.liveAsOfDate}, 재무부 오전 호가) · 실제 판매 중이 아닌 종목의 매수수익률은 추정`
-      : "";
+    " · 매수·매도수익률 = 재무부 실시간 호가(같은 시각 쌍, 매수 호가 없는 종목은 다른 종목 호가차로 추정) > 없으면 전일 CSV(실시간 없음)";
   if (quote.stale) {
     return (
       <p

@@ -14,14 +14,19 @@
  * (매도/상환)는 NTN-F 6종목이 항상 다 나오지만, `/o/rentabilidade/investir`
  * (매수)는 재무부가 신규모집 중인 종목만 나온다(현재 1개뿐). CSV가 죽어도
  * 매도가는 6종목 다 최신화되지만, 매수가(buyYieldPct — 실제 매수 계산에 쓰는
- * 값)는 신규모집 종목만 최신화되고 나머지는 CSV 값이 남는다 — 절반짜리 보정.
- * 보정된 필드는 `buyLive`/`sellLive` 로 표시해 화면에서 구분할 수 있게 한다.
- * 이 API 자체가 죽어도(옛 경로처럼) 전체 스냅샷 생성은 실패하지 않는다 —
- * try/catch 로 감싸 실패 시 CSV 값 그대로 둔다.
+ * 값)는 신규모집 종목만 최신화된다. 이 API 자체가 죽어도(옛 경로처럼) 전체
+ * 스냅샷 생성은 실패하지 않는다 — try/catch 로 감싸 실패 시 CSV·ANBIMA 로만 만든다.
+ *
+ * ── 주문용 매수·매도수익률(오너 결정, 2026-10-09) ──
+ * 스냅샷의 buyRate/sellRate 는 같은 기준 시각의 매수·매도 쌍이다(scripts/lib/ntnf-quote.mjs):
+ * 실시간 호가(같은 시각 같은 종목, 매수 호가가 없으면 다른 종목 호가차로 추정) > 최신 CSV 같은
+ * 기준일 원값(실시간 없음 경고). ANBIMA 는 주문 계산에 쓰지 않고 10년물 차트에만 쓴다.
+ * --out-dir=<폴더> 를 주면 그 폴더에 쓴다(비교용).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { buildOrderQuotes } from "./lib/ntnf-quote.mjs";
 
 const CSV_URL =
   "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv";
@@ -137,6 +142,7 @@ function pickTenYear(date, items) {
  * ANBIMA 기관 간 2차시장 지표금리(Tx. Indicativas) — 매수·매도 구분 없는 중간값.
  * 공개 일일 파일(msYYMMDD.txt)은 최근 3주 안팎만 남으므로, 받을 수 있는 날만 받아 history에 누적한다.
  * 실패하면 빈 결과를 돌려준다(차트는 CSV 중간값·실시간 임시 값으로 계속 만들어진다).
+ * 날짜 → 10년물 차트 점
  */
 async function fetchAnbimaRecent(days = 28) {
   const out = new Map();
@@ -166,7 +172,9 @@ async function fetchAnbimaRecent(days = 28) {
         items.push({ maturityDate: `${c[4].slice(0, 4)}-${c[4].slice(4, 6)}-${c[4].slice(6, 8)}`, ind });
       }
       const best = date && items.length ? pickTenYear(date, items) : null;
-      if (best) out.set(date, { date, ytm: best.ind, maturityYear: Number(best.maturityDate.slice(0, 4)), src: "anbima" });
+      if (best) {
+        out.set(date, { date, ytm: best.ind, maturityYear: Number(best.maturityDate.slice(0, 4)), src: "anbima" });
+      }
     } catch {
       /* 이 날은 건너뜀 */
     }
@@ -209,79 +217,43 @@ async function main() {
   let asOfDate = rows[0].dataBase;
   for (const r of rows) if (r.dataBase > asOfDate) asOfDate = r.dataBase;
 
-  const bonds = rows
-    .filter((r) => r.dataBase === asOfDate)
-    .map(({ maturityDate, buyRate, sellRate, buyPrice, sellPrice }) => ({
-      maturityDate,
-      buyRate,
-      sellRate,
-      buyPrice,
-      sellPrice,
-    }))
-    .sort((a, b) => a.maturityDate.localeCompare(b.maturityDate));
+  const maturities = [...new Set(rows.filter((r) => r.dataBase === asOfDate).map((r) => r.maturityDate))].sort();
 
-  // 매수수익률은 매도수익률보다 높을 수 없다(호가차). 실시간 매수 값이 없는 종목은 실시간 매도에서 이 호가차를 빼 추정한다.
-  const csvSpread = new Map();
-  for (const b of bonds) {
-    if (typeof b.sellRate === "number" && typeof b.buyRate === "number") {
-      csvSpread.set(b.maturityDate, Math.min(0.5, Math.max(0, b.sellRate - b.buyRate)));
-    }
-  }
+  // CSV 최근 기준일들(매수·매도를 같은 기준일 쌍으로 쓰기 위해 날짜별로 보관)
+  const csvDates = [...new Set(rows.map((r) => r.dataBase))].sort().slice(-30);
+  const csvByDate = new Map(csvDates.map((d) => [d, new Map()]));
+  for (const r of rows) csvByDate.get(r.dataBase)?.set(r.maturityDate, { buy: r.buyRate, sell: r.sellRate });
 
+  // 실시간(거래 플랫폼) — 같은 시각 매수·매도수익률만. 단가는 쓰지 않는다(화면이 수익률로 다시 계산).
+  let live = null;
   let liveAsOfDate = null;
   try {
     console.log(`[fetch-ntnf-snapshot] 거래 플랫폼 실시간 시세 조회...`);
-    const live = await fetchLiveOverlay();
-    if (live) {
-      liveAsOfDate = live.liveAsOfDate;
-      for (const b of bonds) {
-        const r = live.resgatar.get(b.maturityDate);
-        if (r) {
-          const rate = parsePctString(r.redemptionProfitabilityFeeIndexerName);
-          if (rate != null && typeof r.unitaryRedemptionValue === "number") {
-            b.sellRate = rate;
-            b.sellPrice = r.unitaryRedemptionValue;
-            b.sellLive = true;
-          }
-        }
-        const i = live.investir.get(b.maturityDate);
-        if (i) {
-          const rate = parsePctString(i.investmentProfitabilityIndexerName);
-          if (rate != null && typeof i.unitaryInvestmentValue === "number") {
-            b.buyRate = rate;
-            b.buyPrice = i.unitaryInvestmentValue;
-            b.buyLive = true;
-          }
-        }
+    const overlay = await fetchLiveOverlay();
+    if (overlay && overlay.liveAsOfDate) {
+      liveAsOfDate = overlay.liveAsOfDate;
+      live = { date: liveAsOfDate, buy: new Map(), sell: new Map() };
+      for (const [mat, r] of overlay.resgatar) {
+        const rate = parsePctString(r.redemptionProfitabilityFeeIndexerName);
+        if (rate != null) live.sell.set(mat, rate);
       }
-      // 호가차는 같은 시각의 실시간 매수·매도가 모두 있는 종목(현재 신규모집 종목)에서 구한다. 없으면 CSV 값.
-      const liveSpreads = bonds
-        .filter((b) => b.sellLive && b.buyLive)
-        .map((b) => b.sellRate - b.buyRate)
-        .sort((a, b) => a - b);
-      const liveSpread = liveSpreads.length ? liveSpreads[Math.floor(liveSpreads.length / 2)] : null;
-      for (const b of bonds) {
-        if (b.sellLive && !b.buyLive) {
-          const csv = csvSpread.get(b.maturityDate);
-          const spread = liveSpread ?? csv ?? 0.12;
-          if (liveSpread != null && csv != null && Math.abs(liveSpread - csv) > 0.05) {
-            console.log(`[fetch-ntnf-snapshot] 주의: ${b.maturityDate} 호가차 실시간 ${liveSpread.toFixed(2)} vs CSV ${csv.toFixed(2)}`);
-          }
-          b.buyRate = Math.round((b.sellRate - spread) * 100) / 100;
-          b.buyPrice = null; // 단가는 화면이 수익률로 다시 계산한다(옛 CSV 단가를 남기지 않는다)
-          b.buyEstimated = true;
-          b.buySpread = Math.round(spread * 100) / 100;
-        }
+      for (const [mat, i] of overlay.investir) {
+        const rate = parsePctString(i.investmentProfitabilityIndexerName);
+        if (rate != null) live.buy.set(mat, rate);
       }
       console.log(
-        `[fetch-ntnf-snapshot] 실시간 보정 완료: 기준일 ${liveAsOfDate}, 매도 ${live.resgatar.size}종목·매수 ${live.investir.size}종목`
+        `[fetch-ntnf-snapshot] 실시간: 기준일 ${liveAsOfDate}, 매도 ${live.sell.size}종목·매수 ${live.buy.size}종목`
       );
     } else {
-      console.log(`[fetch-ntnf-snapshot] 실시간 보정 생략(응답 없음)`);
+      console.log(`[fetch-ntnf-snapshot] 실시간 생략(응답 없음)`);
     }
   } catch (err) {
-    console.log(`[fetch-ntnf-snapshot] 실시간 보정 실패, CSV 값 유지: ${err.message}`);
+    console.log(`[fetch-ntnf-snapshot] 실시간 조회 실패: ${err.message}`);
   }
+
+  const quotes = buildOrderQuotes({ maturities, csvByDate, live });
+  const bonds = maturities.map((m) => quotes.get(m));
+  const quoteDates = bonds.map((b) => b.quoteDate).filter(Boolean).sort();
 
   const snapshot = {
     asOfDate,
@@ -289,6 +261,10 @@ async function main() {
     source: CSV_URL,
     liveAsOfDate,
     liveSource: liveAsOfDate ? `${LIVE_ORIGIN}/o/rentabilidade/{resgatar,investir}` : null,
+    /** 종목 시세 기준일 중 가장 이른 날(노후 판정용) */
+    quoteAsOfDate: quoteDates[0] ?? null,
+    quoteRule:
+      "매수·매도수익률 = 같은 기준 시각의 쌍. 재무부 실시간 호가(같은 시각 같은 종목, 매수 호가가 없으면 같은 시각 다른 종목 호가차로 추정) > 최신 재무부 CSV 같은 기준일 원값(실시간 없음). ANBIMA 는 주문 계산에 쓰지 않는다(10년물 차트 전용).",
     bonds,
   };
 
@@ -299,14 +275,16 @@ async function main() {
     "lib",
     "server"
   );
+  const outArg = process.argv.find((x) => x.startsWith("--out-dir="));
+  const outDir = outArg ? outArg.slice("--out-dir=".length) : serverDir;
 
-  const outPath = join(serverDir, "ntnf-snapshot.json");
+  const outPath = join(outDir, "ntnf-snapshot.json");
   writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + "\n");
   console.log(
-    `[fetch-ntnf-snapshot] 저장 완료: ${outPath}\n  기준일 ${asOfDate}, 종목 ${bonds.length}개`
+    `[fetch-ntnf-snapshot] 저장 완료: ${outPath}\n  CSV 기준일 ${asOfDate}, 실시간 ${liveAsOfDate}, 종목 ${bonds.length}개`
   );
   for (const b of bonds) {
-    console.log(`  ${b.maturityDate}  매수 ${b.buyRate}%  매도 ${b.sellRate}%`);
+    console.log(`  ${b.maturityDate}  매수 ${b.buyRate}%  매도 ${b.sellRate}%  ${b.note}`);
   }
 
   // ── 브라질 장기국채금리 추이 (NTN-F ~10년) ──
@@ -352,6 +330,7 @@ async function main() {
   // 날짜별 우선순위: ANBIMA 기관 지표(종가, 최우선) > CSV 중간값(확정, 오전 호가) > 실시간 임시(가장 최근 하루).
   // ANBIMA 공개 파일은 최근 3주만 남으므로 이전 실행에서 저장한 ANBIMA 점도 보존한다.
   const yieldPath = join(serverDir, "ntnf-yield-history.json");
+  const yieldOutPath = join(outDir, "ntnf-yield-history.json");
   const csvLast = points.length ? points[points.length - 1].date : "0000-00-00";
   let previous = [];
   try {
@@ -375,18 +354,19 @@ async function main() {
   for (const [d, p] of anbima) byDateMerged.set(d, p);
   const lastKnown = [...byDateMerged.keys()].sort().pop() ?? "0000-00-00";
 
-  // 실시간 임시 점: 확정 자료(ANBIMA·CSV)가 아직 없는 날짜만. 매도 − 호가차/2 = 중간값.
+  // 실시간 임시 점: 확정 자료(ANBIMA·CSV)가 아직 없는 날짜만. 스냅샷 실시간 쌍의 중간값 = (매수+매도)/2.
   const livePoints = new Map(
     previous.filter((p) => p.live === true && p.date > lastKnown).map((p) => [p.date, p])
   );
   if (liveAsOfDate && liveAsOfDate > lastKnown) {
-    const liveList = bonds.filter((b) => b.sellLive && typeof b.sellRate === "number");
+    const liveList = bonds.filter(
+      (b) => b.quoteDate === liveAsOfDate && (b.source === "live" || b.source === "live-est")
+    );
     const best = liveList.length ? pickTenYear(liveAsOfDate, liveList) : null;
     if (best) {
-      const spread = typeof best.buyRate === "number" && best.buyLive ? best.sellRate - best.buyRate : (best.buySpread ?? 0.12);
       livePoints.set(liveAsOfDate, {
         date: liveAsOfDate,
-        ytm: Math.round((best.sellRate - spread / 2) * 100) / 100,
+        ytm: Math.round(((best.buyRate + best.sellRate) / 2) * 1e4) / 1e4,
         maturityYear: Number(best.maturityDate.slice(0, 4)),
         live: true,
       });
@@ -405,9 +385,9 @@ async function main() {
     note: "매 영업일 만기가 (해당일+10년)에 가장 가까운 NTN-F의 중간값. ANBIMA 기관 지표(종가, src:anbima) > CSV (Taxa Compra+Taxa Venda)/2(오전 호가) > 실시간 임시(live:true, 확정 자료가 올라오면 교체)",
     points: merged,
   };
-  writeFileSync(yieldPath, JSON.stringify(yieldHistory, null, 2) + "\n");
+  writeFileSync(yieldOutPath, JSON.stringify(yieldHistory, null, 2) + "\n");
   console.log(
-    `[fetch-ntnf-snapshot] 금리추이 저장: ${yieldPath}\n  ${points.length}일, 최신 ${yieldHistory.asOfDate} ${
+    `[fetch-ntnf-snapshot] 금리추이 저장: ${yieldOutPath}\n  ${points.length}일, 최신 ${yieldHistory.asOfDate} ${
       points.length ? points[points.length - 1].ytm + "%" : ""
     }`
   );

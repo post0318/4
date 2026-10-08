@@ -270,13 +270,15 @@ export async function POST(request: NextRequest) {
   const settlement = getOrderSettlementDate();
   const settlementDate = toISODate(settlement);
 
-  // 서버가 직접 스냅샷을 열어 만기일→매수수익률(Taxa Compra)을 확인한다. 예전에는
+  // 서버가 직접 스냅샷을 열어 만기일→매수수익률(실시간 호가 > 전일 CSV, 화면과 같은 값)을 확인한다. 예전에는
   // 화면이 보낸 금리로 PU 를 계산한 뒤 같은 화면 값과 비교해 언제나 통과했다
   // (감사 ⑤ 중2). 묵은 탭·없는 종목·조작된 금리가 모두 여기서 걸린다.
   const snapshot = getLatestNtnF();
   const snapshotYield = new Map<string, number>();
+  const snapshotQuoteDate = new Map<string, string>();
   for (const b of snapshot.items) {
     if (typeof b.buyRate === "number") snapshotYield.set(b.maturityDate, b.buyRate);
+    if (b.quoteDate) snapshotQuoteDate.set(b.maturityDate, b.quoteDate);
   }
 
   const resultLines: OrderEmailLine[] = [];
@@ -317,7 +319,7 @@ export async function POST(request: NextRequest) {
     if (Math.abs(snapYield - line.buyYieldPct) > YIELD_EPSILON) {
       return NextResponse.json(
         {
-          error: `매수수익률이 서버 시세와 다릅니다: ${line.nameKo ?? line.maturityDate} (화면 ${line.buyYieldPct}% / 서버 ${snapYield}%, 기준일 ${snapshot.asOfDate}). 새로고침 후 다시 시도하세요.`,
+          error: `매수수익률이 서버 시세와 다릅니다: ${line.nameKo ?? line.maturityDate} (화면 ${line.buyYieldPct}% / 서버 ${snapYield}%, 기준일 ${snapshotQuoteDate.get(line.maturityDate) ?? snapshot.asOfDate}). 새로고침 후 다시 시도하세요.`,
         },
         { status: 409 }
       );
