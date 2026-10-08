@@ -443,9 +443,9 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
     const fromPrice = yieldFromPrice(state.sellDate, bondA?.maturityDate, state.sellPriceA);
     if (fromPrice != null) return fromPrice;
     if (state.sellYield !== "") return num(state.sellYield, NaN);
-    return aYieldEff;
-     
-  }, [state.sellDate, bondA?.maturityDate, state.sellPriceA, state.sellYield, aYieldEff]);
+    // 매도 수익률이 없으면 매수값으로 채우지 않고 입력을 요구한다
+    return bondA?.sellYieldPct ?? NaN;
+  }, [state.sellDate, bondA?.maturityDate, state.sellPriceA, state.sellYield, bondA?.sellYieldPct]);
 
   const input: TrustSimInput | null = useMemo(() => {
     if (!bondA || !(principalKrw > 0) || !(fxRate > 0)) return null;
@@ -630,11 +630,16 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         <input
           className={numInput}
           inputMode="decimal"
-          placeholder={Number.isFinite(aYieldEff) ? fmtNum(aYieldEff, 2) : ""}
+          placeholder={bondA?.sellYieldPct != null ? fmtNum(bondA.sellYieldPct, 2) : "입력"}
           value={state.sellYield}
           onFocus={focusSelect}
           onChange={(e) => set("sellYield")(clean(e.target.value))}
         />
+        {state.sellYield === "" && bondA?.sellYieldPct != null && (
+          <span className="mt-0.5 block text-[10px] text-zinc-400">
+            {bondA.quoteSource === "csv" ? "전일 CSV 매도 기준" : "실시간 매도 기준"}
+          </span>
+        )}
       </Field>
     ),
     sellPriceA: (
@@ -768,14 +773,20 @@ export function TrustStrategyPanel({ bonds, fx, state, onChange }: Props) {
         ? "중도매도 시점을 입력하세요."
         : bondA && state.sellDate >= bondA.maturityDate
           ? "중도매도 시점이 A 만기 이후입니다."
-          : undefined,
+          : !Number.isFinite(sellYieldEff)
+            ? "중도매도수익률을 입력하세요."
+            : undefined,
     },
     {
       key: "term",
       label: "중도해지",
       note: "A 중도매도로 종료",
       r: term,
-      unavailable: !state.sellDate ? "중도매도 시점을 입력하세요." : undefined,
+      unavailable: !state.sellDate
+        ? "중도매도 시점을 입력하세요."
+        : !Number.isFinite(sellYieldEff)
+          ? "중도매도수익률을 입력하세요."
+          : undefined,
     },
   ];
 
