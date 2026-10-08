@@ -40,7 +40,21 @@ interface FxHistoryChartProps {
    * (예: R$/USD 상승 = 헤알 약세 → invert:true).
    */
   strength?: { name: string; invert?: boolean };
+  range: RangeKey;
+  onRangeChange: (r: RangeKey) => void;
 }
+
+export const RANGES = [
+  { key: "1m", label: "1개월", months: 1 },
+  { key: "3m", label: "3개월", months: 3 },
+  { key: "6m", label: "6개월", months: 6 },
+  { key: "1y", label: "1년", months: 12 },
+  { key: "3y", label: "3년", months: 36 },
+  { key: "5y", label: "5년", months: 60 },
+  { key: "max", label: "최대", months: 0 },
+] as const;
+export type RangeKey = (typeof RANGES)[number]["key"];
+export const DEFAULT_RANGE: RangeKey = "1y";
 
 const W = 900;
 const H = 140;
@@ -55,6 +69,28 @@ function valueAt(series: ChartSeries, time: number): number | null {
     else break;
   }
   return v ?? series.values[0] ?? null;
+}
+
+/** 마지막 데이터 날짜 기준 months 개월 전 ISO 날짜 (0 = 전체) */
+function cutoffIso(lastIso: string, months: number): string | null {
+  if (!months) return null;
+  const d = new Date(`${lastIso}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() - months);
+  return d.toISOString().slice(0, 10);
+}
+
+function sliceFrom(s: ChartSeries, cutoff: string | null, carry: boolean): ChartSeries {
+  if (!cutoff) return s;
+  let i = s.dates.findIndex((d) => d >= cutoff);
+  if (i < 0) i = s.dates.length;
+  const dates = s.dates.slice(i);
+  const values = s.values.slice(i);
+  // 계단식 겹선은 구간 시작 시점의 값을 이어받아 그린다
+  if (carry && i > 0 && (dates.length === 0 || dates[0] > cutoff)) {
+    dates.unshift(cutoff);
+    values.unshift(s.values[i - 1]);
+  }
+  return { dates, values };
 }
 
 function buildPath(
@@ -80,12 +116,27 @@ export function FxHistoryChart({
   suffix = "",
   digits,
   stepped = false,
-  series,
+  series: fullSeries,
   yAxis,
-  overlay,
+  overlay: fullOverlay,
   strength,
+  range,
+  onRangeChange,
 }: FxHistoryChartProps) {
   const [hoverT, setHoverT] = useState<number | null>(null);
+
+  const { series, overlay, shortFrom } = useMemo(() => {
+    const months = RANGES.find((r) => r.key === range)?.months ?? 0;
+    const lastIso = fullSeries.dates[fullSeries.dates.length - 1];
+    const cutoff = lastIso ? cutoffIso(lastIso, months) : null;
+    const sliced = sliceFrom(fullSeries, cutoff, false);
+    const ov = fullOverlay
+      ? { ...fullOverlay, series: sliceFrom(fullOverlay.series, cutoff, !!fullOverlay.stepped) }
+      : undefined;
+    // 데이터가 요청 기간보다 짧으면 시작일 안내
+    const short = cutoff && fullSeries.dates[0] > cutoff ? fullSeries.dates[0] : null;
+    return { series: sliced, overlay: ov, shortFrom: short };
+  }, [fullSeries, fullOverlay, range]);
 
   const chart = useMemo(() => {
     const n = series.dates.length;
@@ -190,7 +241,9 @@ export function FxHistoryChart({
               {overlay.label}
             </>
           )}
-          <span className="ml-1 font-normal text-zinc-400">· 7년</span>
+          <span className="ml-1 font-normal text-zinc-400">
+            · {RANGES.find((r) => r.key === range)?.label}
+          </span>
         </p>
         {!overlay && (
           <p className="text-[10px] tabular-nums text-zinc-400">
@@ -223,11 +276,34 @@ export function FxHistoryChart({
         )}
       </div>
 
+      <div className="mb-1 flex flex-wrap items-center gap-1">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => onRangeChange(r.key)}
+            aria-pressed={range === r.key}
+            className={
+              range === r.key
+                ? "rounded-md border border-blue-300 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
+                : "rounded-md border border-transparent px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            }
+          >
+            {r.label}
+          </button>
+        ))}
+        {shortFrom && (
+          <span className="ml-1 text-[10px] text-zinc-400">
+            데이터 시작 {shortFrom}
+          </span>
+        )}
+      </div>
+
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         role="img"
-        aria-label={`${label} 7년 추이 차트`}
+        aria-label={`${label} 추이 차트`}
         onMouseLeave={() => setHoverT(null)}
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();

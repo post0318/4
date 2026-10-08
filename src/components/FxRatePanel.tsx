@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FxHistoryChart, type ChartSeries } from "@/components/FxHistoryChart";
+import {
+  FxHistoryChart,
+  DEFAULT_RANGE,
+  RANGES,
+  type ChartSeries,
+  type RangeKey,
+} from "@/components/FxHistoryChart";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { cn, hint } from "@/lib/ui";
@@ -27,10 +33,11 @@ interface FxHistory {
 /**
  * 브라질 시장정보 — 원/헤알·원/달러·달러/헤알 환율과 브라질 기준금리(Selic).
  * 원/헤알은 usdKrw/usdBrl 파생값(표시·수량계산 일치용).
- * 카드를 누르면 아래에 해당 지표의 7년 추이 차트가 열린다(시작 시 원/헤알).
+ * 카드를 누르면 아래에 해당 지표의 추이 차트가 열린다(기간 선택 기본 1년)(시작 시 원/헤알).
  */
 export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelProps) {
   const [selected, setSelected] = useState<CardKey>("krwBrl");
+  const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
   const [hist, setHist] = useState<FxHistory | null>(null);
   const [selic, setSelic] = useState<ChartSeries | null>(null);
   const [ntnf, setNtnf] = useState<ChartSeries | null>(null);
@@ -38,6 +45,13 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
   const [chartError, setChartError] = useState<string | null>(null);
   const [staleWarning, setStaleWarning] = useState<string | null>(null);
   const [chartNote, setChartNote] = useState<string | null>(null);
+
+  const changeRange = (r: RangeKey) => {
+    setRange(r);
+    try {
+      localStorage.setItem("fxChartRange", r);
+    } catch {}
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +63,11 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
     ])
       .then(([fxRes, selicRes, ntnfRes]) => {
         if (cancelled) return;
+        // 저장된 기간 복원 (localStorage 불가 환경은 기본값)
+        try {
+          const v = localStorage.getItem("fxChartRange");
+          if (v && RANGES.some((r) => r.key === v)) setRange(v as RangeKey);
+        } catch {}
         if (fxRes.status === "fulfilled" && Array.isArray(fxRes.value?.dates)) {
           setHist(fxRes.value as FxHistory);
         } else {
@@ -233,7 +252,7 @@ export function FxRatePanel({ rates, loading, error, onRefresh }: FxRatePanelPro
       {chartError && !hist && (
         <p className="mt-2 text-[11px] text-red-500">{chartError}</p>
       )}
-      {chartProps && <FxHistoryChart {...chartProps} />}
+      {chartProps && <FxHistoryChart {...chartProps} range={range} onRangeChange={changeRange} />}
 
       {chartNote && (
         <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{chartNote}</p>
