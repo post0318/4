@@ -167,8 +167,19 @@ export function FxHistoryChart({
      * 넓힌다(오너 지시 2026-09-22). 넉넉하게 잡아두면 선이 가운데 눌려 평탄해
      * 보이고, 좁게 고정하면 넘는 순간 말없이 잘린다. 그 사이를 취한다.
      */
-    const yMin = yAxis ? Math.min(yAxis.min, Math.floor(min)) : min - span * 0.1;
-    const yMax = yAxis ? Math.max(yAxis.max, Math.ceil(max)) : max + span * 0.1;
+    /*
+     * 2026-10-09 오너 지시: 금리 차트도 보이는 구간에 맞춰 세로축을 자동 조정한다(고정 기준 0~17% 는 1년 기본에서
+     * 선이 납작해 안 보였다). 금리는 0.5%p 단위로 내림·올림해 여백을 두고, 최소 폭 1%p.
+     */
+    const half = 0.5;
+    const padV = Math.max(span * 0.1, 0.25);
+    let yMin = yAxis ? Math.floor((min - padV) / half) * half : min - span * 0.1;
+    let yMax = yAxis ? Math.ceil((max + padV) / half) * half : max + span * 0.1;
+    if (yAxis && yMax - yMin < 1) {
+      const mid = (yMax + yMin) / 2;
+      yMin = Math.floor((mid - 0.5) / half) * half;
+      yMax = yMin + 1;
+    }
     // 눈금 위치 — 고정축이면 위·가운데·아래(0·중간·상한), 아니면 같은 셋
     const ticks = [0, 0.5, 1];
     const y = (v: number) =>
@@ -192,8 +203,43 @@ export function FxHistoryChart({
       if (time >= t0 && time <= t1) years.push({ x: px(time), label: `${yr}` });
     }
 
-    return { t0, t1, plotH, px, y, yMin, yMax, ticks, path, area, overlayPath, years };
-  }, [series, stepped, yAxis, overlay]);
+    /*
+     * 가로축 기간 눈금(오너 지시 2026-10-09): 1개월 = 일, 3개월 = 주(월요일), 6개월·1년 = 월,
+     * 3년 이상 = 분기. 1월 1일은 위의 연도 점선·연도 글자가 맡으므로 여기서는 뺀다.
+     */
+    const unit = range === "1m" ? "day" : range === "3m" ? "week" : range === "6m" || range === "1y" ? "month" : "quarter";
+    const xticks: { x: number; label: string }[] = [];
+    const pad2 = (v: number) => String(v).padStart(2, "0");
+    const iso = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    if (unit === "day") {
+      for (const d of series.dates) {
+        const [, m, dd] = d.split("-").map(Number);
+        if (m === 1 && dd === 1) continue;
+        xticks.push({ x: px(t(d)), label: `${m}/${dd}` });
+      }
+    } else if (unit === "week") {
+      const start = new Date(series.dates[0] + "T00:00:00");
+      for (let i = 0; i < 400; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const time = t(iso(d));
+        if (time > t1) break;
+        if (d.getDay() === 1 && !(d.getMonth() === 0 && d.getDate() === 1) && time >= t0)
+          xticks.push({ x: px(time), label: `${d.getMonth() + 1}/${d.getDate()}` });
+      }
+    } else {
+      const step = unit === "month" ? 1 : 3;
+      const start = new Date(series.dates[0] + "T00:00:00");
+      for (let i = 0; i < 400; i++) {
+        const c = new Date(start.getFullYear(), start.getMonth() + i, 1);
+        const time = t(iso(c));
+        if (time > t1) break;
+        if (time >= t0 && c.getMonth() !== 0 && c.getMonth() % step === 0)
+          xticks.push({ x: px(time), label: unit === "month" ? `${c.getMonth() + 1}월` : `${c.getMonth() / 3 + 1}Q` });
+      }
+    }
+
+    return { t0, t1, plotH, px, y, yMin, yMax, ticks, path, area, overlayPath, years, xticks };
+  }, [series, stepped, yAxis, overlay, range]);
 
   if (!chart) return null;
 
@@ -210,6 +256,7 @@ export function FxHistoryChart({
     area,
     overlayPath,
     years,
+    xticks,
   } = chart;
   const first = series.values[0];
   const last = series.values[series.values.length - 1];
@@ -337,6 +384,23 @@ export function FxHistoryChart({
             </g>
           );
         })}
+
+        {/* 기간 눈금(일·주·월·분기) — 아래 짧은 눈금선 + 글자 */}
+        {xticks.map((tk) => (
+          <g key={`tk-${tk.x}`}>
+            <line
+              x1={tk.x}
+              y1={PAD.top + plotH}
+              x2={tk.x}
+              y2={PAD.top + plotH + 3}
+              className="stroke-zinc-300 dark:stroke-zinc-600"
+              strokeWidth={1}
+            />
+            <text x={tk.x} y={H - 5} textAnchor="middle" className="fill-zinc-400 text-[8px] tabular-nums">
+              {tk.label}
+            </text>
+          </g>
+        ))}
 
         {/* 연도 경계도 세로 점선으로 나눈다(오너 지시 2026-09-22) */}
         {years.map((yr) => (
