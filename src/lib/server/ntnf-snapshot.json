@@ -1,68 +1,87 @@
 {
-  "asOfDate": "2026-10-06",
-  "generatedAt": "2026-10-08T01:40:37.584Z",
+  "asOfDate": "2026-10-07",
+  "generatedAt": "2026-10-08T22:03:26.078Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
-  "liveAsOfDate": "2026-10-07",
+  "liveAsOfDate": "2026-10-08",
   "liveSource": "https://www.tesourodireto.com.br/o/rentabilidade/{resgatar,investir}",
+  "quoteAsOfDate": "2026-10-08",
+  "quoteRule": "매수·매도수익률 = 같은 기준 시각의 쌍. 재무부 실시간 호가(같은 시각 같은 종목, 매수 호가가 없으면 같은 시각 다른 종목 호가차로 추정) > 최신 재무부 CSV 같은 기준일 원값(실시간 없음). ANBIMA 는 주문 계산에 쓰지 않는다(10년물 차트 전용).",
   "bonds": [
     {
       "maturityDate": "2027-01-01",
-      "buyRate": 13.21,
-      "sellRate": 13.33,
-      "buyPrice": null,
-      "sellPrice": 1019.53,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "quoteDate": "2026-10-08",
+      "source": "live-est",
+      "buyRate": 13.2,
+      "sellRate": 13.32,
+      "spread": 0.12,
+      "spreadRef": [
+        "2037-01-01"
+      ],
+      "estimated": true,
+      "note": "2026-10-08 재무부 실시간 매도 13.32% − 같은 시각 다른 종목(2037-01-01) 호가차 0.12%p (매수 호가 없음, 추정)"
     },
     {
       "maturityDate": "2029-01-01",
-      "buyRate": 12.3,
-      "sellRate": 12.42,
-      "buyPrice": null,
-      "sellPrice": 984.72,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "quoteDate": "2026-10-08",
+      "source": "live-est",
+      "buyRate": 12.15,
+      "sellRate": 12.27,
+      "spread": 0.12,
+      "spreadRef": [
+        "2037-01-01"
+      ],
+      "estimated": true,
+      "note": "2026-10-08 재무부 실시간 매도 12.27% − 같은 시각 다른 종목(2037-01-01) 호가차 0.12%p (매수 호가 없음, 추정)"
     },
     {
       "maturityDate": "2031-01-01",
-      "buyRate": 12.71,
-      "sellRate": 12.83,
-      "buyPrice": null,
-      "sellPrice": 943.31,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "quoteDate": "2026-10-08",
+      "source": "live-est",
+      "buyRate": 12.52,
+      "sellRate": 12.64,
+      "spread": 0.12,
+      "spreadRef": [
+        "2037-01-01"
+      ],
+      "estimated": true,
+      "note": "2026-10-08 재무부 실시간 매도 12.64% − 같은 시각 다른 종목(2037-01-01) 호가차 0.12%p (매수 호가 없음, 추정)"
     },
     {
       "maturityDate": "2033-01-01",
-      "buyRate": 12.88,
-      "sellRate": 13,
-      "buyPrice": null,
-      "sellPrice": 909.29,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "quoteDate": "2026-10-08",
+      "source": "live-est",
+      "buyRate": 12.69,
+      "sellRate": 12.81,
+      "spread": 0.12,
+      "spreadRef": [
+        "2037-01-01"
+      ],
+      "estimated": true,
+      "note": "2026-10-08 재무부 실시간 매도 12.81% − 같은 시각 다른 종목(2037-01-01) 호가차 0.12%p (매수 호가 없음, 추정)"
     },
     {
       "maturityDate": "2035-01-01",
-      "buyRate": 12.92,
-      "sellRate": 13.04,
-      "buyPrice": null,
-      "sellPrice": 885.65,
-      "sellLive": true,
-      "buyEstimated": true,
-      "buySpread": 0.12
+      "quoteDate": "2026-10-08",
+      "source": "live-est",
+      "buyRate": 12.72,
+      "sellRate": 12.84,
+      "spread": 0.12,
+      "spreadRef": [
+        "2037-01-01"
+      ],
+      "estimated": true,
+      "note": "2026-10-08 재무부 실시간 매도 12.84% − 같은 시각 다른 종목(2037-01-01) 호가차 0.12%p (매수 호가 없음, 추정)"
     },
     {
       "maturityDate": "2037-01-01",
-      "buyRate": 12.88,
-      "sellRate": 13,
-      "buyPrice": 875.41,
-      "sellPrice": 869.73,
-      "sellLive": true,
-      "buyLive": true
+      "quoteDate": "2026-10-08",
+      "source": "live",
+      "buyRate": 12.69,
+      "sellRate": 12.81,
+      "spread": 0.12,
+      "spreadRef": null,
+      "estimated": false,
+      "note": "2026-10-08 재무부 실시간 호가(같은 시각 매수 12.69% · 매도 12.81%)"
     }
   ]
 }
