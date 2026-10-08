@@ -16,9 +16,7 @@ export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
   if (!quote?.asOfDate) return null;
   const tail = settlementDate ? ` · 결제일 ${settlementDate}` : "";
   // 수익률 기준(오너 결정, 2026-10-09): 매수·매도는 같은 기준 시각의 쌍 — 재무부 실시간 호가 우선,
-  // 없으면 전일 CSV 원값(종목별로 '실시간 없음' 경고). ANBIMA 는 10년물 차트에만 쓴다.
-  const liveTail =
-    " · 매수·매도수익률 = 재무부 실시간 호가(같은 시각 쌍, 매수 호가 없는 종목은 다른 종목 호가차로 추정) > 없으면 전일 CSV(실시간 없음)";
+  // 없으면 전일 CSV 원값(종목별로 '실시간 없음' 경고). ANBIMA 는 10년물 차트에만 쓴다. 화면 안내 문구는 길어서 뺐다(오너 2026-10-09).
   if (quote.stale) {
     return (
       <p
@@ -26,7 +24,7 @@ export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
         className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
       >
         ⚠ 시세가 {quote.ageDays ?? "?"}일 전({quote.asOfDate}) 기준입니다. 일일 갱신이
-        실패했을 수 있으니 확인 후 사용하세요.{liveTail}{tail}
+        실패했을 수 있으니 확인 후 사용하세요.{tail}
       </p>
     );
   }
@@ -36,7 +34,6 @@ export function QuoteFreshnessNote({ quote, settlementDate }: Props) {
     >
       시세 기준일 {quote.asOfDate}
       {quote.ageDays != null && quote.ageDays > 0 ? ` (${quote.ageDays}일 전)` : ""}
-      {liveTail}
       {tail}
     </p>
   );
