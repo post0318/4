@@ -368,9 +368,9 @@ function AgendaColumn({
 }
 
 /**
- * 휴장은 맨 위 띠(전체폭), 나머지(경제지표·선거)는 좌: 이전일정 / 우: 예정일정.
- * 지난 선거는 이전일정에 TSE 개표 결과와 함께(오너 지시 2026-10-11 — 전엔 선거가
- * 맨 위 띠, 휴장이 2단이었다).
+ * 맨 위 띠(전체폭) = 앞으로 남은 선거(먼저) + 휴장. 나머지(경제지표·지난 선거)는
+ * 좌: 이전일정 / 우: 예정일정 — 지난 선거는 이전일정에 TSE 개표 결과와 함께
+ * (오너 지시 2026-10-11).
  */
 function AgendaBody({ agenda }: { agenda: AgendaItem[] | null }) {
   if (!agenda) {
@@ -387,8 +387,17 @@ function AgendaBody({ agenda }: { agenda: AgendaItem[] | null }) {
   }
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const holidays = agenda.filter((a) => a.category === "휴장");
-  const rest = agenda.filter((a) => a.category !== "휴장");
+  // 맨 위 띠 = 앞으로 남은 선거(먼저) + 휴장. 지난 선거는 아래 이전일정에 결과와 함께
+  const isTop = (a: AgendaItem) =>
+    a.category === "휴장" || (a.category === "선거" && a.date >= today);
+  const top = agenda
+    .filter(isTop)
+    .sort(
+      (a, b) =>
+        Number(b.category === "선거") - Number(a.category === "선거") ||
+        a.date.localeCompare(b.date)
+    );
+  const rest = agenda.filter((a) => !isTop(a));
   const past = rest.filter((a) => a.date < today);
   const upcoming = rest.filter((a) => a.date >= today);
 
@@ -400,10 +409,10 @@ function AgendaBody({ agenda }: { agenda: AgendaItem[] | null }) {
 
   return (
     <>
-      {holidays.length > 0 && (
+      {top.length > 0 && (
         <ul className="mb-3 space-y-1.5 border-b border-zinc-100 pb-2 dark:border-zinc-800">
-          {holidays.map((a, i) => (
-            <AgendaRow key={`h-${i}`} a={a} />
+          {top.map((a, i) => (
+            <AgendaRow key={`t-${i}`} a={a} />
           ))}
         </ul>
       )}
