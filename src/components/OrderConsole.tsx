@@ -92,9 +92,9 @@ export function OrderConsole({
   const clientMode = shareOk?.meta.client ?? false;
   // 트레이딩 탭·공유 링크 생성 — 꺼져 있거나 고객 모드면 숨김(오너 지시 2026-10-11)
   const hideTrading = clientMode || !tradingEnabled;
-  // 인쇄·복사 차단 + 워터마크 — 승인 계정으로 로그인하지 않은 방문자 전원(오너 지시
-  // 2026-10-11, 로그인은 본사 승인자만). 로그인 확인 전에도 차단 쪽으로 둔다.
-  const restricted = clientMode || !tradingUnlocked;
+  // 인쇄·복사 차단 + 워터마크 — 승인 계정으로 로그인하지 않은 방문자가 **현금흐름 탭**을
+  // 볼 때(오너 지시 2026-10-11, 로그인은 본사 승인자만). 고객 모드 링크는 모든 탭.
+  // 로그인 확인 전에도 차단 쪽으로 둔다.
   const clientIssued = shareOk?.meta.issued ?? null;
   const shareInput = shareOk?.input ?? null;
   const shareProblem =
@@ -113,6 +113,7 @@ export function OrderConsole({
    * 공유 링크로 들어오면 링크가 담은 현금흐름부터 보여준다.
    */
   const [tab, setTab] = useState<TabKey>(shareOk ? "cashflow" : "market");
+  const restricted = clientMode || (!tradingUnlocked && tab === "cashflow");
 
   /**
    * 저장된 탭 복원은 마운트 뒤에 한다 — 초기값에서 sessionStorage 를
