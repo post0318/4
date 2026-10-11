@@ -7,6 +7,7 @@
 
 import { fetchWithTimeout } from "@/lib/server/fetchWithTimeout";
 import { translateChecked } from "@/lib/server/translate";
+import { digestTitles } from "@/lib/server/newsDigest";
 
 /** 숫자 문자 참조 → 문자. BMP 밖(이모지 등)도 처리하고, 범위 밖이면 원문 유지. */
 function codePointOrRaw(code: number, raw: string): string {
@@ -29,6 +30,10 @@ export interface NewsItem {
   titlePt: string;
   /** 왕복검증 통과 여부. false면 번역이 의심스러우니 원문 우선 */
   translationOk: boolean;
+  /** Gemini 한 줄 해설(글로벌 뉴스, 제목 기준). 없으면 null/생략 */
+  note?: string | null;
+  /** Gemini 로 번역했으면 true, 무료 번역·원문이면 생략 */
+  ai?: boolean;
   link: string;
   category: string;
   publishedAt: string;
@@ -109,7 +114,8 @@ const GLOBAL_OFF_TOPIC =
 
 /**
  * 브라질 관련 글로벌(영문) 뉴스 상위 N개. Google 뉴스 영문 검색 피드는 보도량
- * 기준으로 정렬되므로 "글로벌 상위"에 가깝다. 제목은 en→ko 번역.
+ * 기준으로 정렬되므로 "글로벌 상위"에 가깝다. 제목은 Gemini 번역 + 한 줄 해설
+ * (newsDigest, GEMINI_API_KEY 있을 때), 없거나 실패하면 무료 en→ko 번역.
  */
 export async function fetchGlobalBrazilNews(limit = 5): Promise<NewsItem[]> {
   const list = await fetchFeed(
@@ -126,7 +132,26 @@ export async function fetchGlobalBrazilNews(limit = 5): Promise<NewsItem[]> {
     picked.push(it);
     if (picked.length >= limit) break;
   }
-  return translateItems(picked, "en");
+  // Gemini 번역·해설(기사별 저장) 우선, 못 받은 항목만 무료 번역으로
+  const ai = await digestTitles(picked);
+  const rest = picked.filter((_, i) => !ai[i]);
+  const fallback = await translateItems(rest, "en");
+  let f = 0;
+  return picked.map((item, i) => {
+    const d = ai[i];
+    if (!d) return fallback[f++];
+    return {
+      titleKo: d.titleKo,
+      titlePt: item.title,
+      translationOk: true,
+      note: d.note || null,
+      ai: true,
+      link: item.link,
+      category: item.category,
+      publishedAt: item.publishedAt,
+      source: item.source,
+    };
+  });
 }
 
 /**

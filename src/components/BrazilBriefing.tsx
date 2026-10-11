@@ -6,6 +6,8 @@ interface NewsItem {
   titleKo: string;
   titlePt: string;
   translationOk: boolean;
+  note?: string | null;
+  ai?: boolean;
   link: string;
   category: string;
   publishedAt: string;
@@ -104,6 +106,11 @@ function NewsList({ items }: { items: NewsItem[] }) {
             <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
               번역 불확실
             </span>
+          )}
+          {n.note && (
+            <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+              {n.note}
+            </p>
           )}
           <p className="mt-0.5 text-[11px] text-zinc-400">
             <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
@@ -390,7 +397,9 @@ export function BrazilBriefing() {
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             브라질 관련 글로벌 뉴스{" "}
             <span className="text-[11px] font-normal text-zinc-400">
-              (영문 · 자동 번역)
+              {global?.some((n) => n.ai)
+                ? "(영문 · AI 번역·해설, 제목 기준)"
+                : "(영문 · 자동 번역)"}
             </span>
           </h2>
           {!global && (
