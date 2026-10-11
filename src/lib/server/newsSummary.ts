@@ -88,7 +88,11 @@ function verifyNewsLink(link: string, sig: string): boolean {
 
 export async function getCachedSummaries(links: string[]): Promise<(NewsSummary | null)[]> {
   const keys = links.map(keyOf);
-  const out = keys.map((k) => memory.get(k) ?? null);
+  // 메모리는 확정된 것만 믿는다 — 옛 "요약 불가"가 남아 있으면 Redis 의 새 요약을 가린다
+  const out = keys.map((k) => {
+    const m = memory.get(k) ?? null;
+    return m && !needsSummary(m) ? m : null;
+  });
   const store = redis();
   if (store && out.some((s) => !s)) {
     try {
