@@ -3,7 +3,12 @@ import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { GeminiQuotaError, geminiText, isGeminiConfigured } from "@/lib/server/gemini";
-import { fetchArticleText, resolveGoogleNewsUrl } from "@/lib/server/newsArticle";
+import {
+  type AltArticle,
+  fetchArticleText,
+  findAlternateCoverage,
+  resolveGoogleNewsUrl,
+} from "@/lib/server/newsArticle";
 
 /**
  * 글로벌 뉴스 클릭 요약(오너 지시 2026-10-11, **비용 0 원칙**). 목록은 무료 번역 그대로,
@@ -29,7 +34,16 @@ export interface NewsSummary {
   fromText: boolean;
   /** 누가 만들었나 — "oracle" | "click" */
   by: string;
+  /** 요약 근거 — article: 원문 본문 · other: 원문을 못 읽어 같은 사건의 다른 매체 기사 ·
+   *  link: 모델이 링크를 직접 읽음. 옛 저장본엔 없다 */
+  basis?: Basis;
+  /** basis=other 일 때 참고한 매체 */
+  sources?: { url: string; source: string }[];
+  /** 다른 매체 찾기까지 시도했는지 — 옛 "요약 불가" 저장본은 없어서 한 번 더 시도된다 */
+  altTried?: boolean;
 }
+
+export type Basis = "article" | "other" | "link";
 
 export type SummaryResult =
   | { ok: true; summary: NewsSummary }
@@ -107,11 +121,24 @@ const toResult = (s: NewsSummary): SummaryResult =>
 export interface PreparedArticle {
   url: string;
   text: string;
+  /** 원문을 못 읽었을 때 찾은 같은 사건의 다른 매체 기사 */
+  alt: AltArticle[];
 }
 
-export async function prepareArticle(link: string): Promise<PreparedArticle> {
+export async function prepareArticle(link: string, title: string): Promise<PreparedArticle> {
   const url = (await resolveGoogleNewsUrl(link)) ?? link;
-  return { url, text: await fetchArticleText(url) };
+  const text = await fetchArticleText(url);
+  const alt = text.length >= MIN_TEXT ? [] : await findAlternateCoverage(title, url, MIN_TEXT);
+  return { url, text, alt };
+}
+
+export function basisOf(a: PreparedArticle): Basis {
+  return a.text.length >= MIN_TEXT ? "article" : a.alt.length ? "other" : "link";
+}
+
+/** 저장본이 없거나, 옛 "요약 불가" 저장본이라 다른 매체로 한 번 더 해볼 기사 */
+export function needsSummary(s: NewsSummary | null): boolean {
+  return !s || (s.bullets.length === 0 && !s.altTried);
 }
 
 /** 요약 지시문 — 오라클 스크립트도 pending 응답으로 같은 문구를 받아 쓴다 */
@@ -124,9 +151,19 @@ export const SUMMARY_PROMPT = `너는 브라질 국채(NTN-F)를 매수하는 �
 - 기사 본문을 읽을 수 없으면 {"titleKo":"","bullets":[]} 를 출력한다.`;
 
 export function articleInput(title: string, a: PreparedArticle): string {
-  return a.text.length >= MIN_TEXT
-    ? `제목: ${title}\n원문: ${a.url}\n\n본문:\n${a.text}`
-    : `제목: ${title}\n아래 링크의 기사를 읽고 정리하라.\n${a.url}`;
+  switch (basisOf(a)) {
+    case "article":
+      return `제목: ${title}\n원문: ${a.url}\n\n본문:\n${a.text}`;
+    case "other":
+      return (
+        `제목: ${title}\n원문(${a.url})은 유료 구독·접근 차단으로 읽을 수 없어, 같은 사건을 다룬 ` +
+        `다른 매체 기사를 준다. 이 기사들이 위 제목과 같은 사건일 때만 그 기사들에 있는 사실로 ` +
+        `요약하고(titleKo 는 원문 제목의 번역), 다른 사건이면 빈 JSON 을 출력하라.\n\n` +
+        a.alt.map((x, i) => `[다른 매체 ${i + 1}: ${x.source}]\n${x.text}`).join("\n\n")
+      );
+    default:
+      return `제목: ${title}\n아래 링크의 기사를 읽고 정리하라.\n${a.url}`;
+  }
 }
 
 export function parseSummary(text: string): { titleKo: string; bullets: string[] } | null {
@@ -168,8 +205,9 @@ async function takeDailySlot(store: Redis | null): Promise<boolean> {
 
 async function generateOnClick(link: string, title: string): Promise<SummaryResult> {
   if (!(await takeDailySlot(redis()))) return { ok: false, reason: "quota" };
-  const a = await prepareArticle(link);
-  const fromText = a.text.length >= MIN_TEXT;
+  const a = await prepareArticle(link, title);
+  const basis = basisOf(a);
+  const fromText = basis !== "link";
   try {
     const out = await geminiText({
       system: SUMMARY_PROMPT,
@@ -179,7 +217,15 @@ async function generateOnClick(link: string, title: string): Promise<SummaryResu
     });
     const parsed = parseSummary(out);
     if (!parsed) return { ok: false, reason: "error" };
-    const summary: NewsSummary = { ...parsed, url: a.url, fromText, by: "click" };
+    const summary: NewsSummary = {
+      ...parsed,
+      url: a.url,
+      fromText,
+      by: "click",
+      basis,
+      sources: basis === "other" ? a.alt.map(({ url, source }) => ({ url, source })) : undefined,
+      altTried: true,
+    };
     await saveSummary(link, summary).catch(() => {});
     return toResult(summary);
   } catch (err) {
@@ -194,7 +240,7 @@ async function generateOnClick(link: string, title: string): Promise<SummaryResu
  */
 export async function getNewsSummary(link: string, sig: string, title: string): Promise<SummaryResult> {
   const [cached] = await getCachedSummaries([link]);
-  if (cached) return toResult(cached);
+  if (cached && !needsSummary(cached)) return toResult(cached);
   if (!isGeminiConfigured() || !verifyNewsLink(link, sig)) return { ok: false, reason: "pending" };
   const key = keyOf(link);
   const running = inflight.get(key);

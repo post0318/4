@@ -78,6 +78,63 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
+export interface AltArticle {
+  url: string;
+  source: string;
+  text: string;
+}
+
+/**
+ * 원문을 못 읽을 때(유료벽·봇 차단) 같은 사건을 다룬 **다른 매체** 기사를 찾는다.
+ * Gemini 검색 그라운딩은 결제 미연결 무료 키에서 막혀 있어(429, 2026-10-11 실측)
+ * Google 뉴스 RSS 검색(무료)으로 대신한다. 본문이 minText 이상 읽히는 것만 최대 max건.
+ */
+export async function findAlternateCoverage(
+  title: string,
+  excludeUrl: string,
+  minText: number,
+  max = 2
+): Promise<AltArticle[]> {
+  const excludeHost = (() => {
+    try {
+      return new URL(excludeUrl).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  })();
+  let xml = "";
+  try {
+    const res = await fetch(
+      `https://news.google.com/rss/search?q=${encodeURIComponent(title)}&hl=en-US&gl=US&ceid=US:en`,
+      { headers: { "user-agent": UA }, signal: AbortSignal.timeout(STEP_TIMEOUT_MS) }
+    );
+    if (res.ok) xml = await res.text();
+  } catch {
+    return [];
+  }
+  const candidates = (xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [])
+    .map((b) => ({
+      link: b.match(/<link>([\s\S]*?)<\/link>/i)?.[1]?.trim() ?? "",
+      source: decodeEntities(b.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1]?.trim() ?? ""),
+    }))
+    .filter((c) => c.link)
+    .slice(0, 6);
+
+  const out: AltArticle[] = [];
+  for (const c of candidates) {
+    if (out.length >= max) break;
+    const url = await resolveGoogleNewsUrl(c.link);
+    if (!url) continue;
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (host === excludeHost || out.some((o) => new URL(o.url).hostname.replace(/^www\./, "") === host)) {
+      continue;
+    }
+    const text = await fetchArticleText(url);
+    if (text.length >= minText) out.push({ url, source: c.source || host, text: text.slice(0, 6000) });
+  }
+  return out;
+}
+
 export async function fetchArticleText(url: string): Promise<string> {
   try {
     const res = await fetch(url, {

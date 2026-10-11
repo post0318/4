@@ -108,7 +108,7 @@ const GLOBAL_QUERY =
 // 거시·정치·시장과 무관한 기업/기술/문화 기사 제외 (국채 판단에 도움 안 됨).
 // 단, 중앙은행 규제·관세 등 정책 맥락이면 통과되도록 키워드를 좁게 잡는다.
 const GLOBAL_OFF_TOPIC =
-  /openai|chatgpt|\bllm\b|generative ai|data ?cent(er|re)|streaming|netflix|spotify|tiktok|world cup|olympics?|neymar|\bfootball\b|\bsoccer\b|carnival|celebrity|box office|\bfilm\b|\bmovie\b/i;
+  /openai|chatgpt|\bllm\b|generative ai|data ?cent(er|re)|streaming|netflix|spotify|tiktok|world cup|olympics?|neymar|\bfootball\b|\bsoccer\b|carnival|celebrity|wedding|married|box office|\bfilm\b|\bmovie\b/i;
 
 /**
  * 브라질 관련 글로벌(영문) 뉴스 상위 N개. Google 뉴스 영문 검색 피드는 보도량

@@ -76,11 +76,19 @@ for (const [n, it] of items.entries()) {
     const r = await fetch(`${SITE}/api/news-summary/ingest`, {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
-      body: JSON.stringify({ link: it.link, url: it.url, fromText: it.fromText, output }),
+      body: JSON.stringify({
+        link: it.link,
+        url: it.url,
+        fromText: it.fromText,
+        basis: it.basis,
+        sources: it.sources,
+        output,
+      }),
       signal: AbortSignal.timeout(30_000),
     });
     const j = await r.json().catch(() => ({}));
-    console.log(r.ok ? (j.unreadable ? "요약불가" : "저장") : `ingest ${r.status}`, "-", it.title);
+    const tag = it.basis === "other" ? "(다른 매체)" : "";
+    console.log(r.ok ? (j.unreadable ? "요약불가" : `저장${tag}`) : `ingest ${r.status}`, "-", it.title);
   } catch (e) {
     // 저장 안 됐으므로 pending 에 남아 다음 회차에 다시 시도된다
     console.error("실패 -", it.title, "-", e.message);

@@ -16,6 +16,9 @@ interface Summary {
   titleKo: string;
   bullets: string[];
   url: string;
+  /** other = 원문을 못 읽어 같은 사건의 다른 매체 기사로 요약 */
+  basis?: "article" | "other" | "link";
+  sources?: { url: string; source: string }[];
 }
 
 type State =
@@ -105,6 +108,30 @@ export function NewsSummaryModal({
         <div className="mt-3 text-xs text-zinc-700 dark:text-zinc-300">
           {state.kind === "loading" && (
             <p className="text-zinc-500 dark:text-zinc-400">요약을 불러오는 중…</p>
+          )}
+          {state.kind === "ok" && state.summary.basis === "other" && (
+            <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+              원문(유료 구독·접근 차단)을 읽을 수 없어 같은 사건을 다룬 다른 매체 보도로
+              요약했습니다
+              {state.summary.sources?.length ? (
+                <>
+                  {" — "}
+                  {state.summary.sources.map((s, i) => (
+                    <span key={s.url}>
+                      {i > 0 && ", "}
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                      >
+                        {s.source}
+                      </a>
+                    </span>
+                  ))}
+                </>
+              ) : null}
+            </p>
           )}
           {state.kind === "ok" && (
             <ul className="space-y-1.5">
