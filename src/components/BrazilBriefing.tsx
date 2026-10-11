@@ -89,7 +89,7 @@ function NewsRow({
   meta: string;
 }) {
   const titleCls =
-    "min-w-0 truncate text-left font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400";
+    "min-w-0 truncate text-left text-sm font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400";
   return (
     <li className="py-2.5 text-xs first:pt-0 last:pb-0">
       <div className="flex h-5 items-center gap-1 leading-5">
