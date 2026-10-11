@@ -12,6 +12,15 @@ import { auth, currentUser } from "@clerk/nextjs/server";
  * 두 번째 방어선이다.
  */
 
+/**
+ * 트레이딩 탭·주문 발송·공유 링크 생성을 켤지(오너 지시 2026-10-11 — 이메일 발송이
+ * 막혀 운영 화면에서 뺀다, 코드는 보관). `TRADING_ENABLED=1` 일 때만 켠다 — 기본 꺼짐.
+ * 이미 발급된 공유 링크를 여는 것은 영향 없다.
+ */
+export function tradingEnabled(): boolean {
+  return process.env.TRADING_ENABLED === "1";
+}
+
 export function allowedEmailDomains(): string[] {
   const raw = process.env.ALLOWED_EMAIL_DOMAINS ?? "hanwha.com";
   return raw

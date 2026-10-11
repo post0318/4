@@ -148,6 +148,13 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
 
 ## 로그인 (Clerk)
 
+**트레이딩·공유 링크 생성은 운영 화면에서 숨김**(오너 지시 2026-10-11 — 이메일 발송이 막혀서,
+코드는 보관). `TRADING_ENABLED=1` 일 때만 탭·`/api/send-order`·`/api/share-link` POST 가 열린다
+(`appAuth.ts` `tradingEnabled()`, 꺼지면 API 404). 이미 발급된 공유 링크 열람은 그대로.
+**인쇄·복사 차단 + 워터마크(`ClientViewGuard`)는 승인 계정으로 로그인하지 않은 방문자 전원**에게
+건다(로그인 확인 전에도 차단 쪽). 승인자가 로그인하면 풀린다. 헤더의 로그인·가입 링크는
+고객 모드가 아니면 항상 보인다.
+
 트레이딩 탭·주문 발송 API·수신자 기본값·공유 링크 생성은 승인된 회사 계정만.
 `src/proxy.ts`(clerkMiddleware) → `src/lib/server/appAuth.ts`의 `requireTradingUser()`
 로 API 잠금, 화면은 `TradingGate`(로그인 팝업·가입 신청)와 `useAppAuth()`

@@ -61,6 +61,8 @@ interface OrderConsoleProps {
   allowedDomains: string[];
   /** `/?signup=1` — 가입 신청 폼을 바로 연다 */
   openSignup?: boolean;
+  /** 트레이딩 탭·공유 링크 생성 노출(서버 `TRADING_ENABLED=1`). 기본 꺼짐 — 코드만 보관 */
+  tradingEnabled?: boolean;
 }
 
 export function OrderConsole({
@@ -68,6 +70,7 @@ export function OrderConsole({
   viewerIp = null,
   allowedDomains,
   openSignup = false,
+  tradingEnabled = false,
 }: OrderConsoleProps) {
   // 트레이딩 탭·주문 발송은 승인된 회사 계정만 (감사 ⑤ 치명1). 서버 API 도 같은 기준.
   const auth = useAppAuth();
@@ -86,7 +89,12 @@ export function OrderConsole({
   // 고객 공유 링크(고객 모드)면 트레이딩(주문) 탭 숨김 + 인쇄·복사 차단.
   // 서버가 해석해 내려주므로 서버 HTML 과 첫 클라이언트 렌더가 같다.
   const shareOk = share?.status === "ok" ? share : null;
-  const hideTrading = shareOk?.meta.client ?? false;
+  const clientMode = shareOk?.meta.client ?? false;
+  // 트레이딩 탭·공유 링크 생성 — 꺼져 있거나 고객 모드면 숨김(오너 지시 2026-10-11)
+  const hideTrading = clientMode || !tradingEnabled;
+  // 인쇄·복사 차단 + 워터마크 — 승인 계정으로 로그인하지 않은 방문자 전원(오너 지시
+  // 2026-10-11, 로그인은 본사 승인자만). 로그인 확인 전에도 차단 쪽으로 둔다.
+  const restricted = clientMode || !tradingUnlocked;
   const clientIssued = shareOk?.meta.issued ?? null;
   const shareInput = shareOk?.input ?? null;
   const shareProblem =
@@ -122,7 +130,11 @@ export function OrderConsole({
     }
     try {
       const saved = sessionStorage.getItem(TAB_KEY);
-      if (saved && (TAB_KEYS as readonly string[]).includes(saved)) {
+      if (
+        saved &&
+        (TAB_KEYS as readonly string[]).includes(saved) &&
+        !(saved === "trading" && hideTrading)
+      ) {
         setTab(saved as TabKey);
       }
     } catch {
@@ -130,7 +142,7 @@ export function OrderConsole({
     }
     setTabRestored(true);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [shareOk]);
+  }, [shareOk, hideTrading]);
 
   /**
    * 복원된 탭이 트레이딩인데 로그인 전이면 클릭했을 때처럼 로그인
@@ -290,7 +302,7 @@ export function OrderConsole({
 
   // 기본 수신자·참조는 로그인(승인 계정) 후에만 조회 — API 가 잠겨 있다.
   useEffect(() => {
-    if (!tradingUnlocked) return;
+    if (!tradingUnlocked || hideTrading) return;
     let cancelled = false;
     (async () => {
       try {
@@ -306,7 +318,7 @@ export function OrderConsole({
     return () => {
       cancelled = true;
     };
-  }, [tradingUnlocked]);
+  }, [tradingUnlocked, hideTrading]);
 
   const settlement = useMemo(() => getOrderSettlementDate(today()), []);
   const settlementDate = toISODate(settlement);
@@ -540,7 +552,7 @@ export function OrderConsole({
 
   return (
     <div className="print-page mx-auto grid grid-cols-1 max-w-6xl gap-5 p-4 sm:p-6">
-      {hideTrading && <ClientViewGuard issued={clientIssued} viewerIp={viewerIp} />}
+      {restricted && <ClientViewGuard issued={clientIssued} viewerIp={viewerIp} />}
       {shareProblem && (
         <p
           role="alert"
@@ -606,8 +618,8 @@ export function OrderConsole({
               </UserButton>
             </div>
           )}
-          {auth.enabled && auth.isLoaded && !auth.isSignedIn && !hideTrading && (
-            // 처음 오는 사람이 헤매지 않도록 트레이딩 탭 위에 로그인·가입 링크
+          {auth.enabled && auth.isLoaded && !auth.isSignedIn && !clientMode && (
+            // 승인자가 로그인해 인쇄·복사 제한을 풀 수 있도록 헤더에 로그인·가입 링크
             <div className="flex items-center gap-3 text-sm">
               <button
                 type="button"

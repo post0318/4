@@ -23,6 +23,7 @@ import {
   allowedEmailDomains,
   isAllowedEmail,
   requireTradingUser,
+  tradingEnabled,
 } from "@/lib/server/appAuth";
 
 export const runtime = "nodejs";
@@ -121,6 +122,8 @@ async function sendEmail(params: {
 }
 
 export async function POST(request: NextRequest) {
+  // 트레이딩·공유 링크 생성이 꺼져 있으면 없는 API 처럼(오너 지시 2026-10-11)
+  if (!tradingEnabled()) return NextResponse.json({ error: "not found" }, { status: 404 });
   // 승인된 회사 계정만 (감사 ⑤ 치명1)
   const who = await requireTradingUser();
   if (!who.ok) return NextResponse.json({ error: who.error }, { status: who.status });
@@ -462,6 +465,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  // 트레이딩·공유 링크 생성이 꺼져 있으면 없는 API 처럼(오너 지시 2026-10-11)
+  if (!tradingEnabled()) return NextResponse.json({ error: "not found" }, { status: 404 });
   // 수신자 기본값(실제 이메일 주소)도 승인 계정에만 (감사 ⑤ 치명2 후속)
   const who = await requireTradingUser();
   if (!who.ok) return NextResponse.json({ error: who.error }, { status: who.status });

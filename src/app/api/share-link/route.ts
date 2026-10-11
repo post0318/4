@@ -7,7 +7,7 @@ import {
   tokenStoreKind,
   type ShareMethod,
 } from "@/lib/server/shareLink";
-import { requireTradingUser } from "@/lib/server/appAuth";
+import { requireTradingUser, tradingEnabled } from "@/lib/server/appAuth";
 
 export const runtime = "nodejs";
 
@@ -47,6 +47,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // 트레이딩·공유 링크 생성이 꺼져 있으면 없는 API 처럼(오너 지시 2026-10-11)
+  if (!tradingEnabled()) return NextResponse.json({ error: "not found" }, { status: 404 });
   // 링크 생성은 승인된 회사 계정만 — 외부인이 저장소를 채우지 못하게
   const who = await requireTradingUser();
   if (!who.ok) return NextResponse.json({ error: who.error }, { status: who.status });
