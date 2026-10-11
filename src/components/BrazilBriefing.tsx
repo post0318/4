@@ -67,17 +67,17 @@ function fmtDate(iso: string): string {
 const PAGE_SIZE = 5;
 
 /**
- * 뉴스 한 행 — 좌(현지)·우(글로벌) 가로줄이 정확히 맞도록 네 줄 모두 높이를 고정한다
+ * 뉴스 한 행 — 좌(현지)·우(글로벌) 가로줄이 정확히 맞도록 세 줄 모두 높이를 고정한다
  * (오너 지시 2026-10-11, 글로벌 핵심지표(post0318/5) 시장 뉴스와 같은 틀). 내용이 없는
  * 줄도 같은 높이를 차지한다 — 공백 문자로 채우면 높이가 0으로 접혀 어긋난다.
- *  1. 제목 · 2. 원제(글로벌만) · 3. 미리보기 1줄 · 4. 매체 · 시간
+ *  1. 제목 · 2. 미리보기 1줄 · 3. 매체 · 시간. 글로벌은 번역된 제목만 — 영문 원제는 번역이
+ *  안 됐을 때만(그때는 제목 자체가 영문) 보인다(오너 지시 2026-10-11).
  */
 function NewsRow({
   title,
   onOpen,
   href,
   badge,
-  sub,
   preview,
   meta,
 }: {
@@ -85,7 +85,6 @@ function NewsRow({
   onOpen?: () => void;
   href?: string;
   badge?: React.ReactNode;
-  sub?: string;
   preview?: string;
   meta: string;
 }) {
@@ -105,7 +104,6 @@ function NewsRow({
         )}
         {badge}
       </div>
-      <p className="h-4 truncate text-[11px] leading-4 text-zinc-400">{sub}</p>
       <p className="h-4 truncate text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
         {preview}
       </p>
@@ -207,7 +205,6 @@ function NewsList({ items }: { items: NewsItem[] }) {
                 </span>
               )
             }
-            sub={n.titleKo !== n.titlePt ? n.titlePt : undefined}
             preview={n.excerpt}
             meta={`${n.source} · ${relTime(n.publishedAt)}`}
           />
