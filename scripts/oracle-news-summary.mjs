@@ -11,7 +11,8 @@
  * CLI 는 링크 읽기 도구 승인 대기로 멈추기도 해서 REST 직접 호출로 바꿨다.
  *
  * 환경변수: NEWS_INGEST_TOKEN(필수), GEMINI_API_KEY(필수, AQ. 형식 무료 키),
- *          SITE_URL(기본 https://brazil-world.vercel.app), GEMINI_MODEL(기본 gemini-3.5-flash — 무료 등급에서 최신 Flash 는 100초+ 지연, 2026-10-11 실측)
+ *          SITE_URL(기본 https://brazil-world.vercel.app), GEMINI_MODEL(기본 gemini-3.5-flash — 무료 등급에서 최신 Flash 는 100초+ 지연, 2026-10-11 실측),
+ *          GEMINI_FALLBACK_MODEL(기본 gemini-3.5-flash-lite — 503·429·시간초과 시)
  * 실행: run.sh 를 cron 30분마다(flock 으로 겹침 방지). 새 기사가 없으면 Gemini 를 부르지 않는다.
  */
 
@@ -19,6 +20,8 @@ const SITE = (process.env.SITE_URL ?? "https://brazil-world.vercel.app").replace
 const TOKEN = process.env.NEWS_INGEST_TOKEN;
 const KEY = process.env.GEMINI_API_KEY?.trim();
 const MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
+// 기본 모델이 혼잡(503)·한도(429)·시간초과면 이 모델로 — 무료 RPM 15(Flash 는 5), 응답 ~1초
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.5-flash-lite";
 const PER_ITEM_TIMEOUT_MS = 120_000;
 // 무료 등급 분당 요청 한도에 걸리지 않도록 기사 사이 간격
 const GAP_MS = 7_000;
@@ -30,7 +33,27 @@ if (!TOKEN || !KEY) {
 const auth = { authorization: `Bearer ${TOKEN}` };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 이번 회차에 한도(429)가 난 모델은 다시 부르지 않는다
+const exhausted = new Set();
+
+/** 기본 → 대체 모델 순. 모두 실패하면 마지막 오류(status 포함)를 던진다 */
 async function gemini(prompt, input, readUrl) {
+  let last;
+  for (const model of [MODEL, FALLBACK_MODEL]) {
+    if (exhausted.has(model)) continue;
+    try {
+      return { text: await callModel(model, prompt, input, readUrl), model };
+    } catch (e) {
+      last = e;
+      if (e.status === 429) exhausted.add(model);
+      const retryable = e.status === 429 || e.status === 503 || e.name === "TimeoutError";
+      if (!retryable) throw e;
+    }
+  }
+  throw last ?? Object.assign(new Error("모든 모델 한도 도달"), { status: 429 });
+}
+
+async function callModel(model, prompt, input, readUrl) {
   const body = {
     systemInstruction: { parts: [{ text: prompt }] },
     contents: [{ role: "user", parts: [{ text: input }] }],
@@ -38,7 +61,7 @@ async function gemini(prompt, input, readUrl) {
   };
   if (readUrl) body.tools = [{ url_context: {} }];
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": KEY },
@@ -72,7 +95,7 @@ console.log(new Date().toISOString(), `대기 ${items.length}건`);
 for (const [n, it] of items.entries()) {
   if (n > 0) await sleep(GAP_MS);
   try {
-    const output = await gemini(prompt, it.input, !it.fromText);
+    const { text: output, model } = await gemini(prompt, it.input, !it.fromText);
     const r = await fetch(`${SITE}/api/news-summary/ingest`, {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
@@ -87,13 +110,13 @@ for (const [n, it] of items.entries()) {
       signal: AbortSignal.timeout(30_000),
     });
     const j = await r.json().catch(() => ({}));
-    const tag = it.basis === "other" ? "(다른 매체)" : "";
+    const tag = (it.basis === "other" ? "(다른 매체)" : "") + (model === MODEL ? "" : `(${model})`);
     console.log(r.ok ? (j.unreadable ? "요약불가" : `저장${tag}`) : `ingest ${r.status}`, "-", it.title);
   } catch (e) {
     // 저장 안 됐으므로 pending 에 남아 다음 회차에 다시 시도된다
     console.error("실패 -", it.title, "-", e.message);
-    if (e.status === 429) {
-      console.error("무료 한도 도달 — 이번 회차 중단");
+    if (exhausted.has(MODEL) && exhausted.has(FALLBACK_MODEL)) {
+      console.error("모든 모델 무료 한도 도달 — 이번 회차 중단");
       break;
     }
   }
