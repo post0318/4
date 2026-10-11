@@ -240,7 +240,7 @@ function DailyReportCard({ report }: { report: DailyReport }) {
                 {t.bullets.map((b, j) => (
                   <li
                     key={j}
-                    className="flex gap-1.5 text-xs text-zinc-600 dark:text-zinc-300"
+                    className="flex gap-1.5 text-[13px] leading-5 text-zinc-700 dark:text-zinc-300"
                   >
                     <span className="text-zinc-400">•</span>
                     <span>{b}</span>
