@@ -9,9 +9,10 @@ import "server-only";
  * 모델은 GEMINI_MODEL 로 교체 가능.
  */
 
-const DEFAULT_MODEL = "gemini-3.8-flash";
+// 무료 등급에서 최신 Flash(3.8·flash-latest)는 100초+ 지연 — 3.5 Flash 는 ~9초(2026-10-11 실측)
+const DEFAULT_MODEL = "gemini-3.5-flash";
 // 기본 모델이 404(이름 변경·폐기)일 때 순서대로 시도 — 위클리 앱과 같은 체인
-const FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-flash-latest"];
+const FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"];
 
 export function isGeminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);

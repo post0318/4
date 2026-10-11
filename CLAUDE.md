@@ -124,8 +124,8 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
   `NewsSummaryModal` 이 `/api/news-summary` 에서 저장된 한글 제목 + 요약 3~5줄 + 원문
   링크를 받는다. 저장소 Redis `news:sum:`(14일, `src/lib/server/newsSummary.ts`).
   요약을 만드는 주 경로는 **오라클 서버 스케줄러**(B): `scripts/oracle-news-summary.mjs`
-  가 10분마다 `/api/news-summary/pending`(요약 안 된 기사 + 원문 본문 입력문) →
-  Gemini CLI(정액 구독) → `/api/news-summary/ingest`. 두 API 는 `NEWS_INGEST_TOKEN`
+  (`macro-verify`(2호기) `~/macro/brazil_news`, `run.sh` 를 cron 30분마다, flock) 가 `/api/news-summary/pending`(요약 안 된 기사 + 원문 본문 입력문) →
+  Gemini REST(결제 미연결 무료 키, AQ. 형식, 기본 gemini-3.5-flash) → `/api/news-summary/ingest`. 두 API 는 `NEWS_INGEST_TOKEN`
   Bearer. 원문은 Google 뉴스 링크를 batchexecute 로 디코딩해 `<p>` 본문을 뽑는다
   (`newsArticle.ts`, 유료벽·403 이면 모델이 링크를 직접 읽음). 보조 경로(A): 사이트에
   `GEMINI_API_KEY` 가 있으면 저장본이 없을 때 클릭 시 생성 — **결제 미연결 무료 키만**
