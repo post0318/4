@@ -8,6 +8,8 @@ interface NewsItem {
   titlePt: string;
   translationOk: boolean;
   sig?: string;
+  /** 오라클 요약의 첫 문장 — 미리보기 1줄 */
+  excerpt?: string;
   link: string;
   category: string;
   publishedAt: string;
@@ -62,30 +64,117 @@ function fmtDate(iso: string): string {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}(${wd})`;
 }
 
-function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
+const PAGE_SIZE = 5;
+
+/**
+ * 뉴스 한 행 — 좌(현지)·우(글로벌) 가로줄이 정확히 맞도록 네 줄 모두 높이를 고정한다
+ * (오너 지시 2026-10-11, 글로벌 핵심지표(post0318/5) 시장 뉴스와 같은 틀). 내용이 없는
+ * 줄도 같은 높이를 차지한다 — 공백 문자로 채우면 높이가 0으로 접혀 어긋난다.
+ *  1. 제목 · 2. 원제(글로벌만) · 3. 미리보기 1줄 · 4. 매체 · 시간
+ */
+function NewsRow({
+  title,
+  onOpen,
+  href,
+  badge,
+  sub,
+  preview,
+  meta,
+}: {
+  title: string;
+  onOpen?: () => void;
+  href?: string;
+  badge?: React.ReactNode;
+  sub?: string;
+  preview?: string;
+  meta: string;
+}) {
+  const titleCls =
+    "min-w-0 truncate text-left font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400";
   return (
-    <ul className="space-y-2.5">
-      {items.map((n, i) => (
-        <li key={`${i}-${n.link}`} className="text-xs">
-          <a
-            href={n.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400"
-          >
-            {n.title}
+    <li className="py-2.5 text-xs first:pt-0 last:pb-0">
+      <div className="flex h-5 items-center gap-1 leading-5">
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className={titleCls}>
+            {title}
           </a>
-          {n.summary && (
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-              {n.summary}
-            </p>
-          )}
-          <p className="mt-0.5 text-[11px] text-zinc-400">
-            {n.source} · {relTime(n.publishedAt)}
-          </p>
-        </li>
+        ) : (
+          <button type="button" onClick={onOpen} className={titleCls}>
+            {title}
+          </button>
+        )}
+        {badge}
+      </div>
+      <p className="h-4 truncate text-[11px] leading-4 text-zinc-400">{sub}</p>
+      <p className="h-4 truncate text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+        {preview}
+      </p>
+      <p className="h-4 truncate text-[11px] leading-4 text-zinc-400">{meta}</p>
+    </li>
+  );
+}
+
+function Pager({
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (p: number) => void;
+}) {
+  if (pageCount <= 1) return null;
+  return (
+    <div className="mt-2 flex justify-center gap-1">
+      {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          className={
+            "size-6 rounded text-xs tabular-nums " +
+            (p === page
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800")
+          }
+        >
+          {p}
+        </button>
       ))}
-    </ul>
+    </div>
+  );
+}
+
+/** 5건씩 페이지 — 목록이 줄어 현재 페이지가 사라지면 마지막 페이지로 */
+function usePaged<T>(items: T[]) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const cur = Math.min(page, pageCount);
+  return {
+    page: cur,
+    pageCount,
+    setPage,
+    rows: items.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE),
+  };
+}
+
+function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
+  const pg = usePaged(items);
+  return (
+    <>
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        {pg.rows.map((n) => (
+          <NewsRow
+            key={n.link}
+            title={n.title}
+            href={n.link}
+            preview={n.summary}
+            meta={`${n.source} · ${relTime(n.publishedAt)}`}
+          />
+        ))}
+      </ul>
+      <Pager page={pg.page} pageCount={pg.pageCount} onChange={pg.setPage} />
+    </>
   );
 }
 
@@ -93,41 +182,38 @@ function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
 function NewsList({ items }: { items: NewsItem[] }) {
   const [open, setOpen] = useState<SummaryTarget | null>(null);
   const close = useCallback(() => setOpen(null), []);
+  const pg = usePaged(items);
   return (
     <>
       {open && <NewsSummaryModal target={open} onClose={close} />}
-      <ul className="space-y-2">
-        {items.map((n, i) => (
-          <li key={`${i}-${n.link}`} className="text-xs">
-            <button
-              type="button"
-              onClick={() =>
-                setOpen({
-                  link: n.link,
-                  sig: n.sig,
-                  title: n.titlePt,
-                  titleKo: n.titleKo,
-                  source: n.source,
-                })
-              }
-              className="text-left font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400"
-            >
-              {n.titleKo}
-            </button>
-            {!n.translationOk && (
-              <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                번역 불확실
-              </span>
-            )}
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
-                {n.category}
-              </span>{" "}
-              {n.source} · {relTime(n.publishedAt)}
-            </p>
-          </li>
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        {pg.rows.map((n) => (
+          <NewsRow
+            key={n.link}
+            title={n.titleKo}
+            onOpen={() =>
+              setOpen({
+                link: n.link,
+                sig: n.sig,
+                title: n.titlePt,
+                titleKo: n.titleKo,
+                source: n.source,
+              })
+            }
+            badge={
+              !n.translationOk && (
+                <span className="shrink-0 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  번역 불확실
+                </span>
+              )
+            }
+            sub={n.titleKo !== n.titlePt ? n.titlePt : undefined}
+            preview={n.excerpt}
+            meta={`${n.source} · ${relTime(n.publishedAt)}`}
+          />
         ))}
       </ul>
+      <Pager page={pg.page} pageCount={pg.pageCount} onChange={pg.setPage} />
     </>
   );
 }
@@ -336,7 +422,7 @@ function AgendaBody({ agenda }: { agenda: AgendaItem[] | null }) {
 
 /**
  * 환율 패널과 종목 표 사이에 놓이는 브라질 브리핑.
- * ① KOBRAS 데일리 리포트 → ② 뉴스(좌: 현지 · 우: 글로벌) → ③ 주요일정.
+ * ① KOBRAS 데일리 리포트 → ② 뉴스(좌: 현지 · 우: 글로벌, 최근 7일 최대 30건을 5건씩) → ③ 주요일정.
  */
 export function BrazilBriefing() {
   const [news, setNews] = useState<LocalNewsItem[] | null>(null);
@@ -384,10 +470,10 @@ export function BrazilBriefing() {
       {/* 뉴스: 좌 = 현지, 우 = 글로벌 */}
       <section className="grid gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:grid-cols-2">
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="mb-2 h-5 truncate text-sm font-semibold leading-5 text-zinc-900 dark:text-zinc-100">
             브라질 현지 뉴스{" "}
             <span className="text-[11px] font-normal text-zinc-400">
-              (좋은아침뉴스 · 상파울루 한인신문)
+              {news ? `(${news.length}) ` : ""}좋은아침뉴스 · 상파울루 한인신문
             </span>
           </h2>
           {!news && !newsError && (
@@ -402,10 +488,10 @@ export function BrazilBriefing() {
         </div>
 
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="mb-2 h-5 truncate text-sm font-semibold leading-5 text-zinc-900 dark:text-zinc-100">
             브라질 관련 글로벌 뉴스{" "}
             <span className="text-[11px] font-normal text-zinc-400">
-              (영문 · 자동 번역 · 제목을 누르면 요약)
+              {global ? `(${global.length}) ` : ""}영문 · 자동 번역 · 제목을 누르면 요약
             </span>
           </h2>
           {!global && (
