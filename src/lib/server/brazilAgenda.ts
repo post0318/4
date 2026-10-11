@@ -514,9 +514,96 @@ export async function fetchBrazilAgenda(
     (a, b) => a.date.localeCompare(b.date) || a.category.localeCompare(b.category)
   );
 
-  // 대선 일정은 창 밖이어도 항상 맨 위에 고정 (지난 회차는 제외)
-  const today = new Date().toISOString().slice(0, 10);
-  const elections = brazilElectionItems().filter((e) => e.date >= today);
+  // 대선 — 다가오는 회차는 창 밖이어도 넣고, 지난 회차는 창 안이면 TSE 개표 결과와 함께
+  // (오너 지시 2026-10-11 — 지난 일정에 선거 결과)
+  const elections = await withElectionResults(
+    brazilElectionItems().filter((e) => e.date >= from)
+  );
 
-  return [...elections, ...windowed];
+  return [...elections, ...windowed].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.category.localeCompare(b.category)
+  );
+}
+
+// ── 대선 개표 결과 (TSE 공식 JSON) ──────────────────────────────────
+// resultados.tse.jus.br/oficial/ele{연도}/{선거코드}/dados/br/br-c0001-e{코드6자리}-u.json
+// (c0001 = 대통령). 선거코드는 회차마다 TSE 가 새로 정한다 — 2026: 1차 6257 · 결선 6258
+// (2026-10-11 실측). 다음 대선(2030)은 코드를 확인해 여기에 추가해야 결과가 붙는다.
+const TSE_PRESIDENT_CODES: Record<number, [number, number]> = { 2026: [6257, 6258] };
+
+const KO_NAMES: Record<string, string> = {
+  "FLAVIO BOLSONARO": "플라비우 보우소나루",
+  LULA: "룰라",
+};
+
+function koName(nmu: string): string {
+  return (
+    KO_NAMES[nmu] ??
+    nmu
+      .toLowerCase()
+      .replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase())
+  );
+}
+
+interface TseCand {
+  nmu: string;
+  seq: string;
+  pvap: string;
+  st: string;
+}
+
+async function tseResult(year: number, round: 0 | 1): Promise<string | null> {
+  const code = TSE_PRESIDENT_CODES[year]?.[round];
+  if (!code) return null;
+  const res = await fetchOrNull(
+    `https://resultados.tse.jus.br/oficial/ele${year}/${code}/dados/br/br-c0001-e${String(code).padStart(6, "0")}-u.json`,
+    { headers: { "user-agent": "Mozilla/5.0" } },
+    8000
+  );
+  if (!res) return null;
+  try {
+    const j = (await res.json()) as {
+      s?: { pst?: string };
+      carg?: { agr?: { par?: { cand?: TseCand[] }[] }[] }[];
+    };
+    const cands = (j.carg?.[0]?.agr ?? [])
+      .flatMap((a) => a.par ?? [])
+      .flatMap((p) => p.cand ?? [])
+      .sort((a, b) => Number(a.seq) - Number(b.seq));
+    const pct = (c: TseCand) => `${c.pvap.replace(",", ".")}%`;
+    const top = cands.slice(0, 2).filter((c) => c.pvap && c.pvap !== "0,00");
+    if (top.length === 0) return null;
+    const status = (c: TseCand) =>
+      /2º turno/i.test(c.st) ? " 결선 진출" : /^eleito/i.test(c.st) ? " 당선" : "";
+    const counted = j.s?.pst && j.s.pst !== "100,00" ? ` (개표 ${j.s.pst.replace(",", ".")}%)` : "";
+    return top.map((c) => `${koName(c.nmu)} ${pct(c)}${status(c)}`).join(" · ") + counted;
+  } catch {
+    return null;
+  }
+}
+
+/** 지난 회차(오늘 이전)에만 결과를 붙인다. 결과를 못 받으면 항목은 그대로(결과 없음) */
+async function withElectionResults(items: AgendaItem[]): Promise<AgendaItem[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const out = await Promise.all(
+    items.map(async (e) => {
+      if (e.date >= today) return e;
+      const year = Number(e.date.slice(0, 4));
+      const round: 0 | 1 = e.titleKo.includes("결선") ? 1 : 0;
+      const actual = await tseResult(year, round);
+      return actual ? { ...e, released: true, actual } : e;
+    })
+  );
+  // 1차에서 결선이 확정되면 결선 항목의 "필요 시"를 빼고 대진을 적는다
+  const first = out.find((e) => !e.titleKo.includes("결선") && e.actual?.includes("결선 진출"));
+  if (!first?.actual) return out;
+  const pair = first.actual
+    .split(" · ")
+    .filter((s) => s.includes("결선 진출"))
+    .map((s) => s.replace(/\s[\d.]+%.*$/, ""));
+  return out.map((e) =>
+    e.titleKo.includes("결선") && e.date >= today
+      ? { ...e, titleKo: e.titleKo.replace(", 필요 시)", ")") + (pair.length === 2 ? ` — ${pair[0]} vs ${pair[1]}` : "") }
+      : e
+  );
 }
