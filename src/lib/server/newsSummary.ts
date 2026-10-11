@@ -41,6 +41,8 @@ export interface NewsSummary {
   sources?: { url: string; source: string }[];
   /** 다른 매체 찾기까지 시도했는지 — 옛 "요약 불가" 저장본은 없어서 한 번 더 시도된다 */
   altTried?: boolean;
+  /** 만든 지시문 버전(SUMMARY_VERSION). 옛 저장본엔 없다 = 1 */
+  v?: number;
 }
 
 export type Basis = "article" | "other" | "link";
@@ -140,17 +142,25 @@ export function basisOf(a: PreparedArticle): Basis {
   return a.text.length >= MIN_TEXT ? "article" : a.alt.length ? "other" : "link";
 }
 
-/** 저장본이 없거나, 옛 "요약 불가" 저장본이라 다른 매체로 한 번 더 해볼 기사 */
+/**
+ * 요약 지시문 버전 — 올리면 그보다 옛 저장본은 다시 만든다(pending 에 다시 뜬다).
+ * 1: 3~5줄·90자 / 2: 5~8줄·150자, 수치·배경·발언·전망 순(오너 지시 2026-10-11 "좀 더 자세히")
+ */
+export const SUMMARY_VERSION = 2;
+
+/** 저장본이 없거나, 옛 지시문 버전이거나, 옛 "요약 불가"라 다른 매체로 한 번 더 해볼 기사 */
 export function needsSummary(s: NewsSummary | null): boolean {
-  return !s || (s.bullets.length === 0 && !s.altTried);
+  return !s || (s.v ?? 1) < SUMMARY_VERSION || (s.bullets.length === 0 && !s.altTried);
 }
 
 /** 요약 지시문 — 오라클 스크립트도 pending 응답으로 같은 문구를 받아 쓴다 */
 export const SUMMARY_PROMPT = `너는 브라질 국채(NTN-F)를 매수하는 한국 금융회사 직원을 위해 영문 기사를 정리한다.
 반드시 아래 JSON 하나만 출력한다(코드블록·설명 없이):
 {"titleKo":"자연스러운 한국어 기사 제목","bullets":["요약 문장", "..."]}
-- bullets 는 3~5개, 각 한 문장(최대 90자), 기사에 있는 사실만. 수치·인명·날짜는 기사 그대로.
-- 기사에 없는 전망·평가를 덧붙이지 않는다.
+- bullets 는 5~8개, 각 1~2문장(최대 150자). 기사를 읽지 않아도 내용을 파악할 수 있을 만큼 자세히.
+- 순서: 핵심 사건 → 수치·시장 반응(지수·금리·환율·주가 등) → 배경·원인 → 주요 인물·기관의 발언(누가 무엇을 말했는지) → 기사에 나온 전망·다음 일정. 기사에 없는 항목은 건너뛴다.
+- 기사에 있는 사실만 쓴다. 수치·인명·날짜·기관명은 기사 그대로.
+- 기사에 없는 전망·평가를 덧붙이지 않는다(기사 속 인물·기관의 전망은 출처를 밝혀 써도 된다).
 - 고유명사는 통용 한글 표기(룰라, 페트로브라스, 헤알), COPOM 등 약어는 그대로.
 - 기사 본문을 읽을 수 없으면 {"titleKo":"","bullets":[]} 를 출력한다.`;
 
@@ -179,9 +189,9 @@ export function parseSummary(text: string): { titleKo: string; bullets: string[]
     const bullets = Array.isArray(j.bullets)
       ? j.bullets
           .filter((b): b is string => typeof b === "string" && b.trim() !== "")
-          .map((b) => b.trim().slice(0, 200))
+          .map((b) => b.trim().slice(0, 300))
       : [];
-    return { titleKo: titleKo.slice(0, 200), bullets: titleKo ? bullets.slice(0, 5) : [] };
+    return { titleKo: titleKo.slice(0, 200), bullets: titleKo ? bullets.slice(0, 8) : [] };
   } catch {
     return null;
   }
@@ -229,6 +239,7 @@ async function generateOnClick(link: string, title: string): Promise<SummaryResu
       basis,
       sources: basis === "other" ? a.alt.map(({ url, source }) => ({ url, source })) : undefined,
       altTried: true,
+      v: SUMMARY_VERSION,
     };
     await saveSummary(link, summary).catch(() => {});
     return toResult(summary);
@@ -244,7 +255,8 @@ async function generateOnClick(link: string, title: string): Promise<SummaryResu
  */
 export async function getNewsSummary(link: string, sig: string, title: string): Promise<SummaryResult> {
   const [cached] = await getCachedSummaries([link]);
-  if (cached && !needsSummary(cached)) return toResult(cached);
+  // 옛 버전이라도 내용이 있으면 새 요약이 들어올 때까지 그대로 보여준다
+  if (cached && (cached.bullets.length > 0 || !needsSummary(cached))) return toResult(cached);
   if (!isGeminiConfigured() || !verifyNewsLink(link, sig)) return { ok: false, reason: "pending" };
   const key = keyOf(link);
   const running = inflight.get(key);

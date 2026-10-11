@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   type Basis,
+  SUMMARY_VERSION,
   checkIngestToken,
   parseSummary,
   saveSummary,
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
     basis,
     sources: basis === "other" && sources.length ? sources : undefined,
     altTried: true,
+    v: SUMMARY_VERSION,
   });
   return NextResponse.json({ ok: true, unreadable: parsed.bullets.length === 0 });
 }
