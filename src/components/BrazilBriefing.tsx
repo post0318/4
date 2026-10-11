@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { NewsSummaryModal, type SummaryTarget } from "@/components/NewsSummaryModal";
 
 interface NewsItem {
   titleKo: string;
   titlePt: string;
   translationOk: boolean;
-  note?: string | null;
-  ai?: boolean;
+  sig?: string;
   link: string;
   category: string;
   publishedAt: string;
@@ -89,38 +89,46 @@ function LocalNewsList({ items }: { items: LocalNewsItem[] }) {
   );
 }
 
+/** 글로벌 뉴스 — 제목을 누르면 요약 팝업(한글 제목·요약·원문 링크) */
 function NewsList({ items }: { items: NewsItem[] }) {
+  const [open, setOpen] = useState<SummaryTarget | null>(null);
+  const close = useCallback(() => setOpen(null), []);
   return (
-    <ul className="space-y-2">
-      {items.map((n, i) => (
-        <li key={`${i}-${n.link}`} className="text-xs">
-          <a
-            href={n.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400"
-          >
-            {n.titleKo}
-          </a>
-          {!n.translationOk && (
-            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-              번역 불확실
-            </span>
-          )}
-          {n.note && (
-            <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-              {n.note}
+    <>
+      {open && <NewsSummaryModal target={open} onClose={close} />}
+      <ul className="space-y-2">
+        {items.map((n, i) => (
+          <li key={`${i}-${n.link}`} className="text-xs">
+            <button
+              type="button"
+              onClick={() =>
+                setOpen({
+                  link: n.link,
+                  sig: n.sig,
+                  title: n.titlePt,
+                  titleKo: n.titleKo,
+                  source: n.source,
+                })
+              }
+              className="text-left font-medium text-zinc-800 hover:text-blue-600 hover:underline dark:text-zinc-100 dark:hover:text-blue-400"
+            >
+              {n.titleKo}
+            </button>
+            {!n.translationOk && (
+              <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                번역 불확실
+              </span>
+            )}
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
+                {n.category}
+              </span>{" "}
+              {n.source} · {relTime(n.publishedAt)}
             </p>
-          )}
-          <p className="mt-0.5 text-[11px] text-zinc-400">
-            <span className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
-              {n.category}
-            </span>{" "}
-            {n.source} · {relTime(n.publishedAt)}
-          </p>
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -397,9 +405,7 @@ export function BrazilBriefing() {
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             브라질 관련 글로벌 뉴스{" "}
             <span className="text-[11px] font-normal text-zinc-400">
-              {global?.some((n) => n.ai)
-                ? "(영문 · AI 번역·해설, 제목 기준)"
-                : "(영문 · 자동 번역)"}
+              (영문 · 자동 번역 · 제목을 누르면 요약)
             </span>
           </h2>
           {!global && (

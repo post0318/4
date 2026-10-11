@@ -4,14 +4,13 @@ import { fetchBomDiaNews } from "@/lib/server/bomDiaNews";
 
 // 30분마다 재검증
 export const revalidate = 1800;
-// Gemini(최대 12s) 실패 시 무료 번역(최대 7s)까지 이어질 수 있어 여유 있게
-export const maxDuration = 30;
+// 번역(무인증 Google/MyMemory)이 느려질 수 있어 여유 있게
+export const maxDuration = 25;
 
 /**
  * 브라질 현지 뉴스 + 브라질 관련 글로벌 뉴스.
  * - items: 좋은아침뉴스(상파울루 한인신문)가 한국어로 취재한 현지 뉴스. 번역 없음.
- * - global: 브라질 관련 영문 뉴스, Gemini 제목 번역 + 한 줄 해설(실패 시 무료
- *   자동 번역). 현지 뉴스 건수의 약 1.4배
+ * - global: 브라질 관련 영문 뉴스, 제목 자동 번역(+ 클릭 요약용 sig). 현지 뉴스 건수의 약 1.4배
  *   (현지 5건이면 7건), 최소 5건·최대 9건.
  *
  * 한쪽이 실패해도 다른 쪽은 내보낸다.

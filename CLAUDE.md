@@ -119,10 +119,17 @@ R$1,000)을 산출해, 확인 체크 후 주문 이메일을 발송한다. 정�
   세제·물가·무역·신용등급·정치 등)에 걸리는 글만 통과 → 관련 글이 적으면 5건
   미만. + 브라질 관련 글로벌 영문 뉴스(Google 뉴스,
   `GLOBAL_OFF_TOPIC`로 AI·스트리밍·스포츠·연예 제외, 현지의 ~1.4배·5~9건).
-  글로벌 제목은 Gemini 번역 + 한 줄 해설(`newsDigest.ts`, 제목 기준 — 본문 없음).
-  기사(제목 해시)별로 Redis `news:ai:`(14일)에 저장해 새 기사만 호출한다. 키는
-  위클리 앱(post0318/5)과 같은 `GEMINI_API_KEY`(오너 결정 2026-10-11), 없거나
-  실패하면 무료 자동 번역으로 폴백. 30m 재검증
+  목록 제목은 무료 자동 번역(유료 API 없음). 30m 재검증
+- 글로벌 뉴스 **클릭 요약 팝업** — **비용 0 원칙**(오너 지시 2026-10-11). 제목을 누르면
+  `NewsSummaryModal` 이 `/api/news-summary` 에서 저장된 한글 제목 + 요약 3~5줄 + 원문
+  링크를 받는다. 저장소 Redis `news:sum:`(14일, `src/lib/server/newsSummary.ts`).
+  요약을 만드는 주 경로는 **오라클 서버 스케줄러**(B): `scripts/oracle-news-summary.mjs`
+  가 10분마다 `/api/news-summary/pending`(요약 안 된 기사 + 원문 본문 입력문) →
+  Gemini CLI(정액 구독) → `/api/news-summary/ingest`. 두 API 는 `NEWS_INGEST_TOKEN`
+  Bearer. 원문은 Google 뉴스 링크를 batchexecute 로 디코딩해 `<p>` 본문을 뽑는다
+  (`newsArticle.ts`, 유료벽·403 이면 모델이 링크를 직접 읽음). 보조 경로(A): 사이트에
+  `GEMINI_API_KEY` 가 있으면 저장본이 없을 때 클릭 시 생성 — **결제 미연결 무료 키만**
+  (위클리 앱 키는 크레딧 결제라 금지), 목록 서명(sig)·하루 상한 50
 - `src/app/api/br-daily-report` — 한국브라질소사이어티(KOBRAS) 「브라질 데일리
   리포트」 최신호. 네이버 블로그 `dari0202` RSS에서 최신 글을 찾아 PostView 본문의
   [KOBRAS Daily Brief](핵심 분석) 섹션만 파싱. 1h 재검증

@@ -1,10 +1,12 @@
 import "server-only";
 
 /**
- * Gemini API(REST) 최소 클라이언트 — 글로벌 뉴스 제목 번역·해설 전용. SDK 없이 fetch 한 번.
- * 키는 위클리 앱(post0318/5)과 같은 GEMINI_API_KEY 를 쓴다(오너 결정 2026-10-11 —
- * 같은 프로젝트 크레딧을 나눠 씀). 모델은 GEMINI_MODEL 로 교체 가능.
- * 실패하면 예외 — 호출 쪽이 무료 번역으로 폴백한다.
+ * Gemini API(REST) 최소 클라이언트 — 글로벌 뉴스 클릭 요약 전용. SDK 없이 fetch 한 번.
+ *
+ * **비용 0 원칙**(오너 지시 2026-10-11): GEMINI_API_KEY 는 결제(Billing)를 연결하지
+ * 않은 Google 프로젝트의 무료 키여야 한다. 그런 키는 한도를 넘으면 429 로 거절될 뿐
+ * 청구되지 않는다. 위클리 앱(post0318/5)의 키는 크레딧 결제가 붙어 있어 쓰지 않는다.
+ * 모델은 GEMINI_MODEL 로 교체 가능.
  */
 
 const DEFAULT_MODEL = "gemini-3.8-flash";
@@ -15,6 +17,14 @@ export function isGeminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
+/** 무료 한도 초과(429) — 화면에 "지금은 요약 불가" 로 보여준다 */
+export class GeminiQuotaError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GeminiQuotaError";
+  }
+}
+
 interface RawResponse {
   candidates?: {
     content?: { parts?: { text?: string; thought?: boolean }[] };
@@ -23,11 +33,12 @@ interface RawResponse {
   error?: { message?: string; status?: string };
 }
 
-/** JSON 응답을 강제해 텍스트로 돌려준다. 파싱은 호출 쪽에서. */
-export async function geminiJson(opts: {
+export async function geminiText(opts: {
   system: string;
   user: string;
   timeoutMs: number;
+  /** 모델이 user 안의 URL 을 직접 읽게 한다(url_context 도구) */
+  readUrls?: boolean;
 }): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY 미설정");
@@ -39,20 +50,18 @@ export async function geminiJson(opts: {
   for (const model of chain) {
     const left = deadline - Date.now();
     if (left <= 0) break;
+    const payload: Record<string, unknown> = {
+      systemInstruction: { parts: [{ text: opts.system }] },
+      contents: [{ role: "user", parts: [{ text: opts.user }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 8000 },
+    };
+    if (opts.readUrls) payload.tools = [{ url_context: {} }];
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: opts.system }] },
-          contents: [{ role: "user", parts: [{ text: opts.user }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 8000,
-            responseMimeType: "application/json",
-          },
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(left),
       }
     );
@@ -60,6 +69,9 @@ export async function geminiJson(opts: {
     if (res.status === 404 || body.error?.status === "NOT_FOUND") {
       lastErr = `${model}: ${body.error?.message ?? "not found"}`;
       continue;
+    }
+    if (res.status === 429) {
+      throw new GeminiQuotaError(`Gemini ${model} 429: ${body.error?.message ?? "quota"}`);
     }
     if (!res.ok) {
       throw new Error(`Gemini ${model} ${res.status}: ${body.error?.message ?? "unknown"}`);
