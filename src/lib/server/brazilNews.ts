@@ -111,7 +111,7 @@ const GLOBAL_OFF_TOPIC =
   /openai|chatgpt|\bllm\b|generative ai|data ?cent(er|re)|streaming|netflix|spotify|tiktok|world cup|olympics?|neymar|\bfootball\b|\bsoccer\b|carnival|celebrity|wedding|married|box office|\bfilm\b|\bmovie\b/i;
 
 /**
- * 브라질 관련 글로벌(영문) 뉴스 상위 N개. Google 뉴스 영문 검색 피드는 보도량
+ * 브라질 관련 글로벌(영문) 뉴스 N개 — 최근 3일 우선, 화면은 최신순. Google 뉴스 영문 검색 피드는 보도량
  * 기준으로 정렬되므로 "글로벌 상위"에 가깝다. 제목은 무료 en→ko 번역(유료 API 없음).
  * 기사를 누르면 화면이 /api/news-summary 로 한글 제목·요약을 받아 팝업에 띄운다.
  */
@@ -131,17 +131,25 @@ export async function pickGlobalBrazilNews(limit: number): Promise<RawItem[]> {
     "글로벌"
   );
   const seen = new Set<string>();
-  const picked: RawItem[] = [];
+  const candidates: RawItem[] = [];
   for (const it of list) {
     if (NOISE.test(it.title) || GLOBAL_OFF_TOPIC.test(it.title)) continue;
     const tkey = it.title.toLowerCase().slice(0, 40);
     if (seen.has(tkey)) continue;
     seen.add(tkey);
-    picked.push(it);
-    if (picked.length >= limit) break;
+    candidates.push(it);
   }
+  // Google 관련성 순서는 유지해 고르되 최근 RECENT_DAYS 이내를 먼저, 모자라면 오래된 것으로
+  // 채운 뒤 화면에는 최신순(오너 지시 2026-10-11 — 관련성 순 그대로면 날짜가 뒤죽박죽)
+  const cutoff = Date.now() - RECENT_DAYS * 86_400_000;
+  const isRecent = (it: RawItem) => new Date(it.publishedAt).getTime() >= cutoff;
+  const picked = [...candidates.filter(isRecent), ...candidates.filter((it) => !isRecent(it))]
+    .slice(0, limit)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   return picked;
 }
+
+const RECENT_DAYS = 3;
 
 /**
  * 제목을 번역·검증한다. 무인증 Google 엔드포인트가 rate limit(429)에 걸리면
