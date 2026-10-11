@@ -232,11 +232,11 @@ function DailyReportCard({ report }: { report: DailyReport }) {
           {report.brief.map((t, i) => (
             <div key={i}>
               {t.headline && (
-                <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {t.headline}
                 </p>
               )}
-              <ul className="mt-1 space-y-1">
+              <ul className="mt-1.5 space-y-1">
                 {t.bullets.map((b, j) => (
                   <li
                     key={j}
