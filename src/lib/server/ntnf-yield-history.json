@@ -1,7 +1,7 @@
 {
   "label": "브라질 국채금리 (NTN-F ~10년, 중간값)",
   "asOfDate": "2026-10-09",
-  "csvAsOfDate": "2026-10-08",
+  "csvAsOfDate": "2026-10-09",
   "anbimaDates": [
     "2026-09-11",
     "2026-09-14",
@@ -25,15 +25,10 @@
     "2026-10-08",
     "2026-10-09"
   ],
-  "generatedAt": "2026-10-10T01:35:55.145Z",
+  "generatedAt": "2026-10-11T00:45:50.744Z",
   "source": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "note": "매 영업일 만기가 (해당일+10년)에 가장 가까운 NTN-F의 중간값. ANBIMA 기관 지표(종가, src:anbima) > CSV (Taxa Compra+Taxa Venda)/2(오전 호가) > 실시간 임시(live:true, 확정 자료가 올라오면 교체)",
   "points": [
-    {
-      "date": "2019-10-10",
-      "ytm": 6.91,
-      "maturityYear": 2029
-    },
     {
       "date": "2019-10-11",
       "ytm": 6.83,
