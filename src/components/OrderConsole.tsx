@@ -598,7 +598,8 @@ export function OrderConsole({
           {!isSharedLink && !hideTrading && <ShareLinkButton value={cfInput} />}
           {/* 고객 화면엔 계정 정보를 띄우지 않는다 — 사내 직원이 링크를 열어 보거나
               캡처할 때 자기 이메일이 같이 찍힌다 */}
-          {auth.enabled && auth.isSignedIn && !hideTrading && (
+          {/* 계정 메뉴(이메일·승인 관리·로그아웃)는 트레이딩 스위치와 무관 — 고객 모드만 숨김 */}
+          {auth.enabled && auth.isSignedIn && !clientMode && (
             <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
               <span className="hidden sm:inline">{auth.email}</span>
               {/* 아바타 클릭 → 계정 관리(비밀번호 변경)·로그아웃. 관리자에겐 「승인 관리」 추가 */}
